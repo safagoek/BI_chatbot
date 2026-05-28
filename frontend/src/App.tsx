@@ -205,65 +205,104 @@ export const App: React.FC = () => {
     event.currentTarget.setPointerCapture(event.pointerId);
   };
 
-  // Build the Material UI custom theme synchronized with our active variables
+  // Build the Material UI custom theme synchronized with Fluent Design 2 tokens
   const muiTheme = React.useMemo(() => {
+    const isDark = theme === 'dark';
     return createTheme({
       palette: {
         mode: theme,
         primary: {
-          main: '#1a73e8', // Google Blue
+          main: '#0078d4',          // Fluent Communication Blue
+          light: '#60cdff',
+          dark: '#005a9e',
+          contrastText: '#ffffff',
         },
         background: {
-          default: theme === 'dark' ? '#121212' : '#f8f9fa',
-          paper: theme === 'dark' ? '#1e1e1e' : '#ffffff',
+          default: isDark ? '#141414' : '#f3f2f1',  // Fluent Ground
+          paper:   isDark ? '#1c1c1c' : '#ffffff',  // Fluent Layer
         },
         text: {
-          primary: theme === 'dark' ? '#e8eaed' : '#202124',
-          secondary: theme === 'dark' ? '#9aa0a6' : '#5f6368',
+          primary:   isDark ? '#ffffff' : '#201f1e',
+          secondary: isDark ? 'rgba(255,255,255,0.7844)' : 'rgba(32,31,30,0.7827)',
         },
-        divider: theme === 'dark' ? '#3c4043' : '#dadce0',
+        divider: isDark ? 'rgba(255,255,255,0.0837)' : 'rgba(0,0,0,0.0824)',
+        error:   { main: isDark ? '#d13438' : '#a4262c' },
+        success: { main: isDark ? '#54b054' : '#107c10' },
+        warning: { main: isDark ? '#ffb900' : '#986f0b' },
       },
       typography: {
-        fontFamily: "'Outfit', 'Roboto', 'Segoe UI', sans-serif",
+        fontFamily: "'Segoe UI Variable', 'Segoe UI', 'Inter', system-ui, sans-serif",
         fontSize: 13,
         button: {
-          textTransform: 'none',
+          textTransform: 'none',    // Fluent: Sentence case
           fontWeight: 600,
+          letterSpacing: 0,
         },
       },
       shape: {
-        borderRadius: 8,
+        borderRadius: 4,            // Fluent: Small radius (4px base)
       },
       components: {
         MuiDialog: {
           styleOverrides: {
             paper: {
-              backgroundImage: 'none', // Remove default linear overlay
-              border: `1px solid ${theme === 'dark' ? '#3c4043' : '#dadce0'}`,
-              boxShadow: theme === 'dark' ? '0 12px 40px rgba(0,0,0,0.6)' : '0 8px 30px rgba(0,0,0,0.1)',
+              backgroundImage: 'none',
+              backgroundColor: isDark ? '#1c1c1c' : '#ffffff',
+              border: `1px solid ${isDark ? 'rgba(255,255,255,0.0837)' : 'rgba(0,0,0,0.0824)'}`,
+              boxShadow: isDark
+                ? '0 28px 56px rgba(0,0,0,0.58), 0 0px 4px rgba(0,0,0,0.14)'
+                : '0 16px 32px rgba(0,0,0,0.14), 0 0px 2px rgba(0,0,0,0.06)',
+              borderRadius: 8,
             }
           }
         },
         MuiCard: {
           styleOverrides: {
             root: {
-              border: `1px solid ${theme === 'dark' ? '#3c4043' : '#dadce0'}`,
               backgroundImage: 'none',
-              boxShadow: 'none',
+              backgroundColor: isDark ? '#242424' : '#ffffff',
+              border: `1px solid ${isDark ? 'rgba(255,255,255,0.0837)' : 'rgba(0,0,0,0.0824)'}`,
+              boxShadow: '0 2px 4px rgba(0,0,0,0.14)',
+              borderRadius: 8,
             }
           }
         },
         MuiTextField: {
-          defaultProps: {
-            size: 'small',
+          defaultProps: { size: 'small' },
+          styleOverrides: {
+            root: {
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 4,
+                backgroundColor: isDark ? '#242424' : '#f5f5f5',
+                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                  borderColor: '#0078d4',
+                  borderWidth: '1px',
+                },
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: isDark ? 'rgba(255,255,255,0.0837)' : 'rgba(0,0,0,0.0824)',
+                }
+              }
+            }
           }
         },
         MuiButton: {
           styleOverrides: {
             root: {
-              borderRadius: 6,
+              borderRadius: 4,
               padding: '6px 16px',
+              boxShadow: 'none',
+              '&:hover': { boxShadow: 'none' },
+            },
+            contained: {
+              '&:hover': {
+                backgroundColor: '#106ebe',
+              }
             }
+          }
+        },
+        MuiAlert: {
+          styleOverrides: {
+            root: { borderRadius: 4 }
           }
         }
       }
@@ -315,44 +354,52 @@ export const App: React.FC = () => {
           fullWidth
           aria-labelledby="settings-dialog-title"
         >
-          {/* Header */}
+          {/* Fluent Command Bar Header */}
           <DialogTitle
             id="settings-dialog-title"
             sx={{
-              p: 2.5,
+              p: 0,
               borderBottom: '1px solid',
               borderColor: 'divider',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              bgcolor: theme === 'dark' ? 'rgba(26, 115, 232, 0.05)' : 'rgba(26, 115, 232, 0.02)'
+              minHeight: 48,
+              px: 2.5,
+              bgcolor: theme === 'dark' ? '#1c1c1c' : '#ffffff',
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, selectNone: 'none' }}>
-              <Box sx={{ width: 36, height: 36, borderRadius: '8px', bgcolor: 'rgba(26, 115, 232, 0.1)', border: '1px solid rgba(26, 115, 232, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1a73e8' }}>
-                <Settings size={18} />
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Box sx={{
+                width: 32, height: 32, borderRadius: '4px',
+                bgcolor: 'rgba(0, 120, 212, 0.1)',
+                border: '1px solid rgba(0, 120, 212, 0.25)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: '#0078d4'
+              }}>
+                <Settings size={16} />
               </Box>
               <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 800, fontSize: 13, textTransform: 'uppercase', tracking: '-0.01em', m: 0 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: 13, m: 0, letterSpacing: '-0.01em' }}>
                   {t.llmSettingsTitle}
                 </Typography>
-                <Typography variant="caption" sx={{ fontSize: 9, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', fontWeight: 'bold' }}>
+                <Typography variant="caption" sx={{ fontSize: 10, color: 'text.secondary', letterSpacing: 0 }}>
                   {t.llmSettingsSubtitle}
                 </Typography>
               </Box>
             </Box>
-            <IconButton onClick={() => setShowSettings(false)} size="small" sx={{ color: 'text.secondary' }}>
+            <IconButton onClick={() => setShowSettings(false)} size="small" sx={{ color: 'text.secondary', borderRadius: '4px' }}>
               <X size={15} />
             </IconButton>
           </DialogTitle>
 
           <DialogContent sx={{ p: 0, display: 'flex', minHeight: 480, height: 480, overflow: 'hidden' }}>
-            {/* Left Pane - Preset Provider Cards */}
-            <Box sx={{ width: '40%', borderRight: '1px solid', borderColor: 'divider', bgcolor: theme === 'dark' ? 'rgba(26, 115, 232, 0.02)' : 'rgba(26, 115, 232, 0.01)', p: 3, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {/* Left Pane - Fluent Provider Selection */}
+            <Box sx={{ width: '40%', borderRight: '1px solid', borderColor: 'divider', bgcolor: theme === 'dark' ? '#141414' : '#f3f2f1', p: 2.5, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
               <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em' }}>
                 {t.engineSelection}
               </Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                 {presets.map((p) => {
                   const isActivePreset = selectedPreset === p.value;
                   return (
@@ -361,28 +408,34 @@ export const App: React.FC = () => {
                       onClick={() => handlePresetChange(p.value)}
                       sx={{
                         cursor: 'pointer',
-                        borderColor: isActivePreset ? '#1a73e8' : 'divider',
-                        bgcolor: isActivePreset ? 'rgba(26, 115, 232, 0.08)' : 'background.paper',
-                        boxShadow: isActivePreset ? '0 0 12px rgba(26, 115, 232, 0.15)' : 'none',
-                        transition: 'all 0.2s',
-                        borderRadius: '10px',
+                        borderColor: isActivePreset ? '#0078d4' : 'divider',
+                        bgcolor: isActivePreset
+                          ? 'rgba(0, 120, 212, 0.1)'
+                          : (theme === 'dark' ? '#242424' : '#ffffff'),
+                        boxShadow: isActivePreset ? '0 2px 4px rgba(0,0,0,0.18)' : 'none',
+                        transition: 'all 0.1s cubic-bezier(0.1, 0.9, 0.2, 1)',
+                        borderRadius: '4px',
+                        borderWidth: isActivePreset ? '1.5px' : '1px',
                         '&:hover': {
-                          bgcolor: isActivePreset ? 'rgba(26, 115, 232, 0.12)' : 'action.hover',
+                          bgcolor: isActivePreset
+                            ? 'rgba(0, 120, 212, 0.14)'
+                            : (theme === 'dark' ? '#2c2c2c' : '#f5f5f5'),
+                          borderColor: isActivePreset ? '#0078d4' : 'rgba(0,120,212,0.2)',
                         }
                       }}
                     >
-                      <CardActionArea sx={{ p: 2, display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
-                        <Typography sx={{ fontSize: 13, color: '#1a73e8', mt: 0.2, userSelect: 'none' }}>{p.icon}</Typography>
+                      <CardActionArea sx={{ p: 1.5, display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+                        <Typography sx={{ fontSize: 12, color: '#0078d4', mt: 0.2, userSelect: 'none' }}>{p.icon}</Typography>
                         <Box sx={{ flex: 1, minWidth: 0 }}>
                           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', userSelect: 'none' }}>
-                            <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: 11.5 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 600, fontSize: 11.5, letterSpacing: 0 }}>
                               {p.label}
                             </Typography>
                             {isActivePreset && (
-                              <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: 'success.main' }} />
+                              <Box sx={{ width: 7, height: 7, borderRadius: '2px', bgcolor: '#0078d4' }} />
                             )}
                           </Box>
-                          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: 9.5, mt: 0.5, display: 'block', lineHeight: 1.3 }}>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: 9.5, mt: 0.3, display: 'block', lineHeight: 1.4 }}>
                             {p.desc}
                           </Typography>
                         </Box>
@@ -430,8 +483,8 @@ export const App: React.FC = () => {
                 </Box>
 
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5, display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <Key size={11} style={{ color: '#1a73e8' }} />
+                  <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', mb: 0.5, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Key size={11} style={{ color: '#0078d4' }} />
                     {t.apiKeyLabel}
                   </Typography>
                   <TextField
@@ -486,19 +539,19 @@ export const App: React.FC = () => {
                   </Typography>
                 </Box>
 
-                <Box sx={{ pt: 2, display: 'flex', gap: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
+                <Box sx={{ pt: 2, display: 'flex', gap: 1, borderTop: '1px solid', borderColor: 'divider' }}>
                   <Button
                     onClick={handleTestConnection}
                     disabled={isTesting || !baseUrl}
                     variant="outlined"
-                    sx={{ flex: 1, fontSize: 11, color: 'text.primary', borderColor: 'divider', borderRadius: '8px', py: 1 }}
+                    sx={{ flex: 1, fontSize: 11, borderRadius: '4px', py: 0.8, borderColor: 'divider', color: 'text.primary' }}
                   >
-                    {isTesting ? <CircularProgress size={14} color="inherit" /> : t.testBtn}
+                    {isTesting ? <CircularProgress size={13} color="inherit" /> : t.testBtn}
                   </Button>
                   <Button
                     onClick={() => setShowSettings(false)}
                     variant="outlined"
-                    sx={{ flex: 1, fontSize: 11, color: 'text.primary', borderColor: 'divider', borderRadius: '8px', py: 1 }}
+                    sx={{ flex: 1, fontSize: 11, borderRadius: '4px', py: 0.8, borderColor: 'divider', color: 'text.primary' }}
                   >
                     {t.closeBtn}
                   </Button>
@@ -506,8 +559,12 @@ export const App: React.FC = () => {
                     type="submit"
                     variant="contained"
                     sx={{
-                      flex: 2, fontSize: 11, bgcolor: '#1a73e8', '&:hover': { bgcolor: '#1557b0' },
-                      fontWeight: 'bold', color: '#ffffff', borderRadius: '8px', py: 1
+                      flex: 2, fontSize: 11,
+                      bgcolor: '#0078d4',
+                      '&:hover': { bgcolor: '#106ebe' },
+                      '&:active': { bgcolor: '#005a9e' },
+                      fontWeight: 600, color: '#ffffff',
+                      borderRadius: '4px', py: 0.8
                     }}
                   >
                     {saveOk ? t.savedBtn : t.applyBtn}
@@ -537,28 +594,35 @@ export const App: React.FC = () => {
           aria-labelledby="sources-dialog-title"
           scroll="paper"
         >
-          {/* Header */}
+          {/* Fluent Command Bar Header */}
           <DialogTitle
             id="sources-dialog-title"
             sx={{
-              p: 2.5,
+              p: 0, px: 2.5,
               borderBottom: '1px solid',
               borderColor: 'divider',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              bgcolor: theme === 'dark' ? 'rgba(26, 115, 232, 0.05)' : 'rgba(26, 115, 232, 0.02)'
+              minHeight: 48,
+              bgcolor: theme === 'dark' ? '#1c1c1c' : '#ffffff',
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, selectNone: 'none' }}>
-              <Box sx={{ width: 36, height: 36, borderRadius: '8px', bgcolor: 'rgba(26, 115, 232, 0.1)', border: '1px solid rgba(26, 115, 232, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1a73e8' }}>
-                <HardDrive size={18} />
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Box sx={{
+                width: 32, height: 32, borderRadius: '4px',
+                bgcolor: 'rgba(0, 120, 212, 0.1)',
+                border: '1px solid rgba(0, 120, 212, 0.25)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: '#0078d4'
+              }}>
+                <HardDrive size={16} />
               </Box>
               <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 800, fontSize: 13, textTransform: 'uppercase', tracking: '-0.01em', m: 0 }}>
-                  {language === 'tr' ? 'Veri Kaynağı Kurulum & Kontrol Paneli' : 'Data Source Config & Control Panel'}
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: 13, m: 0, letterSpacing: '-0.01em' }}>
+                  {language === 'tr' ? 'Veri Kaynakları' : 'Data Sources'}
                 </Typography>
-                <Typography variant="caption" sx={{ fontSize: 9, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', fontWeight: 'bold' }}>
+                <Typography variant="caption" sx={{ fontSize: 10, color: 'text.secondary', letterSpacing: 0 }}>
                   {language === 'tr' ? 'DeepBI Birleşik Veri Merkezi' : 'DeepBI Unified Data Hub'}
                 </Typography>
               </Box>
@@ -570,13 +634,13 @@ export const App: React.FC = () => {
                 fetchFiles();
               }}
               size="small"
-              sx={{ color: 'text.secondary' }}
+              sx={{ color: 'text.secondary', borderRadius: '4px' }}
             >
               <X size={15} />
             </IconButton>
           </DialogTitle>
 
-          <DialogContent sx={{ p: 0, bgcolor: theme === 'dark' ? 'rgba(18, 18, 18, 0.95)' : 'rgba(255, 255, 255, 0.95)', maxH: '80vh' }}>
+          <DialogContent sx={{ p: 0, bgcolor: theme === 'dark' ? '#141414' : '#f3f2f1', maxH: '80vh' }}>
             <SourceManager />
           </DialogContent>
         </Dialog>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { useBIStore, BACKEND_BASE, type JoinRelation } from '../context/store';
 import { translations } from '../context/translations';
 import {
@@ -14,17 +14,17 @@ import {
 
 // Autocomplete commands defined dynamically inside ChatConsole component
 
-/* ── Extract KPI metrics from markdown text ── */
+/* â”€â”€ Extract KPI metrics from markdown text â”€â”€ */
 const extractKPIs = (text: string) => {
   const kpis: { label: string; value: string }[] = [];
-  const re = /(?:toplam|ortalama|en yüksek|tahmin edilen|beklenen)?\s*\**([a-zA-Z0-9_ğüşöçİĞÜŞÖÇ\s\-]{3,30})\**\s*(?:değeri)?:\s*\*\*(.*?)\*\*/gi;
+  const re = /(?:toplam|ortalama|en yÃ¼ksek|tahmin edilen|beklenen)?\s*\**([a-zA-Z0-9_ÄŸÃ¼ÅŸÃ¶Ã§Ä°ÄÃœÅÃ–Ã‡\s\-]{3,30})\**\s*(?:deÄŸeri)?:\s*\*\*(.*?)\*\*/gi;
   let m;
   const tempText = text;
   while ((m = re.exec(tempText)) !== null) {
     if (m[1] && m[2]) {
       const label = m[1].trim();
       const value = m[2].trim();
-      if (/[\d\%\$\€\£\.\,]+/.test(value) && label.length < 35 && value.length < 25) {
+      if (/[\d\%\$\â‚¬\Â£\.\,]+/.test(value) && label.length < 35 && value.length < 25) {
         kpis.push({ label, value });
       }
     }
@@ -32,7 +32,7 @@ const extractKPIs = (text: string) => {
   return kpis.slice(0, 3);
 };
 
-/* ── Simple Python & SQL Syntax Highlighter ── */
+/* â”€â”€ Simple Python & SQL Syntax Highlighter â”€â”€ */
 const highlightCode = (code: string, lang: 'python' | 'sql' | string) => {
   if (!code) return '';
   const escaped = code
@@ -81,7 +81,7 @@ const highlightCode = (code: string, lang: 'python' | 'sql' | string) => {
 };
 
 
-/* ── Minimal markdown renderer ── */
+/* â”€â”€ Minimal markdown renderer â”€â”€ */
 const renderText = (text: string = '') =>
   text.split('\n').map((line, i) => {
     const bold = (s: string) => {
@@ -162,18 +162,18 @@ export const ChatConsole: React.FC = () => {
   };
 
   const commands = React.useMemo(() => [
-    { cmd: '/graph', desc: language === 'tr' ? 'Plotly ile etkileşimli veri görselleştirme grafiği çizdirin' : 'Draw an interactive data visualization chart with Plotly', template: '/graph ' },
+    { cmd: '/graph', desc: language === 'tr' ? 'Plotly ile etkileÅŸimli veri gÃ¶rselleÅŸtirme grafiÄŸi Ã§izdirin' : 'Draw an interactive data visualization chart with Plotly', template: '/graph ' },
     { cmd: '/ask', desc: language === 'tr' ? 'Genel sorular sorabilirsiniz' : 'You can ask general questions', template: '/ask ' },
-    { cmd: '/ml', desc: language === 'tr' ? 'Python ML sandbox ortamında tahminleme ve modelleme koşturun' : 'Run forecasting and modeling in the Python ML sandbox environment', template: '/ml' },
-    { cmd: '/table', desc: language === 'tr' ? 'Sorguları tablo formatında temiz veri listesi halinde getirin' : 'Get queries in tabular format as a clean data list', template: '/table' },
-    { cmd: '/sqlquery', desc: language === 'tr' ? 'DuckDB/Veritabanı üzerinde doğrudan SQL sorgusu çalıştırın' : 'Execute SQL queries directly on DuckDB/Database', template: '/sqlquery ' },
-    { cmd: '/pythonscript', desc: language === 'tr' ? 'Sandbox üzerinde özel Python/Pandas veri işleme betiği çalıştırın' : 'Run custom Python/Pandas data processing scripts in sandbox', template: '/pythonscript' },
-    { cmd: '/explain', desc: language === 'tr' ? 'Seçili veri kümesinin şemasını, özet istatistiklerini ve alan açıklamalarını analiz edip açıklayın' : 'Analyze and explain the active dataset\'s schema, summary statistics, and column descriptions', template: '/explain' },
-    { cmd: '/forecast', desc: language === 'tr' ? 'Belirli bir sayısal kolon/metrik için zaman serisi tahmini ve trend projeksiyonu yapın' : 'Perform time-series forecasting and trend projection on a specific column/metric', template: '/forecast ' },
-    { cmd: '/clean', desc: language === 'tr' ? 'Eksik verileri (NULL), anormal aykırı değerleri (outliers) analiz edin ve temizleme önerileri sunun' : 'Analyze missing values (NULL), anomalies/outliers, and provide automated cleaning suggestions', template: '/clean' },
-    { cmd: '/pivot', desc: language === 'tr' ? 'Verileri gruplamak ve alt toplamlar oluşturmak için dinamik pivot analizi gerçekleştirin' : 'Perform dynamic pivot analysis to group data and generate sub-totals', template: '/pivot ' },
-    { cmd: '/corr', desc: language === 'tr' ? 'Sayısal değişkenler arasındaki korelasyon ilişkilerini ve istatistiksel bağımlılıkları hesaplayın' : 'Calculate correlation values and statistical dependencies between numerical columns', template: '/corr' },
-    { cmd: '/help', desc: language === 'tr' ? 'Analytics Studio analiz motoru kullanım rehberi ve gelişmiş prompt ipuçlarını görüntüleyin' : 'Display Analytics Studio analytics engine usage guide and advanced prompt engineering tips', template: '/help' }
+    { cmd: '/ml', desc: language === 'tr' ? 'Python ML sandbox ortamÄ±nda tahminleme ve modelleme koÅŸturun' : 'Run forecasting and modeling in the Python ML sandbox environment', template: '/ml' },
+    { cmd: '/table', desc: language === 'tr' ? 'SorgularÄ± tablo formatÄ±nda temiz veri listesi halinde getirin' : 'Get queries in tabular format as a clean data list', template: '/table' },
+    { cmd: '/sqlquery', desc: language === 'tr' ? 'DuckDB/VeritabanÄ± Ã¼zerinde doÄŸrudan SQL sorgusu Ã§alÄ±ÅŸtÄ±rÄ±n' : 'Execute SQL queries directly on DuckDB/Database', template: '/sqlquery ' },
+    { cmd: '/pythonscript', desc: language === 'tr' ? 'Sandbox Ã¼zerinde Ã¶zel Python/Pandas veri iÅŸleme betiÄŸi Ã§alÄ±ÅŸtÄ±rÄ±n' : 'Run custom Python/Pandas data processing scripts in sandbox', template: '/pythonscript' },
+    { cmd: '/explain', desc: language === 'tr' ? 'SeÃ§ili veri kÃ¼mesinin ÅŸemasÄ±nÄ±, Ã¶zet istatistiklerini ve alan aÃ§Ä±klamalarÄ±nÄ± analiz edip aÃ§Ä±klayÄ±n' : 'Analyze and explain the active dataset\'s schema, summary statistics, and column descriptions', template: '/explain' },
+    { cmd: '/forecast', desc: language === 'tr' ? 'Belirli bir sayÄ±sal kolon/metrik iÃ§in zaman serisi tahmini ve trend projeksiyonu yapÄ±n' : 'Perform time-series forecasting and trend projection on a specific column/metric', template: '/forecast ' },
+    { cmd: '/clean', desc: language === 'tr' ? 'Eksik verileri (NULL), anormal aykÄ±rÄ± deÄŸerleri (outliers) analiz edin ve temizleme Ã¶nerileri sunun' : 'Analyze missing values (NULL), anomalies/outliers, and provide automated cleaning suggestions', template: '/clean' },
+    { cmd: '/pivot', desc: language === 'tr' ? 'Verileri gruplamak ve alt toplamlar oluÅŸturmak iÃ§in dinamik pivot analizi gerÃ§ekleÅŸtirin' : 'Perform dynamic pivot analysis to group data and generate sub-totals', template: '/pivot ' },
+    { cmd: '/corr', desc: language === 'tr' ? 'SayÄ±sal deÄŸiÅŸkenler arasÄ±ndaki korelasyon iliÅŸkilerini ve istatistiksel baÄŸÄ±mlÄ±lÄ±klarÄ± hesaplayÄ±n' : 'Calculate correlation values and statistical dependencies between numerical columns', template: '/corr' },
+    { cmd: '/help', desc: language === 'tr' ? 'Analytics Studio analiz motoru kullanÄ±m rehberi ve geliÅŸmiÅŸ prompt ipuÃ§larÄ±nÄ± gÃ¶rÃ¼ntÃ¼leyin' : 'Display Analytics Studio analytics engine usage guide and advanced prompt engineering tips', template: '/help' }
   ], [language]);
 
   const filteredCommands = React.useMemo(() => {
@@ -276,7 +276,7 @@ export const ChatConsole: React.FC = () => {
 
   const srcLabel = React.useMemo(() => {
     const active = allSources.find(s => s.id === activeSourceId);
-    return active ? active.label : (language === 'tr' ? 'Veri Kaynağı' : 'Data Source');
+    return active ? active.label : (language === 'tr' ? 'Veri KaynaÄŸÄ±' : 'Data Source');
   }, [allSources, activeSourceId, language]);
 
 
@@ -417,10 +417,10 @@ export const ChatConsole: React.FC = () => {
         }
       } else {
         const errText = await res.text();
-        setExecutionError(errText || (language === 'tr' ? "Sunucu çalıştırma hatası." : "Server execution error."));
+        setExecutionError(errText || (language === 'tr' ? "Sunucu Ã§alÄ±ÅŸtÄ±rma hatasÄ±." : "Server execution error."));
       }
     } catch (e: any) {
-      setExecutionError(e.message || (language === 'tr' ? "Bilinmeyen bir hata oluştu." : "An unknown error occurred."));
+      setExecutionError(e.message || (language === 'tr' ? "Bilinmeyen bir hata oluÅŸtu." : "An unknown error occurred."));
     } finally {
       setIsExecutingCode(false);
     }
@@ -451,13 +451,13 @@ export const ChatConsole: React.FC = () => {
   return (
     <div className="flex flex-col bg-gh-bg overflow-hidden" style={{ flex: 1, height: '100vh' }}>
 
-      {/* ── Top bar ── */}
+      {/* â”€â”€ Top bar â”€â”€ */}
       <div
         className="flex items-center justify-between shrink-0 px-4 border-b border-gh-border"
         style={{ height: 48, background: 'var(--color-canvas)', borderBottom: '2px solid var(--color-border)' }}
       >
         <div className="flex items-center gap-2.5">
-          <span className="text-gh-accent font-mono font-bold" style={{ fontSize: 9 }}>›</span>
+          <span className="text-gh-accent font-mono font-bold" style={{ fontSize: 9 }}>â€º</span>
           <span className="text-xs font-mono font-bold text-gh-text tracking-tight truncate max-w-[340px]">
             {sessionTitle}
           </span>
@@ -485,7 +485,7 @@ export const ChatConsole: React.FC = () => {
         </button>
       </div>
 
-      {/* ── Çoklu Kaynak Seçim Çubuğu ── */}
+      {/* â”€â”€ Ã‡oklu Kaynak SeÃ§im Ã‡ubuÄŸu â”€â”€ */}
       <div className="border-b border-gh-border px-4 py-2" style={{ background: 'var(--color-surface)' }}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -525,8 +525,8 @@ export const ChatConsole: React.FC = () => {
                   <Layers className="w-5 h-5 text-gh-accent" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-gh-text">Çoklu Kaynak Seçimi ve İlişki Editörü</h3>
-                  <p className="text-[11px] text-gh-muted mt-0.5">Analiz edilecek veri kaynaklarını seçin ve aralarındaki tabloları ilişkilendirin.</p>
+                  <h3 className="text-sm font-semibold text-gh-text">Ã‡oklu Kaynak SeÃ§imi ve Ä°liÅŸki EditÃ¶rÃ¼</h3>
+                  <p className="text-[11px] text-gh-muted mt-0.5">Analiz edilecek veri kaynaklarÄ±nÄ± seÃ§in ve aralarÄ±ndaki tablolarÄ± iliÅŸkilendirin.</p>
                 </div>
               </div>
               <button
@@ -553,14 +553,14 @@ export const ChatConsole: React.FC = () => {
                           onClick={() => setSelectedSourceIds(allSources.map(s => s.id))}
                           className="text-[10px] text-gh-accent hover:underline bg-transparent border-none cursor-pointer"
                         >
-                          Tümünü Seç
+                          TÃ¼mÃ¼nÃ¼ SeÃ§
                         </button>
                         <span className="text-gh-border text-xs">|</span>
                         <button
                           onClick={() => setSelectedSourceIds([])}
                           className="text-[10px] text-gh-muted hover:underline bg-transparent border-none cursor-pointer"
                         >
-                          Seçimleri Temizle
+                          SeÃ§imleri Temizle
                         </button>
                       </div>
                     </div>
@@ -570,7 +570,7 @@ export const ChatConsole: React.FC = () => {
                       <input
                         value={sourceSearch}
                         onChange={(e) => setSourceSearch(e.target.value)}
-                        placeholder="Veri kaynaklarında ara..."
+                        placeholder="Veri kaynaklarÄ±nda ara..."
                         className="input pl-9 text-xs"
                         style={{ paddingTop: 8, paddingBottom: 8 }}
                       />
@@ -600,7 +600,7 @@ export const ChatConsole: React.FC = () => {
                             <div className="flex-1 min-w-0">
                               <div className="text-xs font-semibold text-gh-text truncate">{src.label}</div>
                               <div className="text-[10px] text-gh-muted mt-0.5">
-                                {src.type === 'file' ? 'CSV / Excel Dosyası' : `${src.type.toUpperCase()} Veritabanı`}
+                                {src.type === 'file' ? 'CSV / Excel DosyasÄ±' : `${src.type.toUpperCase()} VeritabanÄ±`}
                               </div>
                             </div>
 
@@ -613,7 +613,7 @@ export const ChatConsole: React.FC = () => {
                       })}
                       {visibleSources.length === 0 && (
                         <div className="col-span-2 text-center py-6 text-xs text-gh-muted">
-                          Arama kriterine uygun veri kaynağı bulunamadı.
+                          Arama kriterine uygun veri kaynaÄŸÄ± bulunamadÄ±.
                         </div>
                       )}
                     </div>
@@ -622,7 +622,7 @@ export const ChatConsole: React.FC = () => {
                   {/* Section 2: Relationship Builder */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between border-b border-gh-border pb-2">
-                      <span className="text-xs font-semibold text-gh-muted uppercase tracking-wider">2. Kaynaklar Arası İlişkiler (JOIN)</span>
+                      <span className="text-xs font-semibold text-gh-muted uppercase tracking-wider">2. Kaynaklar ArasÄ± Ä°liÅŸkiler (JOIN)</span>
                       <button
                         onClick={() => {
                           if (effectiveSourceIds.length < 1) return;
@@ -660,7 +660,7 @@ export const ChatConsole: React.FC = () => {
                         className="btn btn-primary text-[10px] py-1 px-3 flex items-center gap-1"
                       >
                         <Plus size={11} />
-                        İlişki Ekle
+                        Ä°liÅŸki Ekle
                       </button>
                     </div>
 
@@ -710,7 +710,7 @@ export const ChatConsole: React.FC = () => {
                             <div className="flex items-center justify-between mb-3 border-b border-gh-border/40 pb-1.5">
                               <span className="text-[10px] font-semibold text-gh-accent uppercase tracking-wider flex items-center gap-1.5">
                                 <GitCommit size={12} className="rotate-90" />
-                                İlişki #{idx + 1}
+                                Ä°liÅŸki #{idx + 1}
                               </span>
                               <button
                                 onClick={() => {
@@ -719,7 +719,7 @@ export const ChatConsole: React.FC = () => {
                                   setJoinRelations(next);
                                 }}
                                 className="p-1.5 rounded-lg text-gh-danger hover:bg-gh-danger/10 transition-colors cursor-pointer border border-transparent"
-                                title="İlişkiyi Kaldır"
+                                title="Ä°liÅŸkiyi KaldÄ±r"
                               >
                                 <Trash2 size={12} />
                               </button>
@@ -803,14 +803,14 @@ export const ChatConsole: React.FC = () => {
                                       setJoinRelations(next);
                                     }}
                                   >
-                                    <option value="">-- Kolon Seçin --</option>
+                                    <option value="">-- Kolon SeÃ§in --</option>
                                     {leftFileColumns.map(col => <option key={col} value={col}>{col}</option>)}
                                   </select>
                                 )}
                               </div>
 
                               <div className="md:col-span-3 text-center flex flex-col items-center justify-center space-y-2">
-                                <span className="text-[10px] font-semibold text-gh-muted">Bağlantı Türü</span>
+                                <span className="text-[10px] font-semibold text-gh-muted">BaÄŸlantÄ± TÃ¼rÃ¼</span>
                                 <div className="w-full flex items-center justify-center gap-1.5">
                                   <div className="h-[1px] bg-gh-border flex-1"></div>
                                   <select
@@ -833,7 +833,7 @@ export const ChatConsole: React.FC = () => {
                               </div>
 
                               <div className="md:col-span-3 space-y-2">
-                                <label className="block text-[10px] font-semibold text-gh-muted">Sağ Kaynak / Tablo ve Kolon</label>
+                                <label className="block text-[10px] font-semibold text-gh-muted">SaÄŸ Kaynak / Tablo ve Kolon</label>
                                 <select
                                   className="input text-xs py-1.5 bg-gh-bg border-gh-border rounded-md text-gh-text"
                                   value={rel.rightSourceId}
@@ -909,7 +909,7 @@ export const ChatConsole: React.FC = () => {
                                       setJoinRelations(next);
                                     }}
                                   >
-                                    <option value="">{language === 'tr' ? '-- Kolon Seçin --' : '-- Select Column --'}</option>
+                                    <option value="">{language === 'tr' ? '-- Kolon SeÃ§in --' : '-- Select Column --'}</option>
                                     {rightFileColumns.map(col => <option key={col} value={col}>{col}</option>)}
                                   </select>
                                 )}
@@ -922,8 +922,8 @@ export const ChatConsole: React.FC = () => {
                       {joinRelations.length === 0 && (
                         <div className="text-center py-8 rounded-xl border border-dashed border-gh-border bg-gh-surface/35">
                           <GitCommit size={24} className="mx-auto text-gh-faint mb-2" />
-                          <p className="text-xs text-gh-muted font-medium">{language === 'tr' ? 'Tanımlı ilişki bulunmuyor.' : 'No relationships defined.'}</p>
-                          <p className="text-[10px] text-gh-faint mt-1">{language === 'tr' ? 'Birden fazla kaynağı birleştirmek için yukarıdaki butondan ilişki ekleyebilirsiniz.' : 'You can add relationships from the button above to combine multiple sources.'}</p>
+                          <p className="text-xs text-gh-muted font-medium">{language === 'tr' ? 'TanÄ±mlÄ± iliÅŸki bulunmuyor.' : 'No relationships defined.'}</p>
+                          <p className="text-[10px] text-gh-faint mt-1">{language === 'tr' ? 'Birden fazla kaynaÄŸÄ± birleÅŸtirmek iÃ§in yukarÄ±daki butondan iliÅŸki ekleyebilirsiniz.' : 'You can add relationships from the button above to combine multiple sources.'}</p>
                         </div>
                       )}
                     </div>
@@ -940,7 +940,7 @@ export const ChatConsole: React.FC = () => {
                     </span>
                     {selectedCol && (
                       <span className="text-[9px] text-gh-accent font-bold font-mono animate-pulse bg-gh-accent-subtle px-2 py-0.5 rounded border border-gh-accent/20 flex items-center gap-1">
-                        <Link size={10} className="text-gh-accent shrink-0" /> {language === 'tr' ? 'Kolon Seçildi' : 'Column Selected'}: {selectedCol.columnName}
+                        <Link size={10} className="text-gh-accent shrink-0" /> {language === 'tr' ? 'Kolon SeÃ§ildi' : 'Column Selected'}: {selectedCol.columnName}
                       </span>
                     )}
                   </div>
@@ -977,7 +977,7 @@ export const ChatConsole: React.FC = () => {
                               const cy = (y1 + y2) / 2;
                               
                               const joinColors: Record<string, string> = {
-                                auto: '#1a73e8',
+                                auto: '#0078d4',
                                 inner: '#10b981',
                                 left: '#3b82f6',
                                 right: '#f59e0b',
@@ -1042,7 +1042,7 @@ export const ChatConsole: React.FC = () => {
                                         }}
                                         className="w-3.5 h-3.5 rounded bg-gh-danger-subtle hover:bg-gh-danger text-gh-danger hover:text-white flex items-center justify-center text-[9px] border-none outline-none cursor-pointer transition-all"
                                       >
-                                        ×
+                                        Ã—
                                       </button>
                                     </div>
                                   </foreignObject>
@@ -1063,8 +1063,8 @@ export const ChatConsole: React.FC = () => {
                           <div className="w-12 h-12 rounded-full border border-dashed border-gh-border flex items-center justify-center mb-3 animate-pulse">
                             <Layers className="w-5 h-5 text-gh-faint" />
                           </div>
-                          <p className="text-xs text-gh-muted font-medium">{language === 'tr' ? 'Görsel Şema Haritası Boş' : 'Visual Schema Map is Empty'}</p>
-                          <p className="text-[10px] text-gh-faint mt-1 max-w-[200px] leading-relaxed">{language === 'tr' ? 'Yukarıdan veri kaynaklarını seçin ve interaktif olarak tabloları ilişkilendirmek için kolonlara tıklayın.' : 'Select data sources from above and click on columns to link tables interactively.'}</p>
+                          <p className="text-xs text-gh-muted font-medium">{language === 'tr' ? 'GÃ¶rsel Åema HaritasÄ± BoÅŸ' : 'Visual Schema Map is Empty'}</p>
+                          <p className="text-[10px] text-gh-faint mt-1 max-w-[200px] leading-relaxed">{language === 'tr' ? 'YukarÄ±dan veri kaynaklarÄ±nÄ± seÃ§in ve interaktif olarak tablolarÄ± iliÅŸkilendirmek iÃ§in kolonlara tÄ±klayÄ±n.' : 'Select data sources from above and click on columns to link tables interactively.'}</p>
                         </div>
                       ) : (
                         <div className="grid grid-cols-2 gap-4 select-none relative">
@@ -1168,8 +1168,8 @@ export const ChatConsole: React.FC = () => {
                     
                     {/* Live indicator Footer */}
                     <div className="border-t border-gh-border/50 pt-2.5 mt-2.5 flex items-center justify-between text-[9px] text-gh-faint font-mono shrink-0 select-none">
-                      <span className="flex items-center gap-1.5"><Zap size={10} className="text-gh-accent shrink-0" /> {language === 'tr' ? 'Kolonları eşlemek için tıklayın' : 'Click on columns to link'}</span>
-                      <span>{joinRelations.length} {language === 'tr' ? 'Toplam Bağlantı' : 'Total Relations'}</span>
+                      <span className="flex items-center gap-1.5"><Zap size={10} className="text-gh-accent shrink-0" /> {language === 'tr' ? 'KolonlarÄ± eÅŸlemek iÃ§in tÄ±klayÄ±n' : 'Click on columns to link'}</span>
+                      <span>{joinRelations.length} {language === 'tr' ? 'Toplam BaÄŸlantÄ±' : 'Total Relations'}</span>
                     </div>
                   </div>
                 </div>
@@ -1190,7 +1190,7 @@ export const ChatConsole: React.FC = () => {
                   }}
                   className="btn btn-primary px-6 py-2 shadow font-semibold"
                 >
-                  {language === 'tr' ? 'Sohbeti Başlat' : 'Start Chat'}
+                  {language === 'tr' ? 'Sohbeti BaÅŸlat' : 'Start Chat'}
                 </button>
               ) : (
                 <button
@@ -1210,8 +1210,8 @@ export const ChatConsole: React.FC = () => {
           <div className="w-full max-w-2xl bg-gh-canvas border border-gh-border rounded-lg p-6">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h3 className="text-sm font-semibold text-gh-text">Sorgu Önizlemesi ve Düzeltme Önerileri</h3>
-                <p className="text-[11px] text-gh-muted mt-1">Sorgunuzda seçili olmayan tablolar tespit edildi. Aşağıdan düzeltmeyi onaylayabilirsiniz.</p>
+                <h3 className="text-sm font-semibold text-gh-text">Sorgu Ã–nizlemesi ve DÃ¼zeltme Ã–nerileri</h3>
+                <p className="text-[11px] text-gh-muted mt-1">Sorgunuzda seÃ§ili olmayan tablolar tespit edildi. AÅŸaÄŸÄ±dan dÃ¼zeltmeyi onaylayabilirsiniz.</p>
               </div>
               <button onClick={cancelPreview} className="p-1.5 rounded hover:bg-gh-surface"><X className="w-4 h-4 text-gh-muted" /></button>
             </div>
@@ -1227,7 +1227,7 @@ export const ChatConsole: React.FC = () => {
                 {previewData.unknowns.map((u: string) => (
                   <li key={`u-${u}`} className="mb-2">
                     <div className="font-semibold">{u}</div>
-                    <div className="text-[12px] text-gh-muted mt-1">Önerilen eşleşmeler: {previewData.candidates[u].length ? previewData.candidates[u].join(', ') : '(Öneri yok)'}</div>
+                    <div className="text-[12px] text-gh-muted mt-1">Ã–nerilen eÅŸleÅŸmeler: {previewData.candidates[u].length ? previewData.candidates[u].join(', ') : '(Ã–neri yok)'}</div>
                     {previewData.candidates[u].length > 0 && (
                       <div className="mt-2 flex gap-2">
                         {previewData.candidates[u].map((c: string) => (
@@ -1246,8 +1246,8 @@ export const ChatConsole: React.FC = () => {
             </div>
 
             <div className="flex items-center justify-end gap-2">
-              <button className="btn" onClick={cancelPreview}>Vazgeç</button>
-              <button className="btn btn-primary" onClick={() => confirmPreviewSend(previewData.sql)}>Düzelt ve Gönder</button>
+              <button className="btn" onClick={cancelPreview}>VazgeÃ§</button>
+              <button className="btn btn-primary" onClick={() => confirmPreviewSend(previewData.sql)}>DÃ¼zelt ve GÃ¶nder</button>
             </div>
           </div>
         </div>
@@ -1255,21 +1255,21 @@ export const ChatConsole: React.FC = () => {
 
       <div className="flex-1 overflow-y-auto space-y-0" style={{ background: 'var(--color-bg)', padding: '16px 16px' }}>
 
-        {/* Empty state — Terminal Amber minimal */}
+        {/* Empty state â€” Terminal Amber minimal */}
         {isEmpty && (
           <div className="flex flex-col justify-center h-full pb-20 animate-fade-in px-4" style={{ maxWidth: 560 }}>
-            <div className="font-mono text-[10px] text-gh-faint uppercase tracking-widest mb-6">DeepBI / Analytics Studio — v1.2.1</div>
+            <div className="font-mono text-[10px] text-gh-faint uppercase tracking-widest mb-6">DeepBI / Analytics Studio â€” v1.2.1</div>
             <div className="border-l-2 border-gh-accent pl-4 mb-6">
-              <div className="text-base font-bold text-gh-text font-mono tracking-tight">Analiz motoruna hoş geldiniz.</div>
+              <div className="text-base font-bold text-gh-text font-mono tracking-tight">Analiz motoruna hoÅŸ geldiniz.</div>
               <div className="text-xs text-gh-muted font-mono mt-1 leading-relaxed">
-                SQL sorguları, Python/Pandas analizi ve ML tahminleme için aşağıdan talep yazın.
+                SQL sorgularÄ±, Python/Pandas analizi ve ML tahminleme iÃ§in aÅŸaÄŸÄ±dan talep yazÄ±n.
               </div>
             </div>
             <div className="space-y-1.5">
               {[
-                { cmd: '/graph', desc: 'Plotly ile etkileşimli grafik' },
-                { cmd: '/ml', desc: 'Makine öğrenmesi & tahminleme' },
-                { cmd: '/sqlquery', desc: 'Doğrudan SQL sorgusu çalıştır' },
+                { cmd: '/graph', desc: 'Plotly ile etkileÅŸimli grafik' },
+                { cmd: '/ml', desc: 'Makine Ã¶ÄŸrenmesi & tahminleme' },
+                { cmd: '/sqlquery', desc: 'DoÄŸrudan SQL sorgusu Ã§alÄ±ÅŸtÄ±r' },
                 { cmd: '/ask', desc: 'Analitik soru sor' },
               ].map(({ cmd, desc }) => (
                 <button
@@ -1284,7 +1284,7 @@ export const ChatConsole: React.FC = () => {
               ))}
             </div>
             <div className="mt-4 text-[9px] text-gh-faint font-mono">
-              <span className="text-gh-accent">›</span> Veri kaynağı seçili: <span className="text-gh-muted">{srcLabel}</span>
+              <span className="text-gh-accent">â€º</span> Veri kaynaÄŸÄ± seÃ§ili: <span className="text-gh-muted">{srcLabel}</span>
             </div>
           </div>
         )}
@@ -1306,18 +1306,18 @@ export const ChatConsole: React.FC = () => {
           return (
             <div key={msg.id} className="animate-fade-in w-full">
 
-              {/* ── USER QUERY ROW ── */}
+              {/* â”€â”€ USER QUERY ROW â”€â”€ */}
               {!isAgent && (
                 <div
                   onClick={() => canActivateUser && activateMessageForIndex(msgIdx)}
                   className={`msg-user transition-all duration-200 border-l-4 ${canActivateUser ? 'cursor-pointer hover:border-gh-accent hover:shadow-[0_4px_12px_rgba(26,115,232,0.06)]' : ''}`}
                   style={isUserActive ? {
-                    borderLeft: '4px solid #1a73e8',
-                    borderColor: '#1a73e8',
-                    background: 'rgba(26, 115, 232, 0.04)',
-                    boxShadow: '0 4px 16px rgba(26, 115, 232, 0.08)'
+                    borderLeft: '4px solid #0078d4',
+                    borderColor: '#0078d4',
+                    background: 'rgba(0, 120, 212, 0.04)',
+                    boxShadow: '0 4px 16px rgba(0, 120, 212, 0.08)'
                   } : undefined}
-                  title={canActivateUser ? (language === 'tr' ? "Panele yansıtmak için tıklayın" : "Click to display in panel") : undefined}
+                  title={canActivateUser ? (language === 'tr' ? "Panele yansÄ±tmak iÃ§in tÄ±klayÄ±n" : "Click to display in panel") : undefined}
                 >
                   <div className="flex gap-3 items-start">
                     {/* User Avatar */}
@@ -1325,18 +1325,18 @@ export const ChatConsole: React.FC = () => {
                       className="flex-shrink-0 w-8 h-8 rounded-full border border-gh-border bg-gh-surface flex items-center justify-center shadow-sm"
                       style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
                     >
-                      <User size={14} style={{ color: '#1a73e8' }} />
+                      <User size={14} style={{ color: '#0078d4' }} />
                     </div>
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-[9px] font-mono font-bold text-gh-accent uppercase tracking-widest">›  SORGU</span>
+                          <span className="text-[9px] font-mono font-bold text-gh-accent uppercase tracking-widest">â€º  SORGU</span>
                           <span className="text-[9px] font-mono text-gh-faint">{new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                         {isUserActive && (
                           <span className="text-[9px] font-mono font-bold text-gh-accent uppercase tracking-widest bg-gh-accent-subtle px-1.5 py-0.5 rounded border border-gh-accent/20">
-                            {language === 'tr' ? 'GÖSTERİLİYOR' : 'DISPLAYED'}
+                            {language === 'tr' ? 'GÃ–STERÄ°LÄ°YOR' : 'DISPLAYED'}
                           </span>
                         )}
                       </div>
@@ -1346,26 +1346,26 @@ export const ChatConsole: React.FC = () => {
                 </div>
               )}
 
-              {/* ── AGENT RESPONSE SECTION ── */}
+              {/* â”€â”€ AGENT RESPONSE SECTION â”€â”€ */}
               {isAgent && (
                 <div
                   onClick={() => canActivateAgent && activateMessageForIndex(msgIdx)}
                   className={`msg-agent transition-all duration-200 border-l-4 ${canActivateAgent ? 'cursor-pointer hover:border-gh-accent hover:shadow-[0_4px_16px_rgba(26,115,232,0.08)]' : ''}`}
                   style={isAgentActive ? {
-                    borderLeft: '4px solid #1a73e8',
-                    borderColor: '#1a73e8',
-                    background: 'rgba(26, 115, 232, 0.04)',
-                    boxShadow: '0 4px 20px rgba(26, 115, 232, 0.1)'
+                    borderLeft: '4px solid #0078d4',
+                    borderColor: '#0078d4',
+                    background: 'rgba(0, 120, 212, 0.04)',
+                    boxShadow: '0 4px 20px rgba(0, 120, 212, 0.1)'
                   } : undefined}
-                  title={canActivateAgent ? (language === 'tr' ? "Panele yansıtmak için tıklayın" : "Click to display in panel") : undefined}
+                  title={canActivateAgent ? (language === 'tr' ? "Panele yansÄ±tmak iÃ§in tÄ±klayÄ±n" : "Click to display in panel") : undefined}
                 >
                   <div className="flex gap-3 items-start">
                     {/* Agent Avatar */}
                     <div
                       className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center shadow-md mt-0.5"
                       style={{
-                        background: 'linear-gradient(135deg, #1a73e8 0%, #a78bfa 100%)',
-                        boxShadow: '0 4px 10px rgba(26, 115, 232, 0.25)'
+                        background: 'linear-gradient(135deg, #0078d4 0%, #a78bfa 100%)',
+                        boxShadow: '0 4px 10px rgba(0, 120, 212, 0.25)'
                       }}
                     >
                       <Sparkles size={14} style={{ color: '#ffffff' }} />
@@ -1375,14 +1375,14 @@ export const ChatConsole: React.FC = () => {
                       {/* Section header */}
                       <div className="flex items-center justify-between mb-3.5 pb-2.5" style={{ borderBottom: '1px solid var(--color-border)' }}>
                         <div className="flex items-center gap-3">
-                          <span className="text-[9px] font-mono font-bold text-gh-muted uppercase tracking-widest">ANALİZ RAPORU &amp; ÇIKTILAR</span>
+                          <span className="text-[9px] font-mono font-bold text-gh-muted uppercase tracking-widest">ANALÄ°Z RAPORU &amp; Ã‡IKTILAR</span>
                           {isThinking && msgIdx === chatHistory.length - 1 && (
                             <span className="dot-processing" />
                           )}
                         </div>
                         {isAgentActive && (
                           <span className="text-[9px] font-mono font-bold text-gh-accent uppercase tracking-widest bg-gh-accent-subtle px-1.5 py-0.5 rounded border border-gh-accent/20">
-                            {language === 'tr' ? 'GÖSTERİLİYOR' : 'DISPLAYED'}
+                            {language === 'tr' ? 'GÃ–STERÄ°LÄ°YOR' : 'DISPLAYED'}
                           </span>
                         )}
                       </div>
@@ -1395,7 +1395,7 @@ export const ChatConsole: React.FC = () => {
                           return (
                             <div className="grid grid-cols-3 gap-2.5 mb-4 animate-slide-up select-none">
                               {kpis.map((kpi, kpiIdx) => {
-                                const colors = ['#1a73e8', '#34a853', '#a78bfa'];
+                                const colors = ['#0078d4', '#34a853', '#a78bfa'];
                                 const activeColor = colors[kpiIdx % colors.length];
                                 return (
                                   <div
@@ -1410,7 +1410,7 @@ export const ChatConsole: React.FC = () => {
                                       backdropFilter: 'blur(8px)',
                                       boxShadow: isDark
                                         ? '0 4px 12px rgba(0, 0, 0, 0.15)'
-                                        : '0 4px 12px rgba(26, 115, 232, 0.03)'
+                                        : '0 4px 12px rgba(0, 120, 212, 0.03)'
                                     }}
                                   >
                                     <span className="text-[9px] uppercase font-bold tracking-wider block text-gh-muted font-mono mb-1">{kpi.label}</span>
@@ -1430,22 +1430,22 @@ export const ChatConsole: React.FC = () => {
                       {msg.auto_corrections && msg.auto_corrections.applied && (
                         <div className="mb-3 px-3 py-2 text-[11px] font-semibold border border-gh-border text-gh-accent flex items-center justify-between font-mono" style={{ background: 'var(--color-accent-subtle)', borderLeft: '3px solid var(--color-accent)', borderRadius: '8px' }}>
                           <div>
-                            <span>Tablo çözümleme düzeltmesi uygulandı: </span>
+                            <span>Tablo Ã§Ã¶zÃ¼mleme dÃ¼zeltmesi uygulandÄ±: </span>
                             <span className="font-mono bg-gh-canvas/40 px-1 py-0.5 border border-gh-border text-gh-text ml-1">
-                              {Object.entries(msg.auto_corrections.applied).map(([k, v]) => `${k}→${v}`).join(', ')}
+                              {Object.entries(msg.auto_corrections.applied).map(([k, v]) => `${k}â†’${v}`).join(', ')}
                             </span>
                           </div>
                           <button onClick={() => setLogOpen(p => ({ ...p, [`corr-${msg.id}`]: !(p[`corr-${msg.id}`]) }))} className="text-[10px] underline hover:text-gh-accent-fg">Detay</button>
                           {logOpen[`corr-${msg.id}`] && (
                             <div className="mt-2 text-[11px] text-gh-muted bg-gh-bg p-2 border border-gh-border font-mono">
-                              <div><strong>Düzeltme Adımları:</strong></div>
+                              <div><strong>DÃ¼zeltme AdÄ±mlarÄ±:</strong></div>
                               <ul className="list-disc list-inside mt-1 font-mono">
                                 {Object.entries(msg.auto_corrections.applied).map(([k, v]) => (
-                                  <li key={`ac-${k}`}>{k} → {String(v)}</li>
+                                  <li key={`ac-${k}`}>{k} â†’ {String(v)}</li>
                                 ))}
                               </ul>
                               {msg.auto_corrections.ambiguous && (
-                                <div className="mt-2 text-[11px] text-gh-warning">Belirsiz şema referansları: {msg.auto_corrections.ambiguous.join(', ')}</div>
+                                <div className="mt-2 text-[11px] text-gh-warning">Belirsiz ÅŸema referanslarÄ±: {msg.auto_corrections.ambiguous.join(', ')}</div>
                               )}
                             </div>
                           )}
@@ -1487,7 +1487,7 @@ export const ChatConsole: React.FC = () => {
                                     {/* Icon node */}
                                     <div className="flex-shrink-0 z-10" style={{ background: 'var(--color-log-bg)', padding: '2px 0' }}>
                                       {live ? (
-                                        <Loader2 className="animate-spin" size={13} style={{ color: '#1a73e8' }} />
+                                        <Loader2 className="animate-spin" size={13} style={{ color: '#0078d4' }} />
                                       ) : isCompleted ? (
                                         <CheckCircle2 size={13} style={{ color: '#34a853' }} />
                                       ) : (
@@ -1500,7 +1500,7 @@ export const ChatConsole: React.FC = () => {
                                       <span
                                         style={{
                                           fontSize: 10.5,
-                                          color: live ? '#1a73e8' : 'var(--color-muted)',
+                                          color: live ? '#0078d4' : 'var(--color-muted)',
                                           fontWeight: live ? 'bold' : 'normal',
                                           fontFamily: 'var(--font-mono)',
                                           lineHeight: 1.4
@@ -1540,7 +1540,7 @@ export const ChatConsole: React.FC = () => {
                                 className="flex items-center gap-1.5 font-bold uppercase tracking-widest text-[9px] font-mono ml-3"
                                 style={{ color: 'var(--color-muted)' }}
                               >
-                                <FileCode size={11} style={{ color: '#1a73e8' }} />
+                                <FileCode size={11} style={{ color: '#0078d4' }} />
                                 {msg.codeLanguage ?? (language === 'tr' ? 'KOD' : 'CODE')}
                                 {editingMessageId === msg.id && <span style={{ color: 'var(--color-warning)' }}>{t.editModeLabel}</span>}
                               </span>
@@ -1634,7 +1634,7 @@ export const ChatConsole: React.FC = () => {
                       {/* Response text */}
                       {msg.text && <div className="text-xs font-mono leading-relaxed" style={{ color: 'var(--color-muted)' }}>{renderText(msg.text)}</div>}
 
-                      {/* Thumbs Up / Down Geri Bildirim Butonları (Suggestion 2) */}
+                      {/* Thumbs Up / Down Geri Bildirim ButonlarÄ± (Suggestion 2) */}
                       {!isThinking && (
                         <div className="flex items-center gap-2 mt-3 select-none">
                           <button
@@ -1647,7 +1647,7 @@ export const ChatConsole: React.FC = () => {
                             title={t.feedbackTooltipPositive}
                           >
                             <ThumbsUp size={10} />
-                            {language === 'tr' ? 'Faydalı' : 'Helpful'}
+                            {language === 'tr' ? 'FaydalÄ±' : 'Helpful'}
                           </button>
                           <button
                             onClick={() => handleFeedback(msg.id, 'negative')}
@@ -1659,7 +1659,7 @@ export const ChatConsole: React.FC = () => {
                             title={t.feedbackTooltipNegative}
                           >
                             <ThumbsDown size={10} />
-                            {language === 'tr' ? 'Hatalı' : 'Incorrect'}
+                            {language === 'tr' ? 'HatalÄ±' : 'Incorrect'}
                           </button>
                           {messageRatings[msg.id] && (
                             <span className="text-[9px] text-green-400/80 font-mono animate-pulse ml-1 inline-flex items-center gap-1">
@@ -1699,7 +1699,7 @@ export const ChatConsole: React.FC = () => {
         <div ref={bottomRef} />
       </div>
 
-      {/* ── Input Panel ── */}
+      {/* â”€â”€ Input Panel â”€â”€ */}
       <div className="shrink-0 px-4 py-3 bg-gh-bg border-t border-gh-border relative" style={{ borderTop: '2px solid var(--color-border)' }}>
 
         {/* Command Palette Autocomplete */}
@@ -1720,7 +1720,7 @@ export const ChatConsole: React.FC = () => {
             }}
           >
             <div className="px-3 py-1.5 text-[9px] font-bold text-gh-accent uppercase tracking-widest font-mono" style={{ background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)' }}>
-              › {t.commandPaletteTitle}
+              â€º {t.commandPaletteTitle}
             </div>
             {filteredCommands.map((item, idx) => {
               const isSelected = idx === selectedCmdIndex;
@@ -1749,7 +1749,7 @@ export const ChatConsole: React.FC = () => {
 
         <form onSubmit={send} className="flex gap-2">
           <div className="flex-1 relative flex items-center shadow-inner" style={{ borderLeft: '3px solid var(--color-accent)', background: 'var(--color-canvas)', borderRadius: '8px', overflow: 'hidden' }}>
-            <span className="pl-3 pr-1 text-gh-accent font-mono text-xs font-bold shrink-0">›</span>
+            <span className="pl-3 pr-1 text-gh-accent font-mono text-xs font-bold shrink-0">â€º</span>
             <input
               ref={inputRef}
               type="text"
@@ -1785,3 +1785,4 @@ export const ChatConsole: React.FC = () => {
 };
 
 export default ChatConsole;
+

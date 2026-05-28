@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+﻿import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useBIStore, BACKEND_BASE } from '../context/store';
 import { translations } from '../context/translations';
 import {
@@ -18,7 +18,7 @@ declare global {
 }
 
 const CHART_COLORS = [
-  { hex: '#1a73e8', name: 'Google Blue' },
+  { hex: '#0078d4', name: 'Communication Blue' },
   { hex: '#34a853', name: 'Google Green' },
   { hex: '#f9ab00', name: 'Google Yellow' },
   { hex: '#ea4335', name: 'Google Red' },
@@ -63,7 +63,7 @@ export const ResultVisualizer: React.FC = () => {
   const [xAxisCol, setXAxisCol] = useState('');
   const [yAxisCol, setYAxisCol] = useState('');
 
-  const [themeColor, setThemeColor] = useState('#1a73e8');
+  const [themeColor, setThemeColor] = useState('#0078d4');
   const chartRef = useRef<HTMLDivElement>(null);
 
   // Resize states
@@ -256,7 +256,7 @@ export const ResultVisualizer: React.FC = () => {
     }
   }, [chartCollapsed, chartType, xAxisCol, yAxisCol, themeColor, data, isDarkMode, visualization]);
 
-  // ─── Table filtering & pagination ─────────────────────────────────────────
+  // â”€â”€â”€ Table filtering & pagination â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const sortedRows = useMemo(() => {
     if (sortDirection === 'none' || !sortColumn || !columns || !rawRows) return rawRows;
     const colIdx = columns.indexOf(sortColumn);
@@ -295,7 +295,7 @@ export const ResultVisualizer: React.FC = () => {
   const totalPages = Math.ceil(filteredRows.length / itemsPerPage);
   const paginatedRows = filteredRows.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  // ─── Export handlers ───────────────────────────────────────────────────────
+  // â”€â”€â”€ Export handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handleExport = async (format: 'pdf' | 'excel' | 'csv') => {
     let chartImage: string | null = null;
     if (window.Plotly && chartRef.current && !chartCollapsed) {
@@ -347,7 +347,7 @@ export const ResultVisualizer: React.FC = () => {
     }
   };
 
-  // ─── Empty state ──────────────────────────────────────────────────────────
+  // â”€â”€â”€ Empty state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (!activeMessage) {
     return (
       <Box sx={{ flex: 1, height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 4, bgcolor: 'background.default', borderLeft: '1px solid', borderColor: 'divider' }}>
@@ -357,14 +357,14 @@ export const ResultVisualizer: React.FC = () => {
             p: 5,
             maxWidth: 420,
             textAlign: 'center',
-            borderRadius: '16px',
+            borderRadius: '8px',
             border: '1px solid',
             borderColor: 'divider',
             background: isDarkMode
               ? 'linear-gradient(135deg, rgba(30, 30, 30, 0.6) 0%, rgba(20, 20, 20, 0.8) 100%)'
               : 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(240, 244, 248, 0.9) 100%)',
             backdropFilter: 'blur(10px)',
-            boxShadow: isDarkMode ? '0 12px 32px rgba(0, 0, 0, 0.3)' : '0 12px 32px rgba(26, 115, 232, 0.05)',
+            boxShadow: isDarkMode ? '0 12px 32px rgba(0, 0, 0, 0.3)' : '0 12px 32px rgba(0, 120, 212, 0.05)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center'
@@ -375,13 +375,13 @@ export const ResultVisualizer: React.FC = () => {
               width: 56,
               height: 56,
               borderRadius: '14px',
-              border: '1px solid rgba(26, 115, 232, 0.25)',
+              border: '1px solid rgba(0, 120, 212, 0.25)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               mb: 3,
-              bgcolor: 'rgba(26, 115, 232, 0.08)',
-              boxShadow: '0 8px 16px rgba(26, 115, 232, 0.1)',
+              bgcolor: 'rgba(0, 120, 212, 0.08)',
+              boxShadow: '0 8px 16px rgba(0, 120, 212, 0.1)',
               animation: 'pulse 2s infinite ease-in-out',
               '@keyframes pulse': {
                 '0%, 100%': { transform: 'scale(1)', opacity: 0.9 },
@@ -389,7 +389,7 @@ export const ResultVisualizer: React.FC = () => {
               }
             }}
           >
-            <Eye size={24} style={{ color: '#1a73e8' }} />
+            <Eye size={24} style={{ color: '#0078d4' }} />
           </Box>
           <Typography variant="body2" sx={{ fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', fontSize: 12, color: 'text.primary', mb: 1.5 }}>
             {t.visualizerEmptyTitle}
@@ -410,7 +410,7 @@ export const ResultVisualizer: React.FC = () => {
       <span>
         {parts.map((part, i) => 
           regex.test(part) ? (
-            <span key={i} style={{ backgroundColor: 'rgba(26, 115, 232, 0.22)', color: '#1a73e8', fontWeight: 'bold', padding: '1px 3px', borderRadius: '3px' }}>{part}</span>
+            <span key={i} style={{ backgroundColor: 'rgba(0, 120, 212, 0.22)', color: '#0078d4', fontWeight: 600, padding: '1px 3px', borderRadius: '3px' }}>{part}</span>
           ) : part
         )}
       </span>
@@ -423,15 +423,15 @@ export const ResultVisualizer: React.FC = () => {
   return (
     <Box sx={{ flex: 1, height: '100vh', display: 'flex', flexDirection: 'column', bgcolor: 'background.default', borderLeft: '1px solid', borderColor: 'divider', overflow: 'hidden' }}>
 
-      {/* ── Chart Section (collapsible) ── */}
+      {/* â”€â”€ Chart Section (collapsible) â”€â”€ */}
       {hasChart && (
-        <Box sx={{ flexShrink: 0, borderBottom: '1px solid', borderColor: 'divider', bgcolor: isDarkMode ? 'rgba(26, 115, 232, 0.015)' : 'rgba(26, 115, 232, 0.005)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+        <Box sx={{ flexShrink: 0, borderBottom: '1px solid', borderColor: 'divider', bgcolor: isDarkMode ? 'rgba(0, 120, 212, 0.015)' : 'rgba(0, 120, 212, 0.005)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
 
           {/* Chart header / toolbar */}
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2.5, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', flexWrap: 'wrap', gap: 1.5 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <BarChart2 size={16} style={{ color: '#1a73e8' }} />
-              <Typography variant="caption" sx={{ fontWeight: 'bold', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'text.primary' }}>
+              <BarChart2 size={16} style={{ color: '#0078d4' }} />
+              <Typography variant="caption" sx={{ fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'text.primary' }}>
                 {t.chartTitle}
               </Typography>
             </Box>
@@ -447,9 +447,9 @@ export const ResultVisualizer: React.FC = () => {
                 sx={{
                   height: 28, border: '1px solid', borderColor: 'divider', borderRadius: '6px', p: 0.2, bgcolor: 'background.paper',
                   '& .MuiToggleButton-root': {
-                    border: 0, px: 1.5, py: 0, fontSize: 10, fontWeight: 'bold', textTransform: 'none', color: 'text.secondary',
+                    border: 0, px: 1.5, py: 0, fontSize: 10, fontWeight: 600, textTransform: 'none', color: 'text.secondary',
                     borderRadius: '4px',
-                    '&.Mui-selected': { bgcolor: 'rgba(26, 115, 232, 0.12)', color: '#1a73e8', '&:hover': { bgcolor: 'rgba(26, 115, 232, 0.18)' } }
+                    '&.Mui-selected': { bgcolor: 'rgba(0, 120, 212, 0.12)', color: '#0078d4', '&:hover': { bgcolor: 'rgba(0, 120, 212, 0.18)' } }
                   }
                 }}
               >
@@ -475,7 +475,7 @@ export const ResultVisualizer: React.FC = () => {
                     </Select>
                   </FormControl>
 
-                  <span style={{ fontSize: 11, color: 'text.secondary', fontWeight: 'bold' }}>×</span>
+                  <span style={{ fontSize: 11, color: 'text.secondary', fontWeight: 600 }}>Ã—</span>
 
                   <FormControl size="small" sx={{ m: 0, p: 0 }}>
                     <Select
@@ -503,7 +503,7 @@ export const ResultVisualizer: React.FC = () => {
                     style={{
                       width: 14, height: 14, borderRadius: '50%', backgroundColor: c.hex, border: themeColor === c.hex ? '2px solid var(--color-text)' : '1px solid transparent',
                       cursor: 'pointer', outline: 'none', padding: 0, transition: 'all 0.15s',
-                      boxShadow: themeColor === c.hex ? '0 0 6px rgba(26, 115, 232, 0.4)' : 'none'
+                      boxShadow: themeColor === c.hex ? '0 0 6px rgba(0, 120, 212, 0.4)' : 'none'
                     }}
                   />
                 ))}
@@ -543,7 +543,7 @@ export const ResultVisualizer: React.FC = () => {
                   input: {
                     startAdornment: (
                       <InputAdornment position="start">
-                        <Sparkles size={13} style={{ color: '#1a73e8' }} />
+                        <Sparkles size={13} style={{ color: '#0078d4' }} />
                       </InputAdornment>
                     ),
                   }
@@ -554,17 +554,17 @@ export const ResultVisualizer: React.FC = () => {
                     if (!val) return;
                     
                     // Chart Type mapping
-                    if (val.includes('çizgi') || val.includes('line')) setChartType('Line');
-                    else if (val.includes('bar') || val.includes('sütun') || val.includes('column')) setChartType('Bar');
+                    if (val.includes('Ã§izgi') || val.includes('line')) setChartType('Line');
+                    else if (val.includes('bar') || val.includes('sÃ¼tun') || val.includes('column')) setChartType('Bar');
                     else if (val.includes('alan') || val.includes('area')) setChartType('Area');
-                    else if (val.includes('saçılım') || val.includes('scatter') || val.includes('nokta')) setChartType('Scatter');
+                    else if (val.includes('saÃ§Ä±lÄ±m') || val.includes('scatter') || val.includes('nokta')) setChartType('Scatter');
                     else if (val.includes('pie') || val.includes('pasta') || val.includes('daire')) setChartType('Pie');
                     
                     // Theme color mapping
-                    if (val.includes('mavi') || val.includes('blue')) setThemeColor('#1a73e8');
-                    else if (val.includes('yeşil') || val.includes('green')) setThemeColor('#34a853');
-                    else if (val.includes('sarı') || val.includes('yellow')) setThemeColor('#f9ab00');
-                    else if (val.includes('kırmızı') || val.includes('red')) setThemeColor('#ea4335');
+                    if (val.includes('mavi') || val.includes('blue')) setThemeColor('#0078d4');
+                    else if (val.includes('yeÅŸil') || val.includes('green')) setThemeColor('#34a853');
+                    else if (val.includes('sarÄ±') || val.includes('yellow')) setThemeColor('#f9ab00');
+                    else if (val.includes('kÄ±rmÄ±zÄ±') || val.includes('red')) setThemeColor('#ea4335');
                     else if (val.includes('mor') || val.includes('purple')) setThemeColor('#a78bfa');
                     
                     // Column mapping
@@ -598,7 +598,7 @@ export const ResultVisualizer: React.FC = () => {
             <Box
               onPointerDown={startResize}
               sx={{
-                height: 6, bgcolor: 'divider', '&:hover': { bgcolor: '#1a73e8' }, cursor: 'row-resize',
+                height: 6, bgcolor: 'divider', '&:hover': { bgcolor: '#0078d4' }, cursor: 'row-resize',
                 transition: 'background-color 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 10
               }}
             >
@@ -608,13 +608,13 @@ export const ResultVisualizer: React.FC = () => {
         </Box>
       )}
 
-      {/* ── Table Section ── */}
+      {/* â”€â”€ Table Section â”€â”€ */}
       <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
 
         {/* Table toolbar */}
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2.5, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', bgcolor: isDarkMode ? 'rgba(26, 115, 232, 0.008)' : 'rgba(26, 115, 232, 0.002)', flexShrink: 0, gap: 2, flexWrap: 'wrap' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2.5, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', bgcolor: isDarkMode ? 'rgba(0, 120, 212, 0.008)' : 'rgba(0, 120, 212, 0.002)', flexShrink: 0, gap: 2, flexWrap: 'wrap' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1, minWidth: 260 }}>
-            <TableIcon size={16} style={{ color: '#1a73e8' }} />
+            <TableIcon size={16} style={{ color: '#0078d4' }} />
             <TextField
               size="small"
               value={searchTerm}
@@ -643,13 +643,13 @@ export const ResultVisualizer: React.FC = () => {
             <Chip
               label={`${filteredRows.length} ${t.rowsCountBadge}`}
               size="small"
-              sx={{ height: 18, fontSize: 9, fontWeight: 'bold', bgcolor: 'rgba(26, 115, 232, 0.12)', color: '#1a73e8', border: 0, borderRadius: '6px' }}
+              sx={{ height: 18, fontSize: 9, fontWeight: 600, bgcolor: 'rgba(0, 120, 212, 0.12)', color: '#0078d4', border: 0, borderRadius: '6px' }}
             />
             {selectedRows.length > 0 && (
               <Chip
                 label={`${selectedRows.length} ${t.selectedCountBadge}`}
                 size="small"
-                sx={{ height: 18, fontSize: 9, fontWeight: 'bold', bgcolor: 'rgba(52, 168, 83, 0.12)', color: '#34a853', border: 0, borderRadius: '6px', animation: 'pulse 1.5s infinite' }}
+                sx={{ height: 18, fontSize: 9, fontWeight: 600, bgcolor: 'rgba(52, 168, 83, 0.12)', color: '#34a853', border: 0, borderRadius: '6px', animation: 'pulse 1.5s infinite' }}
               />
             )}
           </Box>
@@ -664,7 +664,7 @@ export const ResultVisualizer: React.FC = () => {
                   variant="outlined"
                   startIcon={<FileDown size={12} />}
                   sx={{
-                    py: 0.5, px: 1.5, fontSize: 10, fontWeight: 'bold', textTransform: 'none',
+                    py: 0.5, px: 1.5, fontSize: 10, fontWeight: 600, textTransform: 'none',
                     borderColor: 'rgba(52, 168, 83, 0.2)', color: 'success.main', borderRadius: '6px',
                     bgcolor: 'rgba(52, 168, 83, 0.05)',
                     '&:hover': { borderColor: 'success.dark', bgcolor: 'rgba(52, 168, 83, 0.12)' }
@@ -681,7 +681,7 @@ export const ResultVisualizer: React.FC = () => {
                   variant="outlined"
                   startIcon={<FileDown size={12} />}
                   sx={{
-                    py: 0.5, px: 1.5, fontSize: 10, fontWeight: 'bold', textTransform: 'none',
+                    py: 0.5, px: 1.5, fontSize: 10, fontWeight: 600, textTransform: 'none',
                     borderColor: 'rgba(234, 67, 53, 0.2)', color: 'error.main', borderRadius: '6px',
                     bgcolor: 'rgba(234, 67, 53, 0.05)',
                     '&:hover': { borderColor: 'error.dark', bgcolor: 'rgba(234, 67, 53, 0.12)' }
@@ -698,7 +698,7 @@ export const ResultVisualizer: React.FC = () => {
                   variant="outlined"
                   startIcon={<FileDown size={12} />}
                   sx={{
-                    py: 0.5, px: 1.5, fontSize: 10, fontWeight: 'bold', textTransform: 'none',
+                    py: 0.5, px: 1.5, fontSize: 10, fontWeight: 600, textTransform: 'none',
                     borderColor: 'divider', color: 'text.secondary', borderRadius: '6px',
                     bgcolor: 'action.hover',
                     '&:hover': { borderColor: 'text.primary', bgcolor: 'rgba(255, 255, 255, 0.05)' }
@@ -764,7 +764,7 @@ export const ResultVisualizer: React.FC = () => {
                         style={{ cursor: 'pointer', width: 13, height: 13 }}
                       />
                     </TableCell>
-                    <TableCell align="center" sx={{ fontWeight: 'bold', bgcolor: 'background.paper', borderRight: '1px solid', borderColor: 'divider', width: 48, color: 'text.secondary', fontSize: 10.5 }}>#</TableCell>
+                    <TableCell align="center" sx={{ fontWeight: 600, bgcolor: 'background.paper', borderRight: '1px solid', borderColor: 'divider', width: 48, color: 'text.secondary', fontSize: 10.5 }}>#</TableCell>
                     {columns.map(col => {
                       const isNumeric = numericColsSet.has(col);
                       const isSorted = sortColumn === col;
@@ -783,7 +783,7 @@ export const ResultVisualizer: React.FC = () => {
                             }
                           }}
                           sx={{
-                            fontWeight: 'bold',
+                            fontWeight: 600,
                             bgcolor: 'background.paper',
                             borderRight: '1px solid',
                             borderColor: 'divider',
@@ -798,8 +798,8 @@ export const ResultVisualizer: React.FC = () => {
                           <Box sx={{ display: 'inline-flex', alignItems: 'center', justifyContent: isNumeric ? 'flex-end' : 'flex-start', gap: 0.5 }}>
                             <span>{col}</span>
                             {isSorted && sortDirection !== 'none' && (
-                              <span style={{ fontSize: 9, color: '#1a73e8', fontWeight: 'bold' }}>
-                                {sortDirection === 'asc' ? '▲' : '▼'}
+                              <span style={{ fontSize: 9, color: '#0078d4', fontWeight: 600 }}>
+                                {sortDirection === 'asc' ? 'â–²' : 'â–¼'}
                               </span>
                             )}
                           </Box>
@@ -818,7 +818,7 @@ export const ResultVisualizer: React.FC = () => {
                         hover 
                         selected={isChecked}
                         sx={{ 
-                          '&:hover': { bgcolor: 'rgba(26, 115, 232, 0.035) !important' },
+                          '&:hover': { bgcolor: 'rgba(0, 120, 212, 0.035) !important' },
                           '&.Mui-selected': { bgcolor: 'rgba(52, 168, 83, 0.04) !important', '&:hover': { bgcolor: 'rgba(52, 168, 83, 0.08) !important' } }
                         }}
                       >
@@ -883,8 +883,8 @@ export const ResultVisualizer: React.FC = () => {
                 >
                   <ChevronLeft size={14} />
                 </IconButton>
-                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 'bold' }}>
-                  {t.page} <strong style={{ color: '#1a73e8' }}>{currentPage}</strong> / {totalPages}
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                  {t.page} <strong style={{ color: '#0078d4' }}>{currentPage}</strong> / {totalPages}
                 </Typography>
                 <IconButton
                   disabled={currentPage === totalPages}
@@ -898,8 +898,8 @@ export const ResultVisualizer: React.FC = () => {
             )}
           </Box>
         ) : (
-          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', p: 6, m: 2.5, border: '1px dashed', borderColor: 'divider', borderRadius: '10px', bgcolor: 'rgba(26, 115, 232, 0.005)' }}>
-            <TableIcon size={32} style={{ color: '#1a73e8', opacity: 0.3, marginBottom: 12 }} />
+          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', p: 6, m: 2.5, border: '1px dashed', borderColor: 'divider', borderRadius: '6px', bgcolor: 'rgba(0, 120, 212, 0.005)' }}>
+            <TableIcon size={32} style={{ color: '#0078d4', opacity: 0.3, marginBottom: 12 }} />
             <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', maxWidth: 260, mx: 'auto', textAlign: 'center', lineHeight: 1.5, fontSize: 11 }}>
               {t.noTableData}
             </Typography>
@@ -911,4 +911,6 @@ export const ResultVisualizer: React.FC = () => {
 };
 
 export default ResultVisualizer;
+
+
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useBIStore, BACKEND_BASE } from '../context/store';
 import { translations } from '../context/translations';
 import { useDropzone } from 'react-dropzone';
@@ -68,10 +68,10 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
             setPage(0);
           } else {
             const err = await res.json();
-            setUploadError(err.detail || (language === 'tr' ? 'Ön izleme yükleme hatası.' : 'Preview loading error.'));
+            setUploadError(err.detail || (language === 'tr' ? 'Ã–n izleme yÃ¼kleme hatasÄ±.' : 'Preview loading error.'));
           }
         } catch (err: any) {
-          setUploadError(err.message || (language === 'tr' ? 'Ön izleme alınırken bağlantı hatası oluştu.' : 'Connection error occurred while retrieving preview.'));
+          setUploadError(err.message || (language === 'tr' ? 'Ã–n izleme alÄ±nÄ±rken baÄŸlantÄ± hatasÄ± oluÅŸtu.' : 'Connection error occurred while retrieving preview.'));
         } finally {
           setUploading(false);
         }
@@ -110,7 +110,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
       const result = response.ok ? await response.json() : null;
       
       if (!response.ok || !result) {
-        const errDetail = result?.detail || (language === 'tr' ? 'Dosya yükleme hatası.' : 'File upload error.');
+        const errDetail = result?.detail || (language === 'tr' ? 'Dosya yÃ¼kleme hatasÄ±.' : 'File upload error.');
         throw new Error(errDetail);
       }
       
@@ -128,7 +128,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
       setActiveSourceId(result.metadata.id);
       
     } catch (err: any) {
-      setUploadError(err.message || (language === 'tr' ? 'Bilinmeyen bir hata oluştu.' : 'An unknown error occurred.'));
+      setUploadError(err.message || (language === 'tr' ? 'Bilinmeyen bir hata oluÅŸtu.' : 'An unknown error occurred.'));
     } finally {
       setUploading(false);
     }
@@ -136,11 +136,11 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
 
   const handleDeleteFile = (e: React.MouseEvent, id: string, name: string) => {
     e.stopPropagation();
-    if (!window.confirm(language === 'tr' ? `"${name}" dosyasını silmek istediğinizden emin misiniz?` : `Are you sure you want to delete file "${name}"?`)) return;
+    if (!window.confirm(language === 'tr' ? `"${name}" dosyasÄ±nÄ± silmek istediÄŸinizden emin misiniz?` : `Are you sure you want to delete file "${name}"?`)) return;
     try {
       deleteFile(id);
     } catch (err: any) {
-      alert(language === 'tr' ? 'Dosya silinirken hata oluştu.' : 'Error occurred while deleting file.');
+      alert(language === 'tr' ? 'Dosya silinirken hata oluÅŸtu.' : 'Error occurred while deleting file.');
     }
   };
 
@@ -198,14 +198,14 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
             {...getRootProps()} 
             sx={{
               p: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center',
-              cursor: 'pointer', border: '2px dashed', borderColor: isDragActive ? '#1a73e8' : 'divider', borderRadius: '12px',
-              bgcolor: isDragActive ? 'rgba(26, 115, 232, 0.04)' : 'rgba(26, 115, 232, 0.01)', transition: 'all 0.2s',
-              '&:hover': { borderColor: '#1a73e8', bgcolor: 'rgba(26, 115, 232, 0.04)' }
+              cursor: 'pointer', border: '2px dashed', borderColor: isDragActive ? '#0078d4' : 'divider', borderRadius: '8px',
+              bgcolor: isDragActive ? 'rgba(0, 120, 212, 0.04)' : 'rgba(0, 120, 212, 0.01)', transition: 'all 0.2s',
+              '&:hover': { borderColor: '#0078d4', bgcolor: 'rgba(0, 120, 212, 0.04)' }
             }}
           >
             <input {...getInputProps()} />
             <Box sx={{
-              width: 40, height: 40, borderRadius: '8px', border: '1px solid', borderColor: isDragActive ? '#1a73e8' : 'divider',
+              width: 40, height: 40, borderRadius: '8px', border: '1px solid', borderColor: isDragActive ? '#0078d4' : 'divider',
               display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 2, color: 'text.secondary', bgcolor: 'background.paper'
             }}>
               {uploading ? (
@@ -228,7 +228,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
                 <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>{t.clickToUpload}</Typography>
               </Box>
             )}
-            <span style={{ fontSize: 9, padding: '2px 6px', border: '1px solid rgba(26, 115, 232, 0.15)', background: 'rgba(26, 115, 232, 0.01)', color: '#9aa6bf', fontFamily: 'monospace', borderRadius: '4px', marginTop: 16 }}>
+            <span style={{ fontSize: 9, padding: '2px 6px', border: '1px solid rgba(0, 120, 212, 0.15)', background: 'rgba(0, 120, 212, 0.01)', color: '#9aa6bf', fontFamily: 'monospace', borderRadius: '4px', marginTop: 16 }}>
               {t.fileTypesLabel}
             </span>
           </Box>
@@ -243,15 +243,15 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
           {previewData && (
             <Alert severity="success" sx={{ borderRadius: '8px', fontSize: 11 }}>
               {language === 'tr' 
-                ? `Veri kümeniz "${previewData.alias}" adıyla sisteme eklendi.` 
+                ? `Veri kÃ¼meniz "${previewData.alias}" adÄ±yla sisteme eklendi.` 
                 : `Your dataset was added to the system as "${previewData.alias}".`}
             </Alert>
           )}
 
           {/* Uploaded Files List Card */}
-          <Card sx={{ bgcolor: 'rgba(26, 115, 232, 0.01)', borderRadius: '12px', border: '1px solid', borderColor: 'divider' }}>
+          <Card sx={{ bgcolor: 'rgba(0, 120, 212, 0.01)', borderRadius: '8px', border: '1px solid', borderColor: 'divider' }}>
             <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-              <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', display: 'block', mb: 2, borderBottom: '1px solid', borderColor: 'divider', pb: 1 }}>
+              <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', display: 'block', mb: 2, borderBottom: '1px solid', borderColor: 'divider', pb: 1 }}>
                 {t.uploadedFilesCardTitle}
               </Typography>
               
@@ -264,13 +264,13 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
                       onClick={() => setActiveSourceId(file.id)}
                       sx={{
                         p: 1.2, borderRadius: '8px', border: '1px solid',
-                        borderColor: isSelected ? '#1a73e8' : 'divider',
-                        bgcolor: isSelected ? 'rgba(26, 115, 232, 0.08)' : 'rgba(26, 115, 232, 0.02)',
+                        borderColor: isSelected ? '#0078d4' : 'divider',
+                        bgcolor: isSelected ? 'rgba(0, 120, 212, 0.08)' : 'rgba(0, 120, 212, 0.02)',
                         cursor: 'pointer', transition: 'all 0.2s',
-                        '&:hover': { bgcolor: isSelected ? 'rgba(26, 115, 232, 0.12)' : 'action.hover' }
+                        '&:hover': { bgcolor: isSelected ? 'rgba(0, 120, 212, 0.12)' : 'action.hover' }
                       }}
                     >
-                      <Box sx={{ width: 28, height: 28, borderRadius: '6px', border: '1px solid', borderColor: isSelected ? 'rgba(26, 115, 232, 0.3)' : 'divider', display: 'flex', alignItems: 'center', justifyContent: 'center', color: isSelected ? '#1a73e8' : 'text.secondary', bgcolor: 'background.paper', mr: 1.5, shrink: 0 }}>
+                      <Box sx={{ width: 28, height: 28, borderRadius: '6px', border: '1px solid', borderColor: isSelected ? 'rgba(0, 120, 212, 0.3)' : 'divider', display: 'flex', alignItems: 'center', justifyContent: 'center', color: isSelected ? '#0078d4' : 'text.secondary', bgcolor: 'background.paper', mr: 1.5, shrink: 0 }}>
                         <FileSpreadsheet className="w-3.5 h-3.5" />
                       </Box>
                       <Box sx={{ minWidth: 0, flex: 1, pr: 3 }}>
@@ -278,12 +278,12 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
                           {file.alias}
                         </Typography>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.2, fontSize: 9, fontFamily: 'monospace', color: 'text.secondary' }}>
-                          <Chip label={language === 'tr' ? `${file.row_count} SATIR` : `${file.row_count} ROWS`} size="small" sx={{ height: 14, fontSize: 7.5, fontWeight: 'bold', bgcolor: 'rgba(26, 115, 232, 0.1)', color: '#1a73e8', border: 0 }} />
+                          <Chip label={language === 'tr' ? `${file.row_count} SATIR` : `${file.row_count} ROWS`} size="small" sx={{ height: 14, fontSize: 7.5, fontWeight: 600, bgcolor: 'rgba(0, 120, 212, 0.1)', color: '#0078d4', border: 0 }} />
                           <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: 80 }} title={file.original_name}>{file.original_name}</span>
                         </Box>
                       </Box>
                       <ListItemSecondaryAction sx={{ right: 8 }}>
-                        <Tooltip title={language === 'tr' ? 'Dosya Kaynağını Sil' : 'Delete File Source'}>
+                        <Tooltip title={language === 'tr' ? 'Dosya KaynaÄŸÄ±nÄ± Sil' : 'Delete File Source'}>
                           <IconButton edge="end" size="small" onClick={(e) => handleDeleteFile(e, file.id, file.alias)}>
                             <Trash2 size={13.5} />
                           </IconButton>
@@ -306,13 +306,13 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
 
         {/* Right Side: Preview Table Panel */}
         <Grid size={{ xs: 12, lg: 8 }} sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-          <Card sx={{ bgcolor: isDark ? 'rgba(26, 115, 232, 0.01)' : '#ffffff', borderRadius: '12px' }}>
+          <Card sx={{ bgcolor: isDark ? 'rgba(0, 120, 212, 0.01)' : '#ffffff', borderRadius: '8px' }}>
             <CardContent sx={{ p: 2.5 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', borderBottom: '1px solid', borderColor: 'divider', pb: 1.5, mb: 2 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Eye className="w-4 h-4 text-gh-accent" />
                   <Box>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', fontSize: 11.5, textTransform: 'uppercase', tracking: '0.05em' }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: 11.5, textTransform: 'uppercase', tracking: '0.05em' }}>
                       {t.previewPanelTitle}
                     </Typography>
                     <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -321,47 +321,47 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
                   </Box>
                 </Box>
                 {uploading ? (
-                  <span style={{ fontSize: 8.5, color: '#1a73e8', fontFamily: 'monospace', fontWeight: 'bold', animation: 'pulse 1.5s infinite' }}>
-                    {language === 'tr' ? 'AKILLI TARAMA ÇALIŞIYOR...' : 'SMART SCAN RUNNING...'}
+                  <span style={{ fontSize: 8.5, color: '#0078d4', fontFamily: 'monospace', fontWeight: 600, animation: 'pulse 1.5s infinite' }}>
+                    {language === 'tr' ? 'AKILLI TARAMA Ã‡ALIÅIYOR...' : 'SMART SCAN RUNNING...'}
                   </span>
                 ) : previewData ? (
-                  <Chip label={language === 'tr' ? `TOPLAM ${previewData.row_count} SATIR` : `TOTAL ${previewData.row_count} ROWS`} size="small" sx={{ height: 16, fontSize: 8.5, fontWeight: 'bold', bgcolor: 'rgba(26, 115, 232, 0.1)', color: '#1a73e8', border: 0 }} />
+                  <Chip label={language === 'tr' ? `TOPLAM ${previewData.row_count} SATIR` : `TOTAL ${previewData.row_count} ROWS`} size="small" sx={{ height: 16, fontSize: 8.5, fontWeight: 600, bgcolor: 'rgba(0, 120, 212, 0.1)', color: '#0078d4', border: 0 }} />
                 ) : null}
               </Box>
 
               {uploading ? (
                 <Box sx={{ display: 'flex', flexDirection: 'column', justify: 'center', alignItems: 'center', py: 12, gap: 1.5 }}>
                   <Loader2 className="w-8 h-8 animate-spin text-gh-accent" />
-                  <Typography variant="body2" sx={{ fontWeight: 'extrabold' }}>{language === 'tr' ? 'Veri Yapısı Keşfediliyor...' : 'Discovering Data Structure...'}</Typography>
-                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>{language === 'tr' ? 'Sütun veri tipleri otomatik algılanıp şemalandırılıyor.' : 'Column data types are automatically detected and structured.'}</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 'extrabold' }}>{language === 'tr' ? 'Veri YapÄ±sÄ± KeÅŸfediliyor...' : 'Discovering Data Structure...'}</Typography>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>{language === 'tr' ? 'SÃ¼tun veri tipleri otomatik algÄ±lanÄ±p ÅŸemalandÄ±rÄ±lÄ±yor.' : 'Column data types are automatically detected and structured.'}</Typography>
                 </Box>
               ) : previewData ? (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
                   
                   {/* Visual Schema Tags */}
                   <Box>
-                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', display: 'block', mb: 1.5 }}>
+                    <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', display: 'block', mb: 1.5 }}>
                       {t.detectedDataTypes}
                     </Typography>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                       {Object.entries(previewData.schema).map(([colName, colType]) => {
                         let color: 'primary' | 'secondary' | 'success' | 'warning' | 'info' | 'default' = 'default';
-                        if (colType === 'Sayı') color = 'info';
+                        if (colType === 'SayÄ±') color = 'info';
                         else if (colType === 'Tarih') color = 'warning';
                         else if (colType === 'Boole') color = 'success';
                         
                         let colTypeLabel = colType;
                         if (language === 'en') {
-                          if (colType === 'Sayı') colTypeLabel = 'Number';
+                          if (colType === 'SayÄ±') colTypeLabel = 'Number';
                           else if (colType === 'Tarih') colTypeLabel = 'Date';
                           else if (colType === 'Boole') colTypeLabel = 'Boolean';
                           else if (colType === 'Metin') colTypeLabel = 'Text';
                         }
                         
                         return (
-                          <Box key={colName} sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1.5, py: 0.5, bgcolor: 'rgba(26, 115, 232, 0.01)', border: '1px solid', borderColor: 'divider', borderRadius: '6px' }}>
-                            <span style={{ fontFamily: 'monospace', fontSize: 10.5, fontWeight: 'bold' }}>{colName}</span>
-                            <Chip label={colTypeLabel.toUpperCase()} size="small" color={color} sx={{ height: 14, fontSize: 7, fontWeight: 'bold', border: 0, borderRadius: '4px' }} />
+                          <Box key={colName} sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1.5, py: 0.5, bgcolor: 'rgba(0, 120, 212, 0.01)', border: '1px solid', borderColor: 'divider', borderRadius: '6px' }}>
+                            <span style={{ fontFamily: 'monospace', fontSize: 10.5, fontWeight: 600 }}>{colName}</span>
+                            <Chip label={colTypeLabel.toUpperCase()} size="small" color={color} sx={{ height: 14, fontSize: 7, fontWeight: 600, border: 0, borderRadius: '4px' }} />
                           </Box>
                         );
                       })}
@@ -370,29 +370,29 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
 
                   {/* Data Preview Table using MUI components */}
                   <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', display: 'block', mb: 1.5 }}>
-                      {language === 'tr' ? 'Veri Tablosu (İlk 20 Satır)' : 'Data Table (First 20 Rows)'}
+                    <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', display: 'block', mb: 1.5 }}>
+                      {language === 'tr' ? 'Veri Tablosu (Ä°lk 20 SatÄ±r)' : 'Data Table (First 20 Rows)'}
                     </Typography>
                     
-                    <TableContainer component={Paper} variant="outlined" sx={{ border: '1px solid', borderColor: 'divider', bgcolor: 'rgba(26, 115, 232, 0.01)', maxHeight: 380 }}>
+                    <TableContainer component={Paper} variant="outlined" sx={{ border: '1px solid', borderColor: 'divider', bgcolor: 'rgba(0, 120, 212, 0.01)', maxHeight: 380 }}>
                       <Table size="small" stickyHeader>
                         <TableHead>
                           <TableRow>
-                            <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: 10.5, bgcolor: 'background.paper', borderRight: '1px solid', borderColor: 'divider', width: 48, p: 1 }}>{t.tableHeadNumber}</TableCell>
+                            <TableCell align="center" sx={{ fontWeight: 600, fontSize: 10.5, bgcolor: 'background.paper', borderRight: '1px solid', borderColor: 'divider', width: 48, p: 1 }}>{t.tableHeadNumber}</TableCell>
                             {previewData.columns.map((col) => (
-                              <TableCell key={col} sx={{ fontWeight: 'bold', fontSize: 10.5, bgcolor: 'background.paper', borderRight: '1px solid', borderColor: 'divider', p: 1 }}>{col}</TableCell>
+                              <TableCell key={col} sx={{ fontWeight: 600, fontSize: 10.5, bgcolor: 'background.paper', borderRight: '1px solid', borderColor: 'divider', p: 1 }}>{col}</TableCell>
                             ))}
                           </TableRow>
                         </TableHead>
                         <TableBody>
                           {visibleRows.map((row, rIdx) => (
                             <TableRow key={rIdx} hover>
-                              <TableCell align="center" sx={{ fontFamily: 'monospace', fontSize: 10, borderRight: '1px solid', borderColor: 'divider', p: 0.8, bgcolor: 'rgba(26, 115, 232, 0.02)' }}>
+                              <TableCell align="center" sx={{ fontFamily: 'monospace', fontSize: 10, borderRight: '1px solid', borderColor: 'divider', p: 0.8, bgcolor: 'rgba(0, 120, 212, 0.02)' }}>
                                 {page * rowsPerPage + rIdx + 1}
                               </TableCell>
                               {previewData.columns.map((col) => (
                                 <TableCell key={col} sx={{ fontFamily: 'monospace', fontSize: 10, borderRight: '1px solid', borderColor: 'divider', p: 0.8, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxW: 140 }}>
-                                  {row[col] === null ? <span style={{ fontStyle: 'italic', opacity: 0.5 }}>—</span> : String(row[col])}
+                                  {row[col] === null ? <span style={{ fontStyle: 'italic', opacity: 0.5 }}>â€”</span> : String(row[col])}
                                 </TableCell>
                               ))}
                             </TableRow>
@@ -420,7 +420,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
               ) : (
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justify: 'center', py: 12, color: 'text.secondary' }}>
                   <FileText className="w-12 h-12 mb-3 opacity-30 text-gh-muted" />
-                  <Typography variant="body2" sx={{ fontWeight: 'bold' }}>{t.previewEmptyStateTitle}</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>{t.previewEmptyStateTitle}</Typography>
                   <Typography variant="caption" sx={{ mt: 0.5, maxWidth: 260, textCenter: 'center', lineHeight: 1.4 }}>
                     {t.previewEmptyStateDesc}
                   </Typography>
@@ -437,3 +437,5 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
 };
 
 export default FileUpload;
+
+

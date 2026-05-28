@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useBIStore, BACKEND_BASE } from '../context/store';
 import { translations } from '../context/translations';
 import FileUpload from './FileUpload';
@@ -47,10 +47,11 @@ const DEFAULT_FORM: ConnectionForm = {
 
 const DB_TYPE_OPTIONS = [
   { value: 'sap_s4hana', label: 'SAP S/4HANA', icon: Cpu, color: '#f9ab00' },
-  { value: 'postgresql', label: 'PostgreSQL', icon: Database, color: '#1a73e8' },
+  { value: 'postgresql', label: 'PostgreSQL', icon: Database, color: '#0078d4' },   // Fluent Communication Blue
   { value: 'mysql', label: 'MySQL / MariaDB', icon: Server, color: '#00acac' },
-  { value: 'sqlite', label: 'SQLite', icon: HardDrive, color: '#a78bfa' },
+  { value: 'sqlite', label: 'SQLite', icon: HardDrive, color: '#7a4dff' },          // Fluent Purple
 ];
+
 
 const DEFAULT_PORTS: Record<DbType, string> = {
   sap_s4hana: '30015',
@@ -161,7 +162,7 @@ export const SourceManager: React.FC = () => {
       const data = await res.json();
       setTestResult({ success: data.success, message: data.message });
     } catch {
-      setTestResult({ success: false, message: language === 'tr' ? 'Sunucu ile bağlantı kurulamadı.' : 'Failed to connect to server.' });
+      setTestResult({ success: false, message: language === 'tr' ? 'Sunucu ile baÃ„Å¸lantÃ„Â± kurulamadÃ„Â±.' : 'Failed to connect to server.' });
     } finally {
       setTesting(false);
     }
@@ -190,7 +191,7 @@ export const SourceManager: React.FC = () => {
       });
       if (!res.ok) {
         const err = await res.json();
-        setSaveError(err.detail || (language === 'tr' ? 'Bağlantı kaydedilemedi.' : 'Could not save connection.'));
+        setSaveError(err.detail || (language === 'tr' ? 'BaÃ„Å¸lantÃ„Â± kaydedilemedi.' : 'Could not save connection.'));
         return;
       }
       await fetchSources();
@@ -218,7 +219,7 @@ export const SourceManager: React.FC = () => {
 
   const handleDelete = async (e: React.MouseEvent, sourceId: string) => {
     e.stopPropagation();
-    if (!window.confirm(language === 'tr' ? 'Bu veri kaynağını silmek istediğinizden emin misiniz?' : 'Are you sure you want to delete this data source?')) return;
+    if (!window.confirm(language === 'tr' ? 'Bu veri kaynaÃ„Å¸Ã„Â±nÃ„Â± silmek istediÃ„Å¸inizden emin misiniz?' : 'Are you sure you want to delete this data source?')) return;
     setDeleting(sourceId);
     try {
       const res = await fetch(`${API}/api/sources/${sourceId}`, { method: 'DELETE' });
@@ -235,12 +236,12 @@ export const SourceManager: React.FC = () => {
       const res = await fetch(`${API}/api/sources/${sourceId}/snapshot`, { method: 'POST' });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.detail || (language === 'tr' ? 'Snapshot alma işlemi başarısız.' : 'Snapshot failed.'));
+        throw new Error(err.detail || (language === 'tr' ? 'Snapshot alma iÃ…Å¸lemi baÃ…Å¸arÃ„Â±sÃ„Â±z.' : 'Snapshot failed.'));
       }
-      alert(language === 'tr' ? 'Yerel disk yedeği (snapshot) başarıyla oluşturuldu.' : 'Local disk backup (snapshot) successfully created.');
+      alert(language === 'tr' ? 'Yerel disk yedeÃ„Å¸i (snapshot) baÃ…Å¸arÃ„Â±yla oluÃ…Å¸turuldu.' : 'Local disk backup (snapshot) successfully created.');
       await fetchSources();
     } catch (err: any) {
-      alert(err.message || (language === 'tr' ? 'Snapshot oluşturulamadı.' : 'Could not create snapshot.'));
+      alert(err.message || (language === 'tr' ? 'Snapshot oluÃ…Å¸turulamadÃ„Â±.' : 'Could not create snapshot.'));
     } finally {
       setSnapshotting(null);
     }
@@ -272,11 +273,11 @@ export const SourceManager: React.FC = () => {
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.detail || (language === 'tr' ? 'Durum güncellenemedi.' : 'Could not update status.'));
+        throw new Error(err.detail || (language === 'tr' ? 'Durum gÃƒÂ¼ncellenemedi.' : 'Could not update status.'));
       }
       await fetchSources();
     } catch (err: any) {
-      alert(err.message || (language === 'tr' ? 'Durum güncellenemedi.' : 'Could not update status.'));
+      alert(err.message || (language === 'tr' ? 'Durum gÃƒÂ¼ncellenemedi.' : 'Could not update status.'));
     } finally {
       setTogglingId(null);
     }
@@ -293,11 +294,11 @@ export const SourceManager: React.FC = () => {
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.detail || (language === 'tr' ? 'Klonlama başarısız.' : 'Cloning failed.'));
+        throw new Error(err.detail || (language === 'tr' ? 'Klonlama baÃ…Å¸arÃ„Â±sÃ„Â±z.' : 'Cloning failed.'));
       }
       await fetchSources();
     } catch (err: any) {
-      alert(err.message || (language === 'tr' ? 'Klonlama başarısız.' : 'Cloning failed.'));
+      alert(err.message || (language === 'tr' ? 'Klonlama baÃ…Å¸arÃ„Â±sÃ„Â±z.' : 'Cloning failed.'));
     } finally {
       setCloningId(null);
     }
@@ -341,7 +342,7 @@ export const SourceManager: React.FC = () => {
 
     try {
       const res = await fetch(`${API}/api/sources/${sourceId}/semantic`);
-      if (!res.ok) throw new Error(language === 'tr' ? 'Semantik tanımlar yüklenemedi.' : 'Could not load semantic definitions.');
+      if (!res.ok) throw new Error(language === 'tr' ? 'Semantik tanÃ„Â±mlar yÃƒÂ¼klenemedi.' : 'Could not load semantic definitions.');
       const data = await res.json();
 
       const initialMapping: typeof semanticMapping = {};
@@ -362,7 +363,7 @@ export const SourceManager: React.FC = () => {
 
       setSemanticMapping(initialMapping);
     } catch (err: any) {
-      setSemanticError(err.message || (language === 'tr' ? 'Semantik tanımlar yüklenirken hata oluştu.' : 'Error loading semantic definitions.'));
+      setSemanticError(err.message || (language === 'tr' ? 'Semantik tanÃ„Â±mlar yÃƒÂ¼klenirken hata oluÃ…Å¸tu.' : 'Error loading semantic definitions.'));
     } finally {
       setSemanticLoading(false);
     }
@@ -396,26 +397,26 @@ export const SourceManager: React.FC = () => {
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.detail || (language === 'tr' ? 'Semantik tanımlar kaydedilemedi.' : 'Could not save semantic layer definitions.'));
+        throw new Error(err.detail || (language === 'tr' ? 'Semantik tanÃ„Â±mlar kaydedilemedi.' : 'Could not save semantic layer definitions.'));
       }
       setSemanticSourceId(null);
     } catch (err: any) {
-      setSemanticError(err.message || (language === 'tr' ? 'Semantik tanımlar kaydedilirken hata oluştu.' : 'Error saving semantic layer definitions.'));
+      setSemanticError(err.message || (language === 'tr' ? 'Semantik tanÃ„Â±mlar kaydedilirken hata oluÃ…Å¸tu.' : 'Error saving semantic layer definitions.'));
     } finally {
       setSemanticSaving(false);
     }
   };
 
   const colorFor = (type: string) =>
-    DB_TYPE_OPTIONS.find(o => o.value === type)?.color ?? '#1a73e8';
+    DB_TYPE_OPTIONS.find(o => o.value === type)?.color ?? '#0078d4';
 
   const labelTextFor = (type: string) =>
     DB_TYPE_OPTIONS.find(o => o.value === type)?.label ?? type.toUpperCase();
 
   const hostLabel = (src: any) => {
     const d = src.connection_details ?? {};
-    if (src.type === 'sqlite') return d.database_path ?? '—';
-    return d.host ? `${d.host}:${d.port ?? ''} / ${d.database ?? ''}` : '—';
+    if (src.type === 'sqlite') return d.database_path ?? 'Ã¢â‚¬â€';
+    return d.host ? `${d.host}:${d.port ?? ''} / ${d.database ?? ''}` : 'Ã¢â‚¬â€';
   };
 
   const detailSource = detailSourceId ? sources.find(s => s.id === detailSourceId) : null;
@@ -445,7 +446,7 @@ export const SourceManager: React.FC = () => {
             variant="contained"
             onClick={handleStartAdd}
             startIcon={<Plus size={14} />}
-            sx={{ bgcolor: '#1a73e8', '&:hover': { bgcolor: '#1557b0' }, fontWeight: 'bold', fontSize: 11, color: '#ffffff', borderRadius: '8px' }}
+            sx={{ bgcolor: '#0078d4', '&:hover': { bgcolor: '#106ebe' }, fontWeight: 600, fontSize: 11, color: '#ffffff', borderRadius: '8px' }}
           >
             {t.addBtn}
           </Button>
@@ -453,11 +454,11 @@ export const SourceManager: React.FC = () => {
       </Box>
 
       {/* File Upload & Preview Segment */}
-      <Card sx={{ bgcolor: 'rgba(26, 115, 232, 0.01)', borderRadius: '12px' }}>
+      <Card sx={{ bgcolor: 'rgba(0, 120, 212, 0.01)', borderRadius: '8px' }}>
         <CardContent sx={{ p: 2.5 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', borderBottom: '1px solid', borderColor: 'divider', pb: 1.5, mb: 2 }}>
             <Box>
-              <Typography variant="subtitle2" sx={{ fontWeight: 'bold', fontSize: 11.5, textTransform: 'uppercase', tracking: '0.05em' }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: 11.5, textTransform: 'uppercase', tracking: '0.05em' }}>
                 {t.fileSourcesSection}
               </Typography>
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -473,10 +474,10 @@ export const SourceManager: React.FC = () => {
       </Card>
 
       {/* Active Selection Indicator */}
-      <Card sx={{ bgcolor: 'rgba(26, 115, 232, 0.01)', borderRadius: '12px' }}>
+      <Card sx={{ bgcolor: 'rgba(0, 120, 212, 0.01)', borderRadius: '8px' }}>
         <CardContent sx={{ p: 2.5 }}>
           <Box sx={{ borderBottom: '1px solid', borderColor: 'divider', pb: 1.5, mb: 2 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 'bold', fontSize: 11.5, textTransform: 'uppercase', tracking: '0.05em' }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: 11.5, textTransform: 'uppercase', tracking: '0.05em' }}>
               {t.activeSessionTables}
             </Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -485,30 +486,30 @@ export const SourceManager: React.FC = () => {
           </Box>
           <Grid container spacing={2.5}>
             <Grid size={{ xs: 12, md: 6 }}>
-              <Box className="panel-inset" sx={{ p: 2.5, borderRadius: '10px', minHeight: 140, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <Box className="panel-inset" sx={{ p: 2.5, borderRadius: '6px', minHeight: 140, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                 <Box>
-                  <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', textTransform: 'uppercase', tracking: '0.05em', display: 'block', mb: 1 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 600, color: 'primary.main', textTransform: 'uppercase', tracking: '0.05em', display: 'block', mb: 1 }}>
                     {t.mainSourceLabel}
                   </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 'extrabold', fontFamily: 'monospace', p: '6px 12px', bgcolor: 'rgba(26, 115, 232, 0.03)', border: '1px solid', borderColor: 'divider', borderRadius: '6px', fontSize: 11 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 'extrabold', fontFamily: 'monospace', p: '6px 12px', bgcolor: 'rgba(0, 120, 212, 0.03)', border: '1px solid', borderColor: 'divider', borderRadius: '6px', fontSize: 11 }}>
                     {activeSourceId || t.noActiveSource}
                   </Typography>
                 </Box>
                 <Box sx={{ mt: 2 }}>
-                  <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', display: 'block', mb: 0.5 }}>
-                    {language === 'tr' ? 'Kullanılabilir Tablolar:' : 'Available Tables:'}
+                  <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', display: 'block', mb: 0.5 }}>
+                    {language === 'tr' ? 'KullanÃ„Â±labilir Tablolar:' : 'Available Tables:'}
                   </Typography>
                   <ul className="text-[11px] list-disc list-inside text-gh-text space-y-0.5 font-mono max-h-[80px] overflow-y-auto pr-1">
                     {(() => {
                       const src = sources.find(s => s.id === activeSourceId);
                       if (src && src.schema) {
                         const tbls = Object.keys(src.schema || {});
-                        if (tbls.length === 0) return <li className="text-gh-muted italic">{language === 'tr' ? '(Tablo bulunamadı)' : '(No tables found)'}</li>;
-                        return tbls.map(t => <li key={`active-${t}`} style={{ color: '#1a73e8' }}>{t}</li>);
+                        if (tbls.length === 0) return <li className="text-gh-muted italic">{language === 'tr' ? '(Tablo bulunamadÃ„Â±)' : '(No tables found)'}</li>;
+                        return tbls.map(t => <li key={`active-${t}`} style={{ color: '#0078d4' }}>{t}</li>);
                       }
                       const fileItem = files.find(f => f.id === activeSourceId || f.alias === activeSourceId);
-                      if (fileItem) return <li key={`active-file-${fileItem.alias}`} style={{ color: '#1a73e8' }}>{fileItem.alias}</li>;
-                      return <li className="text-gh-muted italic">{language === 'tr' ? '(Seçim boş veya bulunamadı)' : '(Selection is empty or not found)'}</li>;
+                      if (fileItem) return <li key={`active-file-${fileItem.alias}`} style={{ color: '#0078d4' }}>{fileItem.alias}</li>;
+                      return <li className="text-gh-muted italic">{language === 'tr' ? '(SeÃƒÂ§im boÃ…Å¸ veya bulunamadÃ„Â±)' : '(Selection is empty or not found)'}</li>;
                     })()}
                   </ul>
                 </Box>
@@ -516,9 +517,9 @@ export const SourceManager: React.FC = () => {
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
-              <Box className="panel-inset" sx={{ p: 2.5, borderRadius: '10px', minHeight: 140, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <Box className="panel-inset" sx={{ p: 2.5, borderRadius: '6px', minHeight: 140, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                 <Box>
-                  <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', display: 'block', mb: 0.5 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', display: 'block', mb: 0.5 }}>
                     {t.additionalSources} ({selectedSourceIds.length})
                   </Typography>
                   <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1.5 }}>
@@ -537,8 +538,8 @@ export const SourceManager: React.FC = () => {
                         if (src) {
                           const tbls = Object.keys(src.schema || {});
                           return (
-                            <Box key={`sel-${sid}`} sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', bgcolor: 'rgba(26, 115, 232, 0.02)', p: '4px 8px', borderRadius: '4px', border: '1px solid', borderColor: 'divider', fontSize: 10.5 }}>
-                              <span style={{ color: '#1a73e8', fontWeight: 'bold' }}>{sid}</span>
+                            <Box key={`sel-${sid}`} sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', bgcolor: 'rgba(0, 120, 212, 0.02)', p: '4px 8px', borderRadius: '4px', border: '1px solid', borderColor: 'divider', fontSize: 10.5 }}>
+                              <span style={{ color: '#0078d4', fontWeight: 600 }}>{sid}</span>
                               <span style={{ color: 'var(--color-text)' }}>({language === 'tr' ? `${tbls.length} tablo` : `${tbls.length} tables`})</span>
                             </Box>
                           );
@@ -546,13 +547,13 @@ export const SourceManager: React.FC = () => {
                         const fileItem = files.find(f => f.id === sid || f.alias === sid);
                         if (fileItem) {
                           return (
-                            <Box key={`sel-file-${sid}`} sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', bgcolor: 'rgba(26, 115, 232, 0.02)', p: '4px 8px', borderRadius: '4px', border: '1px solid', borderColor: 'divider', fontSize: 10.5 }}>
-                              <span style={{ color: '#1a73e8', fontWeight: 'bold' }}>{fileItem.alias}</span>
-                              <span style={{ color: '#1a73e8' }}>{language === 'tr' ? 'Dosya' : 'File'}</span>
+                            <Box key={`sel-file-${sid}`} sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', bgcolor: 'rgba(0, 120, 212, 0.02)', p: '4px 8px', borderRadius: '4px', border: '1px solid', borderColor: 'divider', fontSize: 10.5 }}>
+                              <span style={{ color: '#0078d4', fontWeight: 600 }}>{fileItem.alias}</span>
+                              <span style={{ color: '#0078d4' }}>{language === 'tr' ? 'Dosya' : 'File'}</span>
                             </Box>
                           );
                         }
-                        return <div key={`sel-miss-${sid}`} style={{ fontStyle: 'italic', opacity: 0.7 }}>{sid} ({language === 'tr' ? 'Bulunamadı' : 'Not Found'})</div>;
+                        return <div key={`sel-miss-${sid}`} style={{ fontStyle: 'italic', opacity: 0.7 }}>{sid} ({language === 'tr' ? 'BulunamadÃ„Â±' : 'Not Found'})</div>;
                       })}
                     </Box>
                   )}
@@ -571,7 +572,7 @@ export const SourceManager: React.FC = () => {
         fullWidth
       >
         <DialogTitle sx={{ p: 2.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Database size={16} style={{ color: '#1a73e8' }} />
+          <Database size={16} style={{ color: '#0078d4' }} />
           <Typography variant="subtitle2" sx={{ fontWeight: 'extrabold', fontSize: 13, m: 0 }}>
             {t.detailsModalTitle}
           </Typography>
@@ -581,48 +582,48 @@ export const SourceManager: React.FC = () => {
             <>
               <Grid container spacing={2}>
                 <Grid size={6}>
-                  <Box className="panel-inset" sx={{ p: 2, borderRadius: '10px' }}>
-                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', display: 'block', mb: 1 }}>
+                  <Box className="panel-inset" sx={{ p: 2, borderRadius: '6px' }}>
+                    <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', display: 'block', mb: 1 }}>
                       {t.metricsLabel}
                     </Typography>
                     <Typography variant="body2" sx={{ fontWeight: 'extrabold', fontSize: 11.5 }}>
                       {detailSource.display_name}
                     </Typography>
                     <Box sx={{ mt: 1.5, display: 'flex', flexDirection: 'column', gap: 1, fontSize: 10.5, color: 'text.secondary' }}>
-                      <Box>{language === 'tr' ? 'Tip: ' : 'Type: '}<Chip label={detailSource.type.toUpperCase()} size="small" sx={{ height: 16, fontSize: 8.5, fontWeight: 'bold', bgcolor: 'rgba(26, 115, 232, 0.1)', color: '#1a73e8', border: 0 }} /></Box>
-                      <Box>{language === 'tr' ? 'Durum: ' : 'Status: '}{detailSource.is_active ? <Chip label={t.active} color="success" size="small" sx={{ height: 16, fontSize: 8.5, fontWeight: 'bold', border: 0 }} /> : <Chip label={t.passive} color="error" size="small" sx={{ height: 16, fontSize: 8.5, fontWeight: 'bold', border: 0 }} />}</Box>
-                      <Box>{language === 'tr' ? 'Tablolar: ' : 'Tables: '}<span style={{ color: '#1a73e8', fontWeight: 'bold', fontFamily: 'monospace' }}>{Object.keys(detailSource.schema || {}).length}</span></Box>
-                      <Box sx={{ fontSize: 9.5, opacity: 0.8 }}>{language === 'tr' ? 'Son Güncelleme: ' : 'Last Update: '}{detailSource.last_schema_update || '—'}</Box>
+                      <Box>{language === 'tr' ? 'Tip: ' : 'Type: '}<Chip label={detailSource.type.toUpperCase()} size="small" sx={{ height: 16, fontSize: 8.5, fontWeight: 600, bgcolor: 'rgba(0, 120, 212, 0.1)', color: '#0078d4', border: 0 }} /></Box>
+                      <Box>{language === 'tr' ? 'Durum: ' : 'Status: '}{detailSource.is_active ? <Chip label={t.active} color="success" size="small" sx={{ height: 16, fontSize: 8.5, fontWeight: 600, border: 0 }} /> : <Chip label={t.passive} color="error" size="small" sx={{ height: 16, fontSize: 8.5, fontWeight: 600, border: 0 }} />}</Box>
+                      <Box>{language === 'tr' ? 'Tablolar: ' : 'Tables: '}<span style={{ color: '#0078d4', fontWeight: 600, fontFamily: 'monospace' }}>{Object.keys(detailSource.schema || {}).length}</span></Box>
+                      <Box sx={{ fontSize: 9.5, opacity: 0.8 }}>{language === 'tr' ? 'Son GÃƒÂ¼ncelleme: ' : 'Last Update: '}{detailSource.last_schema_update || 'Ã¢â‚¬â€'}</Box>
                     </Box>
                   </Box>
                 </Grid>
 
                 <Grid size={6}>
-                  <Box className="panel-inset" sx={{ p: 2, borderRadius: '10px' }}>
-                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', display: 'block', mb: 1 }}>
+                  <Box className="panel-inset" sx={{ p: 2, borderRadius: '6px' }}>
+                    <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', display: 'block', mb: 1 }}>
                       {t.serverParamsLabel}
                     </Typography>
                     {detailSource.type === 'sqlite' ? (
                       <Typography variant="caption" sx={{ fontFamily: 'monospace', display: 'block', wordBreak: 'break-all' }}>
-                        {language === 'tr' ? 'Dosya: ' : 'File: '}<span style={{ color: '#1a73e8' }}>{detailDetails.database_path || '—'}</span>
+                        {language === 'tr' ? 'Dosya: ' : 'File: '}<span style={{ color: '#0078d4' }}>{detailDetails.database_path || 'Ã¢â‚¬â€'}</span>
                       </Typography>
                     ) : (
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, fontFamily: 'monospace', fontSize: 10.5, color: 'text.secondary' }}>
-                        <div>Host: <span style={{ color: '#1a73e8', fontWeight: 'bold' }}>{detailDetails.host || '—'}</span></div>
-                        <div>Port: <span style={{ color: '#1a73e8', fontWeight: 'bold' }}>{detailDetails.port || '—'}</span></div>
-                        <div>DB: <span style={{ color: '#1a73e8', fontWeight: 'bold' }}>{detailDetails.database || '—'}</span></div>
-                        <div>Şema: <span style={{ color: '#1a73e8', fontWeight: 'bold' }}>{detailDetails.schema || '—'}</span></div>
-                        <div>User: <span style={{ color: '#1a73e8', fontWeight: 'bold' }}>{detailDetails.user || '—'}</span></div>
-                        <div>{language === 'tr' ? 'Şifre' : 'Password'}: <span style={{ color: '#1a73e8', fontWeight: 'bold' }}>{detailDetails.password ? '••••••••' : '—'}</span></div>
+                        <div>Host: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.host || 'Ã¢â‚¬â€'}</span></div>
+                        <div>Port: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.port || 'Ã¢â‚¬â€'}</span></div>
+                        <div>DB: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.database || 'Ã¢â‚¬â€'}</span></div>
+                        <div>Ã…Âema: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.schema || 'Ã¢â‚¬â€'}</span></div>
+                        <div>User: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.user || 'Ã¢â‚¬â€'}</span></div>
+                        <div>{language === 'tr' ? 'Ã…Âifre' : 'Password'}: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.password ? 'Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢' : 'Ã¢â‚¬â€'}</span></div>
                       </Box>
                     )}
                   </Box>
                 </Grid>
               </Grid>
 
-              <Box className="panel-inset" sx={{ p: 2, borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              <Box className="panel-inset" sx={{ p: 2, borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justify: 'space-between' }}>
-                  <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em' }}>
+                  <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em' }}>
                     {t.labelsCardTitle}
                   </Typography>
                   <Button
@@ -630,7 +631,7 @@ export const SourceManager: React.FC = () => {
                     disabled={labelsSaving}
                     variant="contained"
                     size="small"
-                    sx={{ bgcolor: '#1a73e8', '&:hover': { bgcolor: '#1557b0' }, color: '#ffffff', px: 2, height: 24, fontSize: 10, fontWeight: 'bold' }}
+                    sx={{ bgcolor: '#0078d4', '&:hover': { bgcolor: '#106ebe' }, color: '#ffffff', px: 2, height: 24, fontSize: 10, fontWeight: 600 }}
                   >
                     {language === 'tr' ? 'Kaydet' : 'Save'}
                   </Button>
@@ -666,7 +667,7 @@ export const SourceManager: React.FC = () => {
         scroll="paper"
       >
         <DialogTitle sx={{ p: 2.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Box sx={{ width: 32, height: 32, borderRadius: '6px', bgcolor: 'rgba(26, 115, 232, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1a73e8' }}>
+          <Box sx={{ width: 32, height: 32, borderRadius: '6px', bgcolor: 'rgba(0, 120, 212, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0078d4' }}>
             <Tag size={16} />
           </Box>
           <Box>
@@ -682,33 +683,33 @@ export const SourceManager: React.FC = () => {
           {semanticLoading ? (
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 8, gap: 2 }}>
               <CircularProgress size={28} />
-              <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 'bold' }}>{t.loadingSchema}</Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>{t.loadingSchema}</Typography>
             </Box>
           ) : semanticError ? (
             <Alert severity="error" sx={{ borderRadius: '8px' }}>{semanticError}</Alert>
           ) : Object.keys(semanticMapping).length === 0 ? (
             <Box sx={{ py: 6, color: 'text.secondary', display: 'flex', flexDirection: 'column', alignItems: 'center', justify: 'center' }}>
               <AlertCircle size={28} style={{ opacity: 0.4, marginBottom: 8 }} />
-              <Typography variant="body2" sx={{ fontWeight: 'bold' }}>{t.noTablesFound}</Typography>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>{t.noTablesFound}</Typography>
               <Typography variant="caption">{t.refreshSchemaFirst}</Typography>
             </Box>
           ) : (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {Object.entries(semanticMapping).map(([tbl, cols]) => (
-                <Box key={tbl} sx={{ border: '1px solid', borderColor: 'divider', bgcolor: 'background.paper', borderRadius: '10px', overflow: 'hidden' }}>
+                <Box key={tbl} sx={{ border: '1px solid', borderColor: 'divider', bgcolor: 'background.paper', borderRadius: '6px', overflow: 'hidden' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'action.hover' }}>
                     <Typography variant="caption" sx={{ fontWeight: 'extrabold', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Database className="w-3.5 h-3.5 text-gh-accent" />
                       {tbl}
                     </Typography>
-                    <Chip label={`${Object.keys(cols).length} ${t.columnCount}`} size="small" sx={{ height: 16, fontSize: 8.5, fontWeight: 'bold', bgcolor: 'rgba(26, 115, 232, 0.1)', color: '#1a73e8' }} />
+                    <Chip label={`${Object.keys(cols).length} ${t.columnCount}`} size="small" sx={{ height: 16, fontSize: 8.5, fontWeight: 600, bgcolor: 'rgba(0, 120, 212, 0.1)', color: '#0078d4' }} />
                   </Box>
                   
                   <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
                     {Object.entries(cols).map(([col, info]) => (
                       <Grid container spacing={2} key={col} sx={{ alignItems: 'center' }}>
                         <Grid size={{ xs: 12, md: 3 }}>
-                          <Typography variant="caption" sx={{ fontFamily: 'monospace', fontWeight: 'bold', display: 'block', wordBreak: 'break-all' }}>
+                          <Typography variant="caption" sx={{ fontFamily: 'monospace', fontWeight: 600, display: 'block', wordBreak: 'break-all' }}>
                             {col}
                           </Typography>
                         </Grid>
@@ -756,14 +757,14 @@ export const SourceManager: React.FC = () => {
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
           <Button onClick={() => setSemanticSourceId(null)} variant="outlined" sx={{ borderColor: 'divider', color: 'text.primary' }}>
-            {language === 'tr' ? 'İptal' : 'Cancel'}
+            {language === 'tr' ? 'Ã„Â°ptal' : 'Cancel'}
           </Button>
           <Button
             type="primary"
             variant="contained"
             disabled={semanticSaving || semanticLoading}
             onClick={handleSaveSemantic}
-            sx={{ bgcolor: '#1a73e8', '&:hover': { bgcolor: '#1557b0' }, color: '#ffffff', fontWeight: 'bold' }}
+            sx={{ bgcolor: '#0078d4', '&:hover': { bgcolor: '#106ebe' }, color: '#ffffff', fontWeight: 600 }}
           >
             {semanticSaving ? t.semanticBtnSaving : t.semanticBtnSave}
           </Button>
@@ -776,9 +777,9 @@ export const SourceManager: React.FC = () => {
         {/* Left Side: Master Connections list */}
         <Grid size={{ xs: 12, lg: showForm ? 7 : 12 }} sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
           {sources.length === 0 && (
-            <Box className="panel p-12" sx={{ textCenter: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderStyle: 'dashed', borderRadius: '12px', bgcolor: 'rgba(26, 115, 232, 0.02)' }}>
+            <Box className="panel p-12" sx={{ textCenter: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderStyle: 'dashed', borderRadius: '8px', bgcolor: 'rgba(0, 120, 212, 0.02)' }}>
               <Database className="w-10 h-10 mb-3 opacity-30 text-gh-muted" />
-              <Typography variant="body2" sx={{ fontWeight: 'bold' }}>{t.noDatabaseConnected}</Typography>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>{t.noDatabaseConnected}</Typography>
               <Typography variant="caption" sx={{ color: 'text.secondary', mt: 0.5 }}>{t.startAnalysisPrompt}</Typography>
             </Box>
           )}
@@ -795,21 +796,21 @@ export const SourceManager: React.FC = () => {
                 onClick={() => setActiveSourceId(src.id)}
                 sx={{
                   cursor: 'pointer',
-                  borderColor: isSelected ? '#1a73e8' : 'divider',
-                  bgcolor: isSelected ? 'rgba(26, 115, 232, 0.04)' : 'background.paper',
+                  borderColor: isSelected ? '#0078d4' : 'divider',
+                  bgcolor: isSelected ? 'rgba(0, 120, 212, 0.04)' : 'background.paper',
                   borderLeft: `4px solid ${accentColor}`,
-                  borderRadius: '12px',
+                  borderRadius: '8px',
                   transition: 'all 0.2s',
                   opacity: !isActive ? 0.7 : 1,
                   '&:hover': {
-                    borderColor: isSelected ? '#1a73e8' : 'text.secondary',
+                    borderColor: isSelected ? '#0078d4' : 'text.secondary',
                   }
                 }}
               >
                 <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', gap: 2, flexWrap: 'wrap' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
-                      <Box sx={{ width: 36, height: 36, borderRadius: '8px', border: '1px solid', borderColor: isSelected ? 'rgba(26, 115, 232, 0.3)' : 'divider', display: 'flex', alignItems: 'center', justifyContent: 'center', color: isSelected ? '#1a73e8' : 'text.secondary', bgcolor: isSelected ? 'rgba(26, 115, 232, 0.08)' : 'background.default' }}>
+                      <Box sx={{ width: 36, height: 36, borderRadius: '8px', border: '1px solid', borderColor: isSelected ? 'rgba(0, 120, 212, 0.3)' : 'divider', display: 'flex', alignItems: 'center', justifyContent: 'center', color: isSelected ? '#0078d4' : 'text.secondary', bgcolor: isSelected ? 'rgba(0, 120, 212, 0.08)' : 'background.default' }}>
                         {src.connection_details?.is_snapshot ? (
                           <HardDrive className="w-4.5 h-4.5 text-[#a371f7]" />
                         ) : (
@@ -819,9 +820,9 @@ export const SourceManager: React.FC = () => {
                       <Box sx={{ minWidth: 0 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                           <Typography variant="body2" sx={{ fontWeight: 'extrabold', fontSize: 12 }}>{src.display_name}</Typography>
-                          <Chip label={src.connection_details?.is_snapshot ? 'SNAPSHOT' : labelTextFor(src.type).toUpperCase()} size="small" sx={{ height: 16, fontSize: 8, fontWeight: 'bold', bgcolor: src.connection_details?.is_snapshot ? 'rgba(163, 113, 247, 0.15)' : 'rgba(26, 115, 232, 0.1)', color: src.connection_details?.is_snapshot ? '#a371f7' : '#1a73e8', border: 0 }} />
-                          {!isActive && <Chip label={t.passive} size="small" sx={{ height: 16, fontSize: 8, fontWeight: 'bold', bgcolor: 'rgba(255, 255, 255, 0.08)', color: 'text.secondary', border: 0 }} />}
-                          {isSelected && <Chip label={t.active} size="small" color="success" sx={{ height: 16, fontSize: 8, fontWeight: 'bold', border: 0 }} />}
+                          <Chip label={src.connection_details?.is_snapshot ? 'SNAPSHOT' : labelTextFor(src.type).toUpperCase()} size="small" sx={{ height: 16, fontSize: 8, fontWeight: 600, bgcolor: src.connection_details?.is_snapshot ? 'rgba(163, 113, 247, 0.15)' : 'rgba(0, 120, 212, 0.1)', color: src.connection_details?.is_snapshot ? '#a371f7' : '#0078d4', border: 0 }} />
+                          {!isActive && <Chip label={t.passive} size="small" sx={{ height: 16, fontSize: 8, fontWeight: 600, bgcolor: 'rgba(255, 255, 255, 0.08)', color: 'text.secondary', border: 0 }} />}
+                          {isSelected && <Chip label={t.active} size="small" color="success" sx={{ height: 16, fontSize: 8, fontWeight: 600, border: 0 }} />}
                         </Box>
                         <Typography variant="caption" sx={{ color: 'text.secondary', fontFamily: 'monospace', display: 'block', mt: 0.5 }} title={hostLabel(src)}>
                           {hostLabel(src)}
@@ -829,10 +830,10 @@ export const SourceManager: React.FC = () => {
                         {src.labels && src.labels.length > 0 && (
                           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
                             {src.labels.slice(0, 3).map((label: string) => (
-                              <Chip key={label} label={label} size="small" sx={{ height: 14, fontSize: 7.5, fontWeight: 'bold', bgcolor: 'action.hover', border: '1px solid', borderColor: 'divider', color: 'text.secondary' }} />
+                              <Chip key={label} label={label} size="small" sx={{ height: 14, fontSize: 7.5, fontWeight: 600, bgcolor: 'action.hover', border: '1px solid', borderColor: 'divider', color: 'text.secondary' }} />
                             ))}
                             {src.labels.length > 3 && (
-                              <span style={{ fontSize: 8, color: '#9aa6bf', fontWeight: 'bold' }}>+{src.labels.length - 3}</span>
+                              <span style={{ fontSize: 8, color: '#9aa6bf', fontWeight: 600 }}>+{src.labels.length - 3}</span>
                             )}
                           </Box>
                         )}
@@ -841,19 +842,19 @@ export const SourceManager: React.FC = () => {
 
                     {/* Actions Toolbar */}
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }} onClick={(e) => e.stopPropagation()}>
-                      <Tooltip title={language === 'tr' ? 'Detayları ve Etiketleri Gör' : 'View Details & Tags'}>
+                      <Tooltip title={language === 'tr' ? 'DetaylarÃ„Â± ve Etiketleri GÃƒÂ¶r' : 'View Details & Tags'}>
                         <IconButton size="small" onClick={(e) => openDetails(e, src.id)}>
                           <Eye size={13.5} />
                         </IconButton>
                       </Tooltip>
 
-                      <Tooltip title={language === 'tr' ? 'Semantik Katman Tanımları' : 'Semantic Layer Mappings'}>
+                      <Tooltip title={language === 'tr' ? 'Semantik Katman TanÃ„Â±mlarÃ„Â±' : 'Semantic Layer Mappings'}>
                         <IconButton size="small" onClick={(e) => openSemanticModal(e, src.id)}>
                           <Tag size={13.5} />
                         </IconButton>
                       </Tooltip>
 
-                      <Tooltip title={language === 'tr' ? 'Bağlantıyı Klonla' : 'Clone Connection'}>
+                      <Tooltip title={language === 'tr' ? 'BaÃ„Å¸lantÃ„Â±yÃ„Â± Klonla' : 'Clone Connection'}>
                         <IconButton size="small" onClick={(e) => handleClone(e, src.id)} disabled={cloningId === src.id}>
                           {cloningId === src.id ? <CircularProgress size={13.5} /> : <Copy size={13.5} />}
                         </IconButton>
@@ -861,12 +862,12 @@ export const SourceManager: React.FC = () => {
 
                       <Tooltip title={isActive ? (language === 'tr' ? 'Pasif Yap' : 'Make Passive') : (language === 'tr' ? 'Aktif Yap' : 'Make Active')}>
                         <IconButton size="small" onClick={(e) => handleToggleStatus(e, src.id, isActive)} disabled={togglingId === src.id}>
-                          {togglingId === src.id ? <CircularProgress size={13.5} /> : <Power size={13.5} style={{ color: isActive ? 'inherit' : '#1a73e8' }} />}
+                          {togglingId === src.id ? <CircularProgress size={13.5} /> : <Power size={13.5} style={{ color: isActive ? 'inherit' : '#0078d4' }} />}
                         </IconButton>
                       </Tooltip>
 
                       {src.id !== 'demo_sqlite' && (
-                        <Tooltip title={language === 'tr' ? 'Bağlantıyı Düzenle' : 'Edit Connection'}>
+                        <Tooltip title={language === 'tr' ? 'BaÃ„Å¸lantÃ„Â±yÃ„Â± DÃƒÂ¼zenle' : 'Edit Connection'}>
                           <IconButton size="small" onClick={(e) => handleStartEdit(e, src)}>
                             <Edit3 size={13.5} />
                           </IconButton>
@@ -874,21 +875,21 @@ export const SourceManager: React.FC = () => {
                       )}
 
                       {src.type !== 'sqlite' && !src.connection_details?.is_snapshot && (
-                        <Tooltip title={language === 'tr' ? 'Snapshot Al (Yerel Yedeğe Dönüştür)' : 'Take Snapshot (Convert to Local Backup)'}>
+                        <Tooltip title={language === 'tr' ? 'Snapshot Al (Yerel YedeÃ„Å¸e DÃƒÂ¶nÃƒÂ¼Ã…Å¸tÃƒÂ¼r)' : 'Take Snapshot (Convert to Local Backup)'}>
                           <IconButton size="small" onClick={(e) => handleTakeSnapshot(e, src.id)} disabled={snapshotting === src.id}>
                             {snapshotting === src.id ? <CircularProgress size={13.5} /> : <HardDrive size={13.5} />}
                           </IconButton>
                         </Tooltip>
                       )}
 
-                      <Tooltip title={language === 'tr' ? 'Şemayı Yenile ve Keşfet' : 'Refresh & Auto-Scan Schema'}>
+                      <Tooltip title={language === 'tr' ? 'Ã…ÂemayÃ„Â± Yenile ve KeÃ…Å¸fet' : 'Refresh & Auto-Scan Schema'}>
                         <IconButton size="small" onClick={(e) => handleRefreshSchema(e, src.id)} disabled={refreshing === src.id}>
                           {refreshing === src.id ? <CircularProgress size={13.5} /> : <RefreshCw size={13.5} />}
                         </IconButton>
                       </Tooltip>
 
                       {src.id !== 'demo_sqlite' && (
-                        <Tooltip title={language === 'tr' ? 'Veri Tabanını Sil' : 'Delete Database'}>
+                        <Tooltip title={language === 'tr' ? 'Veri TabanÃ„Â±nÃ„Â± Sil' : 'Delete Database'}>
                           <IconButton size="small" color="error" onClick={(e) => handleDelete(e, src.id)} disabled={deleting === src.id}>
                             {deleting === src.id ? <CircularProgress size={13.5} color="inherit" /> : <Trash2 size={13.5} />}
                           </IconButton>
@@ -899,9 +900,9 @@ export const SourceManager: React.FC = () => {
                         <Button
                           size="small"
                           onClick={() => setActiveSourceId(src.id)}
-                          sx={{ fontSize: 9.5, fontWeight: 'bold', border: '1px solid', borderColor: 'divider', color: 'text.secondary', borderRadius: '6px', py: 0.3 }}
+                          sx={{ fontSize: 9.5, fontWeight: 600, border: '1px solid', borderColor: 'divider', color: 'text.secondary', borderRadius: '6px', py: 0.3 }}
                         >
-                          {language === 'tr' ? 'Seç' : 'Select'}
+                          {language === 'tr' ? 'SeÃƒÂ§' : 'Select'}
                         </Button>
                       )}
                     </Box>
@@ -917,7 +918,7 @@ export const SourceManager: React.FC = () => {
                       expandIcon={<ChevronDown size={14} />}
                       sx={{ minHeight: 'auto', p: 0, '& .MuiAccordionSummary-content': { my: 1 } }}
                     >
-                      <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em' }}>
+                      <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em' }}>
                         {t.schemaAnalysis} ({tableCount} {t.tablesDetected})
                       </Typography>
                     </AccordionSummary>
@@ -930,14 +931,14 @@ export const SourceManager: React.FC = () => {
                         <Grid container spacing={1.5} sx={{ pt: 1 }}>
                           {Object.entries(src.schema).map(([tbl, cols]) => (
                             <Grid size={{ xs: 12, sm: 6 }} key={tbl}>
-                              <Box className="panel-inset" sx={{ p: 1.5, borderRadius: '8px', bgcolor: 'rgba(26, 115, 232, 0.02)', border: '1px solid', borderColor: 'divider' }}>
+                              <Box className="panel-inset" sx={{ p: 1.5, borderRadius: '8px', bgcolor: 'rgba(0, 120, 212, 0.02)', border: '1px solid', borderColor: 'divider' }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', borderBottom: '1px solid', borderColor: 'divider', pb: 0.5, mb: 1 }}>
-                                  <span style={{ fontFamily: 'monospace', fontWeight: 'bold', fontSize: 10.5 }}>{tbl}</span>
-                                  <span style={{ fontSize: 9, color: '#9aa6bf', fontFamily: 'monospace' }}>{(cols as string[]).length} {language === 'tr' ? 'sütun' : 'columns'}</span>
+                                  <span style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 10.5 }}>{tbl}</span>
+                                  <span style={{ fontSize: 9, color: '#9aa6bf', fontFamily: 'monospace' }}>{(cols as string[]).length} {language === 'tr' ? 'sÃƒÂ¼tun' : 'columns'}</span>
                                 </Box>
                                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                                   {(cols as string[]).map(col => (
-                                    <span key={col} style={{ fontFamily: 'monospace', padding: '1px 5px', fontSize: 9, color: '#9aa6bf', backgroundColor: 'rgba(26, 115, 232, 0.01)', border: '1px solid rgba(26, 115, 232, 0.15)', borderRadius: '3px' }}>
+                                    <span key={col} style={{ fontFamily: 'monospace', padding: '1px 5px', fontSize: 9, color: '#9aa6bf', backgroundColor: 'rgba(0, 120, 212, 0.01)', border: '1px solid rgba(0, 120, 212, 0.15)', borderRadius: '3px' }}>
                                       {col}
                                     </span>
                                   ))}
@@ -959,13 +960,13 @@ export const SourceManager: React.FC = () => {
         {/* Right Side: Setup & Edit Connection form */}
         {showForm && (
           <Grid size={{ xs: 12, lg: 5 }}>
-            <Card sx={{ bgcolor: 'background.paper', borderRadius: '12px', border: '1px solid', borderColor: 'divider' }}>
+            <Card sx={{ bgcolor: 'background.paper', borderRadius: '8px', border: '1px solid', borderColor: 'divider' }}>
               <CardContent sx={{ p: 2.5, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
                 {/* Form Header */}
                 <Box sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', borderBottom: '1px solid', borderColor: 'divider', pb: 1.5 }}>
-                  <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.primary', textTransform: 'uppercase', tracking: '0.05em', display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.primary', textTransform: 'uppercase', tracking: '0.05em', display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Database className="w-3.5 h-3.5 text-gh-accent" />
-                    {editingSourceId ? (language === 'tr' ? 'Bağlantıyı Düzenle' : 'Edit Connection') : t.addBtn}
+                    {editingSourceId ? (language === 'tr' ? 'BaÃ„Å¸lantÃ„Â±yÃ„Â± DÃƒÂ¼zenle' : 'Edit Connection') : t.addBtn}
                   </Typography>
                   <IconButton onClick={() => { setShowForm(false); setEditingSourceId(null); }} size="small">
                     <X size={15} />
@@ -975,8 +976,8 @@ export const SourceManager: React.FC = () => {
                 {/* Toggle group for Database types */}
                 {!editingSourceId && (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
-                      {language === 'tr' ? 'Veritabanı Tipi' : 'Database Type'}
+                    <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
+                      {language === 'tr' ? 'VeritabanÃ„Â± Tipi' : 'Database Type'}
                     </Typography>
                     <ToggleButtonGroup
                       value={formValues.type}
@@ -984,10 +985,10 @@ export const SourceManager: React.FC = () => {
                       onChange={(_, v) => v && handleTypeChange(v as DbType)}
                       fullWidth
                       sx={{
-                        border: '1px solid rgba(26, 115, 232, 0.15)', borderRadius: '8px', p: 0.5, bgcolor: 'rgba(26, 115, 232, 0.01)',
+                        border: '1px solid rgba(0, 120, 212, 0.15)', borderRadius: '8px', p: 0.5, bgcolor: 'rgba(0, 120, 212, 0.01)',
                         '& .MuiToggleButton-root': {
-                          border: 0, borderRadius: '6px', py: 1, textTransform: 'none', color: 'text.secondary', fontWeight: 'bold', fontSize: 10,
-                          '&.Mui-selected': { bgcolor: 'rgba(26, 115, 232, 0.1)', color: '#1a73e8' }
+                          border: 0, borderRadius: '6px', py: 1, textTransform: 'none', color: 'text.secondary', fontWeight: 600, fontSize: 10,
+                          '&.Mui-selected': { bgcolor: 'rgba(0, 120, 212, 0.1)', color: '#60cdff' }
                         }
                       }}
                     >
@@ -1010,28 +1011,28 @@ export const SourceManager: React.FC = () => {
                 {editingSourceId && (
                   <Alert severity="info" sx={{ borderRadius: '8px', fontSize: 11, py: 0.5 }}>
                     <span style={{ fontWeight: 'extrabold', display: 'block' }}>{t.editModeActive}</span>
-                    {t.editModeDesc.replace('veritabanının', labelTextFor(formValues.type))}
+                    {t.editModeDesc.replace('veritabanÃ„Â±nÃ„Â±n', labelTextFor(formValues.type))}
                   </Alert>
                 )}
 
                 {/* Spaced forms */}
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
-                      {language === 'tr' ? 'Bağlantı Görüntüleme İsmi' : 'Display Connection Name'}
+                    <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
+                      {language === 'tr' ? 'BaÃ„Å¸lantÃ„Â± GÃƒÂ¶rÃƒÂ¼ntÃƒÂ¼leme Ã„Â°smi' : 'Display Connection Name'}
                     </Typography>
                     <TextField
                       fullWidth
                       value={formValues.display_name}
                       onChange={e => setFormValues(p => ({ ...p, display_name: e.target.value }))}
-                      placeholder={language === 'tr' ? 'Örn: PostgreSQL Canlı' : 'E.g. Live PostgreSQL'}
+                      placeholder={language === 'tr' ? 'Ãƒâ€“rn: PostgreSQL CanlÃ„Â±' : 'E.g. Live PostgreSQL'}
                       sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
                     />
                   </Box>
 
                   {formValues.type === 'sqlite' ? (
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                      <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
+                      <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
                         {t.sqlitePathLabel}
                       </Typography>
                       <TextField
@@ -1041,7 +1042,7 @@ export const SourceManager: React.FC = () => {
                         placeholder={t.sqlitePathPlaceholder}
                         slotProps={{
                           input: {
-                            startAdornment: <HardDrive size={13.5} style={{ marginRight: 6, color: '#1a73e8' }} />
+                            startAdornment: <HardDrive size={13.5} style={{ marginRight: 6, color: '#0078d4' }} />
                           }
                         }}
                         sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
@@ -1052,7 +1053,7 @@ export const SourceManager: React.FC = () => {
                       <Grid container spacing={2}>
                         <Grid size={8}>
                           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                            <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
+                            <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
                               {t.serverHostLabel}
                             </Typography>
                             <TextField
@@ -1062,7 +1063,7 @@ export const SourceManager: React.FC = () => {
                               placeholder={t.serverHostPlaceholder}
                               slotProps={{
                                 input: {
-                                  startAdornment: <Server size={13.5} style={{ marginRight: 6, color: '#1a73e8' }} />
+                                  startAdornment: <Server size={13.5} style={{ marginRight: 6, color: '#0078d4' }} />
                                 }
                               }}
                               sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
@@ -1071,7 +1072,7 @@ export const SourceManager: React.FC = () => {
                         </Grid>
                         <Grid size={4}>
                           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                            <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
+                            <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
                               {t.serverPortLabel}
                             </Typography>
                             <TextField
@@ -1088,7 +1089,7 @@ export const SourceManager: React.FC = () => {
                       <Grid container spacing={2}>
                         <Grid size={6}>
                           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                            <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
+                            <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
                               {t.databaseNameLabel}
                             </Typography>
                             <TextField
@@ -1102,7 +1103,7 @@ export const SourceManager: React.FC = () => {
                         </Grid>
                         <Grid size={6}>
                           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                            <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
+                            <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
                               {t.schemaNameLabel}
                             </Typography>
                             <TextField
@@ -1119,7 +1120,7 @@ export const SourceManager: React.FC = () => {
                       <Grid container spacing={2}>
                         <Grid size={6}>
                           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                            <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
+                            <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
                               {t.dbUserLabel}
                             </Typography>
                             <TextField
@@ -1133,7 +1134,7 @@ export const SourceManager: React.FC = () => {
                         </Grid>
                         <Grid size={6}>
                           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                            <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
+                            <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
                               {t.dbPasswordLabel}
                             </Typography>
                             <TextField
@@ -1141,7 +1142,7 @@ export const SourceManager: React.FC = () => {
                               type="password"
                               value={formValues.password}
                               onChange={e => setFormValues(p => ({ ...p, password: e.target.value }))}
-                              placeholder={editingSourceId ? (language === 'tr' ? "•••••••• (Boşsa değişmez)" : "•••••••• (Keep blank to preserve)") : "••••••••"}
+                              placeholder={editingSourceId ? (language === 'tr' ? "Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢ (BoÃ…Å¸sa deÃ„Å¸iÃ…Å¸mez)" : "Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢ (Keep blank to preserve)") : "Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢"}
                               sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
                             />
                           </Box>
@@ -1171,9 +1172,9 @@ export const SourceManager: React.FC = () => {
                     disabled={testing}
                     variant="outlined"
                     startIcon={!testing && <Play size={14} />}
-                    sx={{ width: '100%', borderRadius: '8px', borderColor: 'divider', color: 'text.primary', fontWeight: 'bold', fontSize: 11, py: 1 }}
+                    sx={{ width: '100%', borderRadius: '8px', borderColor: 'divider', color: 'text.primary', fontWeight: 600, fontSize: 11, py: 1 }}
                   >
-                    {testing ? <CircularProgress size={14} color="inherit" /> : (language === 'tr' ? 'Bağlantıyı Test Et' : 'Test Connection')}
+                    {testing ? <CircularProgress size={14} color="inherit" /> : (language === 'tr' ? 'BaÃ„Å¸lantÃ„Â±yÃ„Â± Test Et' : 'Test Connection')}
                   </Button>
                   <Button
                     onClick={handleSave}
@@ -1182,11 +1183,11 @@ export const SourceManager: React.FC = () => {
                     startIcon={!saving && <Save size={14} />}
                     sx={{
                       width: '100%', borderRadius: '8px', bgcolor: testResult?.success ? 'success.main' : 'action.disabledBackground',
-                      color: testResult?.success ? '#ffffff' : 'text.disabled', fontWeight: 'bold', fontSize: 11, py: 1.2,
+                      color: testResult?.success ? '#ffffff' : 'text.disabled', fontWeight: 600, fontSize: 11, py: 1.2,
                       '&:hover': { bgcolor: testResult?.success ? 'success.dark' : 'action.disabledBackground' }
                     }}
                   >
-                    {saving ? <CircularProgress size={14} color="inherit" /> : (editingSourceId ? (language === 'tr' ? 'Değişiklikleri Güncelle' : 'Update Connection Details') : (language === 'tr' ? 'Bağlantıyı Kaydet & Şemayı Çıkar' : 'Save Connection & Extract Schema'))}
+                    {saving ? <CircularProgress size={14} color="inherit" /> : (editingSourceId ? (language === 'tr' ? 'DeÃ„Å¸iÃ…Å¸iklikleri GÃƒÂ¼ncelle' : 'Update Connection Details') : (language === 'tr' ? 'BaÃ„Å¸lantÃ„Â±yÃ„Â± Kaydet & Ã…ÂemayÃ„Â± Ãƒâ€¡Ã„Â±kar' : 'Save Connection & Extract Schema'))}
                   </Button>
                 </Box>
               </CardContent>
@@ -1200,9 +1201,9 @@ export const SourceManager: React.FC = () => {
             <Card
               onClick={handleStartAdd}
               sx={{
-                borderStyle: 'dashed', cursor: 'pointer', borderColor: 'divider', bgcolor: 'rgba(26, 115, 232, 0.01)',
-                transition: 'all 0.2s', borderRadius: '12px', textAlign: 'center', p: 3,
-                '&:hover': { borderColor: '#1a73e8', bgcolor: 'rgba(26, 115, 232, 0.04)' }
+                borderStyle: 'dashed', cursor: 'pointer', borderColor: 'divider', bgcolor: 'rgba(0, 120, 212, 0.01)',
+                transition: 'all 0.2s', borderRadius: '8px', textAlign: 'center', p: 3,
+                '&:hover': { borderColor: '#0078d4', bgcolor: 'rgba(0, 120, 212, 0.04)' }
               }}
             >
               <Box sx={{ width: 40, height: 40, borderRadius: '50%', border: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'text.secondary', mx: 'auto', mb: 2 }}>
@@ -1214,25 +1215,25 @@ export const SourceManager: React.FC = () => {
               </Typography>
             </Card>
 
-            <Card sx={{ bgcolor: 'rgba(26, 115, 232, 0.01)', borderRadius: '12px', border: '1px solid', borderColor: 'divider' }}>
+            <Card sx={{ bgcolor: 'rgba(0, 120, 212, 0.01)', borderRadius: '8px', border: '1px solid', borderColor: 'divider' }}>
               <CardContent sx={{ p: 2.5 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, borderBottom: '1px solid', borderColor: 'divider', pb: 1, mb: 1.5 }}>
                   <ShieldCheck className="w-4 h-4 text-gh-accent" />
-                  <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.primary', textTransform: 'uppercase', tracking: '0.05em' }}>
+                  <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.primary', textTransform: 'uppercase', tracking: '0.05em' }}>
                     {t.securitySectionTitle}
                   </Typography>
                 </Box>
                 <ul className="text-[11px] text-gh-muted leading-relaxed space-y-2 list-none p-0 m-0 select-none">
                   <li className="flex items-start gap-2">
-                    <span style={{ color: '#1a73e8', fontWeight: 'bold' }}>•</span>
+                    <span style={{ color: '#0078d4', fontWeight: 600 }}>Ã¢â‚¬Â¢</span>
                     <span>{t.securityPoint1}</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span style={{ color: '#1a73e8', fontWeight: 'bold' }}>•</span>
+                    <span style={{ color: '#0078d4', fontWeight: 600 }}>Ã¢â‚¬Â¢</span>
                     <span>{t.securityPoint2}</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span style={{ color: '#1a73e8', fontWeight: 'bold' }}>•</span>
+                    <span style={{ color: '#0078d4', fontWeight: 600 }}>Ã¢â‚¬Â¢</span>
                     <span>{t.securityPoint3}</span>
                   </li>
                 </ul>
@@ -1248,3 +1249,5 @@ export const SourceManager: React.FC = () => {
 };
 
 export default SourceManager;
+
+

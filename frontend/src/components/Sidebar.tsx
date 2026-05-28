@@ -51,42 +51,62 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onOpenSources,
 
   return (
     <aside
-      className="flex flex-col border-r bg-gh-canvas border-gh-border shrink-0 z-20 select-none overflow-hidden"
-      style={{ width: 240, height: '100vh' }}
+      className="flex flex-col shrink-0 z-20 select-none overflow-hidden"
+      style={{
+        width: 240,
+        height: '100vh',
+        background: 'var(--color-bg)',
+        borderRight: '1px solid var(--color-border)',
+      }}
     >
-      {/* ── Brand Header ── */}
+      {/* ── Fluent Navigation Header ── */}
       <div
-        className="flex items-center justify-between px-4 shrink-0 border-b border-gh-border"
-        style={{ height: 48, background: 'var(--color-canvas)' }}
+        className="flex items-center justify-between px-3 shrink-0"
+        style={{
+          height: 48,
+          background: 'var(--color-canvas)',
+          borderBottom: '1px solid var(--color-border)',
+        }}
       >
-        <div className="flex items-center gap-2.5 min-w-0">
-          {/* Amber mark — no gradient, no rounded */}
+        <div className="flex items-center gap-2 min-w-0">
+          {/* Fluent App Icon — square with Fluent Communication Blue */}
           <div
-            className="flex items-center justify-center shrink-0 font-black text-[9px] tracking-widest"
+            className="flex items-center justify-center shrink-0"
             style={{
-              width: 26, height: 26,
-              background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-fg) 100%)',
+              width: 28, height: 28,
+              background: '#0078d4',
               color: '#ffffff',
-              borderRadius: '6px',
-              letterSpacing: '0.05em'
+              borderRadius: '4px',
+              fontSize: 10,
+              fontWeight: 700,
+              fontFamily: 'var(--font-mono)',
+              letterSpacing: '0.02em',
+              flexShrink: 0,
             }}
           >
-            DB
+            BI
           </div>
           <div className="min-w-0">
-            <div className="font-bold text-xs text-gh-text tracking-tight truncate font-mono">DeepBI</div>
-            <div className="text-[8px] text-gh-muted font-mono uppercase tracking-widest">Analytics Studio</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)', fontFamily: 'var(--font-sans)', letterSpacing: '-0.01em', lineHeight: 1.3 }}>DeepBI</div>
+            <div style={{ fontSize: 10, color: 'var(--color-muted)', fontFamily: 'var(--font-sans)', letterSpacing: 0 }}>Analytics Studio</div>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={() => setLanguage(language === 'tr' ? 'en' : 'tr')}
-            className="shrink-0 cursor-pointer font-mono font-bold text-[9px] border border-gh-border hover:border-gh-accent rounded transition-all"
+            className="shrink-0 cursor-pointer"
             style={{
-              padding: '3px 6px',
+              padding: '3px 7px',
               background: 'var(--color-surface)',
-              color: 'var(--color-accent)',
+              border: '1px solid var(--color-border)',
+              borderRadius: '4px',
+              color: 'var(--color-text-2)',
+              fontSize: 10,
+              fontWeight: 600,
+              fontFamily: 'var(--font-sans)',
+              cursor: 'pointer',
+              transition: 'border-color 100ms var(--ease-fluent), color 100ms var(--ease-fluent)',
             }}
             title={language === 'tr' ? 'Switch to English' : "Türkçe'ye Geç"}
           >
@@ -104,13 +124,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onOpenSources,
         </div>
       </div>
 
-      {/* ── Analiz Defterleri ── */}
-      <div className="flex-1 flex flex-col px-3 pt-3 pb-2 min-h-0 overflow-hidden">
+      {/* ── Fluent Navigation Rail Body ── */}
+      <div className="flex-1 flex flex-col px-2 pt-3 pb-2 min-h-0 overflow-hidden">
 
-        {/* Section label */}
+        {/* Section label — Fluent caption style */}
         <div
-          className="flex items-center justify-between px-1 mb-2 shrink-0"
-          style={{ fontSize: 9, color: 'var(--color-accent)', fontFamily: 'var(--font-mono)', fontWeight: 700, letterSpacing: '0.10em', textTransform: 'uppercase' }}
+          className="flex items-center justify-between px-2 mb-2 shrink-0"
+          style={{ fontSize: 10, color: 'var(--color-muted)', fontFamily: 'var(--font-sans)', fontWeight: 600 }}
         >
           <span>{t.notebooks}</span>
           <button
@@ -123,13 +143,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onOpenSources,
           </button>
         </div>
 
-        {/* Search */}
+        {/* Search — Fluent SearchBox style */}
         <div className="px-0 mb-2 shrink-0">
           <input
             value={sessionFilter}
             onChange={(e) => setSessionFilter(e.target.value)}
             placeholder={t.search}
-            className="input text-xs w-full"
+            className="input w-full"
             style={{ paddingTop: 5, paddingBottom: 5, fontSize: 11 }}
           />
         </div>
@@ -227,11 +247,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onOpenSources,
         </div>
       </div>
 
-      {/* ── Aktif Veri Kümesi ── */}
-      <div className="px-3 py-3 shrink-0" style={{ borderTop: '1px solid var(--color-border)' }}>
+      {/* ── Fluent Active Dataset Section ── */}
+      <div className="px-2 py-3 shrink-0" style={{ borderTop: '1px solid var(--color-border)' }}>
         <div
           className="flex items-center justify-between mb-2"
-          style={{ fontSize: 9, color: 'var(--color-accent)', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, letterSpacing: '0.10em', textTransform: 'uppercase' }}
+          style={{ fontSize: 10, color: 'var(--color-muted)', fontFamily: 'var(--font-sans)', fontWeight: 600 }}
         >
           <span>{t.activeDataset}</span>
           <button
@@ -249,13 +269,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onOpenSources,
             onClick={onOpenSources}
             className="cursor-pointer transition-all"
             style={{
-              borderLeft: '3px solid var(--color-accent)',
-              background: 'var(--color-accent-subtle)',
+              background: 'var(--color-surface)',
               border: '1px solid var(--color-border)',
-              borderLeftColor: 'var(--color-accent)',
-              borderLeftWidth: 3,
+              borderLeft: '3px solid var(--color-accent)',
               padding: '8px 10px',
-              borderRadius: '10px'
+              borderRadius: '4px',
+              transition: 'background 100ms var(--ease-fluent), border-color 100ms var(--ease-fluent)',
             }}
           >
             <div className="flex items-center gap-2 min-w-0">
@@ -263,10 +282,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onOpenSources,
                 ? <Database size={11} style={{ color: 'var(--color-accent)', flexShrink: 0 }} />
                 : <HardDrive size={11} style={{ color: 'var(--color-accent)', flexShrink: 0 }} />}
               <div className="min-w-0 flex-1">
-                <div className="font-bold truncate font-mono" style={{ fontSize: 11, color: 'var(--color-text)' }}>
+                <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--color-text)', fontFamily: 'var(--font-sans)', letterSpacing: '-0.01em' }} className="truncate">
                   {activeSource.label}
                 </div>
-                <div className="font-mono uppercase tracking-widest" style={{ fontSize: 8, color: 'var(--color-muted)', marginTop: 1 }}>
+                <div style={{ fontSize: 10, color: 'var(--color-muted)', fontFamily: 'var(--font-sans)', marginTop: 1 }}>
                   {activeSource.type}
                 </div>
               </div>
@@ -275,13 +294,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onOpenSources,
         ) : (
           <div
             onClick={onOpenSources}
-            className="cursor-pointer transition-all font-mono text-center"
+            className="cursor-pointer"
             style={{
-              border: '1px dashed var(--color-border)',
+              border: '1.5px dashed var(--color-border)',
               padding: '8px 10px',
-              fontSize: 10,
+              fontSize: 11,
               color: 'var(--color-faint)',
-              borderRadius: '10px'
+              borderRadius: '4px',
+              textAlign: 'center',
+              fontFamily: 'var(--font-sans)',
+              transition: 'border-color 100ms var(--ease-fluent)',
             }}
           >
             {t.noDataset}
@@ -289,23 +311,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onOpenSources,
         )}
       </div>
 
-      {/* ── Footer Actions ── */}
+      {/* ── Fluent Command Bar Footer ── */}
       <div
-        className="px-3 py-2.5 shrink-0 grid grid-cols-2 gap-1.5"
-        style={{ borderTop: '1px solid var(--color-border)', background: 'var(--color-bg)' }}
+        className="px-2 py-2 shrink-0 flex items-center gap-1"
+        style={{ borderTop: '1px solid var(--color-border)', background: 'var(--color-canvas)' }}
       >
         <button
           onClick={onOpenSources}
-          className="btn btn-ghost cursor-pointer"
-          style={{ fontSize: 10, padding: '6px 10px', gap: 5 }}
+          className="btn btn-ghost cursor-pointer flex-1"
+          style={{ fontSize: 11, padding: '6px 10px', gap: 5, justifyContent: 'flex-start', borderRadius: '4px', borderColor: 'transparent' }}
         >
           <Database size={11} />
           <span>{t.sources}</span>
         </button>
         <button
           onClick={onOpenSettings}
-          className="btn btn-ghost cursor-pointer"
-          style={{ fontSize: 10, padding: '6px 10px', gap: 5 }}
+          className="btn btn-ghost cursor-pointer flex-1"
+          style={{ fontSize: 11, padding: '6px 10px', gap: 5, justifyContent: 'flex-start', borderRadius: '4px', borderColor: 'transparent' }}
         >
           <Settings size={11} />
           <span>{t.settings}</span>
