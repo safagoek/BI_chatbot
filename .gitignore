@@ -1,0 +1,47 @@
+# ====================================================================
+# Git Ignore Settings for DeepBI Agent
+# ====================================================================
+
+# Node.js / Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+.eslintcache
+
+# Python / Backend
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+htmlcov/
+.tox/
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+
+# Virtual Environments
+venv/
+.venv/
+env/
+.env
+ENV/
+
+# Database / Storage / Snapshots (Diskteki geçici ve dinamik dosyalar)
+*.db
+backend/demo.db
+backend/metadata.db
+backend/snapshots/*_snapshot.db
+!backend/snapshots/.gitkeep
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# IDEs & System
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
