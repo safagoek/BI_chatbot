@@ -1,7 +1,7 @@
 import os
 import sqlite3
 import datetime
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from app.database.manager import get_data_source_by_id, add_data_source
 from app.database.connectors import get_connection
 
@@ -9,19 +9,23 @@ SNAPSHOTS_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "snapshots"
 )
 
-def create_database_snapshot(source_id: str) -> Dict[str, Any]:
+def yield_database_snapshot_progress(source_id: str, selected_tables: Optional[List[str]] = None):
     """
     Connects to a remote database (PostgreSQL, MySQL, SAP HANA),
     extracts all tables in batches, and dumps them into a local SQLite file.
     Registers the newly created SQLite backup file as an offline SQLite data source.
+    Yields JSON progress messages step-by-step.
     """
     # 1. Fetch remote source metadata
+    yield {"status": "start", "message": "Hedef veri kaynağı sorgulanıyor..."}
     src = get_data_source_by_id(source_id)
     if not src:
-        raise ValueError("Hedef veri kaynağı bulunamadı.")
+        yield {"status": "error", "message": "Hedef veri kaynağı bulunamadı."}
+        return
     
     if src["type"] == "sqlite":
-        raise ValueError("SQLite kaynakları zaten yereldir, snapshot alınamaz.")
+        yield {"status": "error", "message": "SQLite kaynakları zaten yereldir, snapshot alınamaz."}
+        return
         
     display_name = src["display_name"]
     db_type = src["type"]
@@ -38,12 +42,19 @@ def create_database_snapshot(source_id: str) -> Dict[str, Any]:
     if os.path.exists(snapshot_path):
         try:
             os.remove(snapshot_path)
+            yield {"status": "info", "message": "Eski snapshot dosyası temizlendi."}
         except OSError as e:
-            raise RuntimeError(f"Eski snapshot yedeği silinemedi: {str(e)}")
+            yield {"status": "error", "message": f"Eski snapshot yedeği silinemedi: {str(e)}"}
+            return
             
     # Connect to the remote database to pull schema and data
-    remote_conn, _ = get_connection(db_type, details)
-    remote_cursor = remote_conn.cursor()
+    yield {"status": "info", "message": "Uzak veritabanına bağlanılıyor..."}
+    try:
+        remote_conn, _ = get_connection(db_type, details)
+        remote_cursor = remote_conn.cursor()
+    except Exception as e:
+        yield {"status": "error", "message": f"Uzak veritabanı bağlantı hatası: {str(e)}"}
+        return
     
     # Connect to the local SQLite database that will house the snapshot
     local_conn = sqlite3.connect(snapshot_path)
@@ -54,6 +65,7 @@ def create_database_snapshot(source_id: str) -> Dict[str, Any]:
     try:
         # Discover all tables and columns dynamically
         # 3. Tables Fetching depending on DB type
+        yield {"status": "info", "message": "Veritabanı tabloları keşfediliyor..."}
         if db_type in ("postgresql", "postgres"):
             remote_cursor.execute("""
                 SELECT table_name 
@@ -85,10 +97,21 @@ def create_database_snapshot(source_id: str) -> Dict[str, Any]:
             """, (schema_name,))
             tables = [row[0] for row in remote_cursor.fetchall()]
         else:
-            raise ValueError(f"Desteklenmeyen veritabanı türü: {db_type}")
+            yield {"status": "error", "message": f"Desteklenmeyen veritabanı türü: {db_type}"}
+            return
+
+        if selected_tables is not None:
+            tables = [t for t in tables if t in selected_tables]
+            if not tables:
+                yield {"status": "error", "message": "Seçilen tabloların hiçbirisi veritabanında bulunamadı."}
+                return
+
+        yield {"status": "schema", "message": f"{len(tables)} adet tablo keşfedildi.", "tables": tables}
 
         # 4. Process each table: schema creation and batch inserts
-        for table in tables:
+        for idx, table in enumerate(tables):
+            yield {"status": "table_start", "table": table, "index": idx, "total": len(tables), "message": f"'{table}' tablosu kopyalanıyor..."}
+            
             # Query column names
             if db_type in ("postgresql", "postgres"):
                 remote_cursor.execute("""
@@ -120,8 +143,11 @@ def create_database_snapshot(source_id: str) -> Dict[str, Any]:
                     ORDER BY POSITION
                 """, (schema_name, table))
                 columns = [row[0] for row in remote_cursor.fetchall()]
+            else:
+                columns = []
             
             if not columns:
+                yield {"status": "table_done", "table": table, "rows_total": 0, "message": f"'{table}' tablosunun sütun şeması alınamadığı için atlandı."}
                 continue
                 
             discovered_schema[table] = columns
@@ -137,11 +163,16 @@ def create_database_snapshot(source_id: str) -> Dict[str, Any]:
             else:
                 safe_table = f'"{table}"'
                 
-            remote_cursor.execute(f"SELECT * FROM {safe_table}")
+            try:
+                remote_cursor.execute(f"SELECT * FROM {safe_table}")
+            except Exception as e:
+                yield {"status": "table_error", "table": table, "message": f"'{table}' tablosundan veri okunamadı: {str(e)}"}
+                continue
             
             placeholders = ", ".join(["?"] * len(columns))
             insert_sql = f'INSERT INTO "{table}" VALUES ({placeholders})'
             
+            total_copied = 0
             while True:
                 rows = remote_cursor.fetchmany(5000)
                 if not rows:
@@ -152,7 +183,11 @@ def create_database_snapshot(source_id: str) -> Dict[str, Any]:
                     normalized_rows.append([None if item is None else str(item) if type(item) in (dict, list) else item for item in row])
                 local_cursor.executemany(insert_sql, normalized_rows)
                 
+                total_copied += len(rows)
+                yield {"status": "table_progress", "table": table, "rows_copied": total_copied, "message": f"'{table}' tablosundan {total_copied} satır kopyalandı..."}
+                
             # Smart Auto-indexing to accelerate downstream analytical DuckDB joins/queries
+            indexes_created = 0
             for col in columns:
                 col_lower = col.lower()
                 if any(kw in col_lower for kw in ["id", "key", "kod", "no", "tarih", "date", "vbeln", "matnr", "kunnr"]):
@@ -160,11 +195,18 @@ def create_database_snapshot(source_id: str) -> Dict[str, Any]:
                     index_name = "".join([c if c.isalnum() else "_" for c in index_name])
                     try:
                         local_cursor.execute(f'CREATE INDEX IF NOT EXISTS "{index_name}" ON "{table}" ("{col}")')
+                        indexes_created += 1
                     except Exception:
                         pass
+            
+            local_conn.commit()
+            yield {"status": "table_done", "table": table, "rows_total": total_copied, "indexes_count": indexes_created, "message": f"'{table}' tablosu başarıyla tamamlandı ({total_copied} satır kopyalandı, {indexes_created} akıllı indeks oluşturuldu)."}
                         
-        local_conn.commit()
+        yield {"status": "info", "message": "Yerel veritabanı kayıtları tamamlanıyor..."}
         
+    except Exception as e:
+        yield {"status": "error", "message": f"Kritik Hata: {str(e)}"}
+        return
     finally:
         remote_conn.close()
         local_conn.close()
@@ -204,4 +246,20 @@ def create_database_snapshot(source_id: str) -> Dict[str, Any]:
         is_active=True
     )
     
-    return result
+    yield {"status": "complete", "message": "Snapshot başarıyla oluşturuldu ve yerel kaynak olarak kaydedildi!", "result": result}
+
+
+def create_database_snapshot(source_id: str) -> Dict[str, Any]:
+    """
+    Wrapper for backward compatibility that executes the generator synchronously
+    and returns the final registered source dictionary.
+    """
+    generator = yield_database_snapshot_progress(source_id)
+    final_result = None
+    for event in generator:
+        if event.get("status") == "error":
+            raise ValueError(event.get("message"))
+        if event.get("status") == "complete":
+            final_result = event.get("result")
+    return final_result
+

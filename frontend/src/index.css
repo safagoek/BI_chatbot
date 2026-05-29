@@ -117,43 +117,43 @@
   --shadow-28:  0 28px 56px rgba(0,0,0,0.58), 0 0px 4px rgba(0,0,0,0.14);
 }
 
-/* ─── Light Mode — Fluent Neutral 10 foundation ─── */
+/* ─── Light Mode — Nordic Minimal Steel Theme foundation ─── */
 :root.light {
-  --color-bg:            #f3f2f1;       /* Fluent Neutral 10 */
-  --color-canvas:        #ffffff;       /* White Layer */
-  --color-surface:       #f5f5f5;       /* Neutral 20 */
-  --color-surface2:      #edebe9;       /* Neutral 30 */
-  --color-border:        rgba(0, 0, 0, 0.0824);
-  --color-border2:       rgba(0, 0, 0, 0.0541);
-  --color-border-focus:  rgba(0, 120, 212, 0.8);
-  --color-text:          #201f1e;       /* Fluent Neutral 160 */
-  --color-text-2:        rgba(32, 31, 30, 0.7827);
-  --color-muted:         rgba(32, 31, 30, 0.5442);
-  --color-faint:         rgba(32, 31, 30, 0.3614);
-  --color-disabled:      rgba(32, 31, 30, 0.2168);
-  --color-accent:        #0078d4;       /* Communication Blue (same) */
-  --color-accent-hover:  #106ebe;
-  --color-accent-press:  #005a9e;
-  --color-accent-subtle: rgba(0, 120, 212, 0.08);
-  --color-accent-subtle2:rgba(0, 120, 212, 0.12);
-  --color-accent-fg:     #005a9e;       /* Darker for light bg readability */
-  --color-success:       #107c10;
-  --color-success-subtle:rgba(16, 124, 16, 0.08);
-  --color-warning:       #797673;
-  --color-warning-subtle:rgba(121, 118, 115, 0.08);
-  --color-danger:        #a4262c;
-  --color-danger-subtle: rgba(164, 38, 44, 0.08);
-  --color-code-bg:       #f5f5f5;
-  --color-code-fg:       #1e1e1e;
-  --color-log-bg:        #f3f2f1;
-  --color-log-fg:        rgba(32, 31, 30, 0.78);
-  --shadow-2:   0 2px 4px rgba(0,0,0,0.07), 0 0px 2px rgba(0,0,0,0.05);
-  --shadow-4:   0 4px 8px rgba(0,0,0,0.09), 0 0px 2px rgba(0,0,0,0.06);
-  --shadow-8:   0 8px 16px rgba(0,0,0,0.11), 0 0px 2px rgba(0,0,0,0.06);
-  --shadow-16:  0 16px 32px rgba(0,0,0,0.14), 0 0px 2px rgba(0,0,0,0.06);
-  --shadow-28:  0 28px 56px rgba(0,0,0,0.18), 0 0px 4px rgba(0,0,0,0.08);
-  --color-done:          #7a4dff;
-  --color-info:          #0078d4;
+  --color-bg:            #fafaf9;       /* Nordic warm off-white */
+  --color-canvas:        #ffffff;       /* Pure white Layer */
+  --color-surface:       #f2f1ef;       /* Nordic light steel grey */
+  --color-surface2:      #e8e6e2;       /* Nordic medium steel grey */
+  --color-border:        rgba(0, 0, 0, 0.09); /* Neutral steel border */
+  --color-border2:       rgba(0, 0, 0, 0.055);
+  --color-border-focus:  #0f766e;       /* Nordic Teal */
+  --color-text:          #1e293b;       /* Slate 800 text */
+  --color-text-2:        #334155;       /* Slate 700 secondary text */
+  --color-muted:         #64748b;       /* Slate 500 muted text */
+  --color-faint:         #94a3b8;       /* Slate 400 faint text */
+  --color-disabled:      #cbd5e1;       /* Slate 300 disabled text */
+  --color-accent:        #0f766e;       /* Nordic Teal Accent */
+  --color-accent-hover:  #0d9488;       /* Teal Hover */
+  --color-accent-press:  #115e59;       /* Teal Press */
+  --color-accent-subtle: rgba(15, 118, 110, 0.07);
+  --color-accent-subtle2:rgba(15, 118, 110, 0.12);
+  --color-accent-fg:     #0f766e;       /* High-readability Teal */
+  --color-success:       #059669;       /* Nordic Emerald */
+  --color-success-subtle:rgba(5, 150, 105, 0.08);
+  --color-warning:       #d97706;       /* Nordic Amber */
+  --color-warning-subtle:rgba(217, 119, 6, 0.08);
+  --color-danger:        #dc2626;       /* Nordic Red */
+  --color-danger-subtle: rgba(220, 38, 38, 0.08);
+  --color-code-bg:       #f4f4f3;
+  --color-code-fg:       #111827;
+  --color-log-bg:        #fafaf9;
+  --color-log-fg:        #374151;
+  --shadow-2:   0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+  --shadow-4:   0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-8:   0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+  --shadow-16:  0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  --shadow-28:  0 25px 50px -12px rgba(0, 0, 0, 0.08);
+  --color-done:          #6b21a8;
+  --color-info:          #0f766e;
 }
 
 /* ═══════════════════════════════════════════════════════════

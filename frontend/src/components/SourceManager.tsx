@@ -1,17 +1,17 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useBIStore, BACKEND_BASE } from '../context/store';
 import { translations } from '../context/translations';
 import FileUpload from './FileUpload';
 import {
   Database, Plus, RefreshCw, ShieldCheck, Trash2, X,
   Server, HardDrive, AlertCircle, Eye, Edit3, Copy, Power, Tag, ChevronDown,
-  Cpu, Play, Save
+  Cpu, Play, Save, Search, Layers
 } from 'lucide-react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button,
   ToggleButton, ToggleButtonGroup, Card, CardContent, Grid, Typography, Box,
   IconButton, Tooltip, Accordion, AccordionSummary, AccordionDetails, Chip,
-  CircularProgress, Alert
+  CircularProgress, Alert, Checkbox, FormControlLabel
 } from '@mui/material';
 
 const API = BACKEND_BASE;
@@ -98,6 +98,35 @@ export const SourceManager: React.FC = () => {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [snapshotting, setSnapshotting] = useState<string | null>(null);
 
+  // Selective Snapshot Table Selection States
+  const [tableSelectionOpen, setTableSelectionOpen] = useState(false);
+  const [tableSelectionSource, setTableSelectionSource] = useState<any>(null);
+  const [selectedTables, setSelectedTables] = useState<Record<string, boolean>>({});
+  const [tableSearchQuery, setTableSearchQuery] = useState('');
+
+  // Snapshot Progress States
+  const [snapshotDialogOpen, setSnapshotDialogOpen] = useState(false);
+  const [snapshotSource, setSnapshotSource] = useState<any>(null);
+  const [snapshotProgress, setSnapshotProgress] = useState<{
+    status: 'idle' | 'running' | 'completed' | 'failed';
+    message: string;
+    discoveredTables: string[];
+    completedTables: Record<string, { rows: number; indexes: number; status: 'pending' | 'running' | 'completed' | 'failed'; error?: string }>;
+    currentTable: string;
+    currentTableIndex: number;
+    currentProgressRows: number;
+    logs: string[];
+  }>({
+    status: 'idle',
+    message: '',
+    discoveredTables: [],
+    completedTables: {},
+    currentTable: '',
+    currentTableIndex: 0,
+    currentProgressRows: 0,
+    logs: []
+  });
+
   useEffect(() => {
     fetchSources();
     fetchFiles();
@@ -162,7 +191,7 @@ export const SourceManager: React.FC = () => {
       const data = await res.json();
       setTestResult({ success: data.success, message: data.message });
     } catch {
-      setTestResult({ success: false, message: language === 'tr' ? 'Sunucu ile baÃ„Å¸lantÃ„Â± kurulamadÃ„Â±.' : 'Failed to connect to server.' });
+      setTestResult({ success: false, message: language === 'tr' ? 'Sunucu ile bağlantı kurulamadı.' : 'Failed to connect to server.' });
     } finally {
       setTesting(false);
     }
@@ -191,7 +220,7 @@ export const SourceManager: React.FC = () => {
       });
       if (!res.ok) {
         const err = await res.json();
-        setSaveError(err.detail || (language === 'tr' ? 'BaÃ„Å¸lantÃ„Â± kaydedilemedi.' : 'Could not save connection.'));
+        setSaveError(err.detail || (language === 'tr' ? 'Bağlantı kaydedilemedi.' : 'Could not save connection.'));
         return;
       }
       await fetchSources();
@@ -219,7 +248,7 @@ export const SourceManager: React.FC = () => {
 
   const handleDelete = async (e: React.MouseEvent, sourceId: string) => {
     e.stopPropagation();
-    if (!window.confirm(language === 'tr' ? 'Bu veri kaynaÃ„Å¸Ã„Â±nÃ„Â± silmek istediÃ„Å¸inizden emin misiniz?' : 'Are you sure you want to delete this data source?')) return;
+    if (!window.confirm(language === 'tr' ? 'Bu veri kaynağını silmek istediğinizden emin misiniz?' : 'Are you sure you want to delete this data source?')) return;
     setDeleting(sourceId);
     try {
       const res = await fetch(`${API}/api/sources/${sourceId}`, { method: 'DELETE' });
@@ -229,22 +258,148 @@ export const SourceManager: React.FC = () => {
     }
   };
 
-  const handleTakeSnapshot = async (e: React.MouseEvent, sourceId: string) => {
+  const handleStartSnapshotFlow = (e: React.MouseEvent, sourceId: string) => {
     e.stopPropagation();
-    setSnapshotting(sourceId);
-    try {
-      const res = await fetch(`${API}/api/sources/${sourceId}/snapshot`, { method: 'POST' });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.detail || (language === 'tr' ? 'Snapshot alma iÃ…Å¸lemi baÃ…Å¸arÃ„Â±sÃ„Â±z.' : 'Snapshot failed.'));
+    const src = sources.find(s => s.id === sourceId);
+    if (!src) return;
+
+    const tables = Object.keys(src.schema ?? {});
+    if (tables.length === 0) {
+      if (window.confirm(language === 'tr' 
+        ? 'Bu kaynağın şeması henüz taranmamış. Tüm tablolar için tam snapshot başlatılsın mı?' 
+        : 'The schema has not been scanned yet. Initiate a full snapshot for all tables?')) {
+        runSnapshotReplication(src, []);
       }
-      alert(language === 'tr' ? 'Yerel disk yedeÃ„Å¸i (snapshot) baÃ…Å¸arÃ„Â±yla oluÃ…Å¸turuldu.' : 'Local disk backup (snapshot) successfully created.');
-      await fetchSources();
-    } catch (err: any) {
-      alert(err.message || (language === 'tr' ? 'Snapshot oluÃ…Å¸turulamadÃ„Â±.' : 'Could not create snapshot.'));
-    } finally {
-      setSnapshotting(null);
+      return;
     }
+
+    setTableSelectionSource(src);
+    const initialSelection: Record<string, boolean> = {};
+    tables.forEach(t => {
+      initialSelection[t] = true;
+    });
+    setSelectedTables(initialSelection);
+    setTableSearchQuery('');
+    setTableSelectionOpen(true);
+  };
+
+  const runSnapshotReplication = (src: any, chosenTables: string[]) => {
+    setSnapshotSource(src);
+    setSnapshotDialogOpen(true);
+    
+    const initialProgress = {
+      status: 'running' as const,
+      message: language === 'tr' ? 'Uzak sunucu bağlantısı başlatılıyor...' : 'Initializing remote server connection...',
+      discoveredTables: [],
+      completedTables: {},
+      currentTable: '',
+      currentTableIndex: 0,
+      currentProgressRows: 0,
+      logs: [language === 'tr' ? '[BAŞLANGIÇ] Veritabanı snapshot kopyalama işlemi başlatıldı.' : '[START] Database snapshot replication initiated.']
+    };
+    setSnapshotProgress(initialProgress);
+
+    const queryParam = chosenTables.length > 0 ? `?tables=${encodeURIComponent(chosenTables.join(','))}` : '';
+    const eventSource = new EventSource(`${API}/api/sources/${src.id}/snapshot/stream${queryParam}`);
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        const timestamp = new Date().toLocaleTimeString();
+        const logMsg = `[${timestamp}] ${data.message}`;
+
+        setSnapshotProgress(prev => {
+          const updatedLogs = [...prev.logs, logMsg];
+          let updatedCompleted = { ...prev.completedTables };
+          let updatedDiscovered = [...prev.discoveredTables];
+          let updatedCurrentTable = prev.currentTable;
+          let updatedIndex = prev.currentTableIndex;
+          let updatedRows = prev.currentProgressRows;
+          let updatedStatus = prev.status;
+
+          if (data.status === 'schema') {
+            updatedDiscovered = data.tables || [];
+            updatedCompleted = {};
+            updatedDiscovered.forEach(t => {
+              updatedCompleted[t] = { rows: 0, indexes: 0, status: 'pending' };
+            });
+          } else if (data.status === 'table_start') {
+            updatedCurrentTable = data.table;
+            updatedIndex = data.index || 0;
+            updatedRows = 0;
+            if (updatedCompleted[data.table]) {
+              updatedCompleted[data.table] = {
+                ...updatedCompleted[data.table],
+                status: 'running'
+              };
+            }
+          } else if (data.status === 'table_progress') {
+            updatedRows = data.rows_copied || 0;
+            if (updatedCompleted[data.table]) {
+              updatedCompleted[data.table] = {
+                ...updatedCompleted[data.table],
+                rows: data.rows_copied
+              };
+            }
+          } else if (data.status === 'table_done') {
+            updatedRows = data.rows_total || 0;
+            if (updatedCompleted[data.table]) {
+              updatedCompleted[data.table] = {
+                rows: data.rows_total,
+                indexes: data.indexes_count || 0,
+                status: 'completed'
+              };
+            }
+          } else if (data.status === 'table_error') {
+            if (updatedCompleted[data.table]) {
+              updatedCompleted[data.table] = {
+                ...updatedCompleted[data.table],
+                status: 'failed',
+                error: data.message
+              };
+            }
+          } else if (data.status === 'error') {
+            updatedStatus = 'failed';
+            eventSource.close();
+          } else if (data.status === 'complete') {
+            updatedStatus = 'completed';
+            fetchSources();
+            eventSource.close();
+          }
+
+          return {
+            ...prev,
+            status: updatedStatus,
+            message: data.message,
+            discoveredTables: updatedDiscovered,
+            completedTables: updatedCompleted,
+            currentTable: updatedCurrentTable,
+            currentTableIndex: updatedIndex,
+            currentProgressRows: updatedRows,
+            logs: updatedLogs
+          };
+        });
+      } catch (err) {
+        console.error('Error parsing SSE event:', err);
+      }
+    };
+
+    eventSource.onerror = (err) => {
+      console.error('EventSource error:', err);
+      const timestamp = new Date().toLocaleTimeString();
+      setSnapshotProgress(prev => {
+        if (prev.status === 'running') {
+          eventSource.close();
+          return {
+            ...prev,
+            status: 'failed',
+            message: language === 'tr' ? 'Bağlantı hatası oluştu.' : 'Connection error occurred.',
+            logs: [...prev.logs, `[${timestamp}] [HATA] Sunucu ile bağlantı koptu veya işlem yarıda kaldı.`]
+          };
+        }
+        return prev;
+      });
+    };
   };
 
   const openDetails = (e: React.MouseEvent, sourceId: string) => {
@@ -273,11 +428,11 @@ export const SourceManager: React.FC = () => {
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.detail || (language === 'tr' ? 'Durum gÃƒÂ¼ncellenemedi.' : 'Could not update status.'));
+        throw new Error(err.detail || (language === 'tr' ? 'Durum güncellenemedi.' : 'Could not update status.'));
       }
       await fetchSources();
     } catch (err: any) {
-      alert(err.message || (language === 'tr' ? 'Durum gÃƒÂ¼ncellenemedi.' : 'Could not update status.'));
+      alert(err.message || (language === 'tr' ? 'Durum güncellenemedi.' : 'Could not update status.'));
     } finally {
       setTogglingId(null);
     }
@@ -294,11 +449,11 @@ export const SourceManager: React.FC = () => {
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.detail || (language === 'tr' ? 'Klonlama baÃ…Å¸arÃ„Â±sÃ„Â±z.' : 'Cloning failed.'));
+        throw new Error(err.detail || (language === 'tr' ? 'Klonlama başarısız.' : 'Cloning failed.'));
       }
       await fetchSources();
     } catch (err: any) {
-      alert(err.message || (language === 'tr' ? 'Klonlama baÃ…Å¸arÃ„Â±sÃ„Â±z.' : 'Cloning failed.'));
+      alert(err.message || (language === 'tr' ? 'Klonlama başarısız.' : 'Cloning failed.'));
     } finally {
       setCloningId(null);
     }
@@ -342,7 +497,7 @@ export const SourceManager: React.FC = () => {
 
     try {
       const res = await fetch(`${API}/api/sources/${sourceId}/semantic`);
-      if (!res.ok) throw new Error(language === 'tr' ? 'Semantik tanÃ„Â±mlar yÃƒÂ¼klenemedi.' : 'Could not load semantic definitions.');
+      if (!res.ok) throw new Error(language === 'tr' ? 'Semantik tanımlar yüklenemedi.' : 'Could not load semantic definitions.');
       const data = await res.json();
 
       const initialMapping: typeof semanticMapping = {};
@@ -363,7 +518,7 @@ export const SourceManager: React.FC = () => {
 
       setSemanticMapping(initialMapping);
     } catch (err: any) {
-      setSemanticError(err.message || (language === 'tr' ? 'Semantik tanÃ„Â±mlar yÃƒÂ¼klenirken hata oluÃ…Å¸tu.' : 'Error loading semantic definitions.'));
+      setSemanticError(err.message || (language === 'tr' ? 'Semantik tanımlar yüklenirken hata oluştu.' : 'Error loading semantic definitions.'));
     } finally {
       setSemanticLoading(false);
     }
@@ -397,11 +552,11 @@ export const SourceManager: React.FC = () => {
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.detail || (language === 'tr' ? 'Semantik tanÃ„Â±mlar kaydedilemedi.' : 'Could not save semantic layer definitions.'));
+        throw new Error(err.detail || (language === 'tr' ? 'Semantik tanımlar kaydedilemedi.' : 'Could not save semantic layer definitions.'));
       }
       setSemanticSourceId(null);
     } catch (err: any) {
-      setSemanticError(err.message || (language === 'tr' ? 'Semantik tanÃ„Â±mlar kaydedilirken hata oluÃ…Å¸tu.' : 'Error saving semantic layer definitions.'));
+      setSemanticError(err.message || (language === 'tr' ? 'Semantik tanımlar kaydedilirken hata oluştu.' : 'Error saving semantic layer definitions.'));
     } finally {
       setSemanticSaving(false);
     }
@@ -415,8 +570,8 @@ export const SourceManager: React.FC = () => {
 
   const hostLabel = (src: any) => {
     const d = src.connection_details ?? {};
-    if (src.type === 'sqlite') return d.database_path ?? 'Ã¢â‚¬â€';
-    return d.host ? `${d.host}:${d.port ?? ''} / ${d.database ?? ''}` : 'Ã¢â‚¬â€';
+    if (src.type === 'sqlite') return d.database_path ?? '—';
+    return d.host ? `${d.host}:${d.port ?? ''} / ${d.database ?? ''}` : '—';
   };
 
   const detailSource = detailSourceId ? sources.find(s => s.id === detailSourceId) : null;
@@ -497,19 +652,19 @@ export const SourceManager: React.FC = () => {
                 </Box>
                 <Box sx={{ mt: 2 }}>
                   <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', display: 'block', mb: 0.5 }}>
-                    {language === 'tr' ? 'KullanÃ„Â±labilir Tablolar:' : 'Available Tables:'}
+                    {language === 'tr' ? 'Kullanılabilir Tablolar:' : 'Available Tables:'}
                   </Typography>
                   <ul className="text-[11px] list-disc list-inside text-gh-text space-y-0.5 font-mono max-h-[80px] overflow-y-auto pr-1">
                     {(() => {
                       const src = sources.find(s => s.id === activeSourceId);
                       if (src && src.schema) {
                         const tbls = Object.keys(src.schema || {});
-                        if (tbls.length === 0) return <li className="text-gh-muted italic">{language === 'tr' ? '(Tablo bulunamadÃ„Â±)' : '(No tables found)'}</li>;
+                        if (tbls.length === 0) return <li className="text-gh-muted italic">{language === 'tr' ? '(Tablo bulunamadı)' : '(No tables found)'}</li>;
                         return tbls.map(t => <li key={`active-${t}`} style={{ color: '#0078d4' }}>{t}</li>);
                       }
                       const fileItem = files.find(f => f.id === activeSourceId || f.alias === activeSourceId);
                       if (fileItem) return <li key={`active-file-${fileItem.alias}`} style={{ color: '#0078d4' }}>{fileItem.alias}</li>;
-                      return <li className="text-gh-muted italic">{language === 'tr' ? '(SeÃƒÂ§im boÃ…Å¸ veya bulunamadÃ„Â±)' : '(Selection is empty or not found)'}</li>;
+                      return <li className="text-gh-muted italic">{language === 'tr' ? '(Seçim boş veya bulunamadı)' : '(Selection is empty or not found)'}</li>;
                     })()}
                   </ul>
                 </Box>
@@ -553,7 +708,7 @@ export const SourceManager: React.FC = () => {
                             </Box>
                           );
                         }
-                        return <div key={`sel-miss-${sid}`} style={{ fontStyle: 'italic', opacity: 0.7 }}>{sid} ({language === 'tr' ? 'BulunamadÃ„Â±' : 'Not Found'})</div>;
+                        return <div key={`sel-miss-${sid}`} style={{ fontStyle: 'italic', opacity: 0.7 }}>{sid} ({language === 'tr' ? 'Bulunamadı' : 'Not Found'})</div>;
                       })}
                     </Box>
                   )}
@@ -593,7 +748,7 @@ export const SourceManager: React.FC = () => {
                       <Box>{language === 'tr' ? 'Tip: ' : 'Type: '}<Chip label={detailSource.type.toUpperCase()} size="small" sx={{ height: 16, fontSize: 8.5, fontWeight: 600, bgcolor: 'rgba(0, 120, 212, 0.1)', color: '#0078d4', border: 0 }} /></Box>
                       <Box>{language === 'tr' ? 'Durum: ' : 'Status: '}{detailSource.is_active ? <Chip label={t.active} color="success" size="small" sx={{ height: 16, fontSize: 8.5, fontWeight: 600, border: 0 }} /> : <Chip label={t.passive} color="error" size="small" sx={{ height: 16, fontSize: 8.5, fontWeight: 600, border: 0 }} />}</Box>
                       <Box>{language === 'tr' ? 'Tablolar: ' : 'Tables: '}<span style={{ color: '#0078d4', fontWeight: 600, fontFamily: 'monospace' }}>{Object.keys(detailSource.schema || {}).length}</span></Box>
-                      <Box sx={{ fontSize: 9.5, opacity: 0.8 }}>{language === 'tr' ? 'Son GÃƒÂ¼ncelleme: ' : 'Last Update: '}{detailSource.last_schema_update || 'Ã¢â‚¬â€'}</Box>
+                      <Box sx={{ fontSize: 9.5, opacity: 0.8 }}>{language === 'tr' ? 'Son Güncelleme: ' : 'Last Update: '}{detailSource.last_schema_update || '—'}</Box>
                     </Box>
                   </Box>
                 </Grid>
@@ -605,16 +760,16 @@ export const SourceManager: React.FC = () => {
                     </Typography>
                     {detailSource.type === 'sqlite' ? (
                       <Typography variant="caption" sx={{ fontFamily: 'monospace', display: 'block', wordBreak: 'break-all' }}>
-                        {language === 'tr' ? 'Dosya: ' : 'File: '}<span style={{ color: '#0078d4' }}>{detailDetails.database_path || 'Ã¢â‚¬â€'}</span>
+                        {language === 'tr' ? 'Dosya: ' : 'File: '}<span style={{ color: '#0078d4' }}>{detailDetails.database_path || '—'}</span>
                       </Typography>
                     ) : (
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, fontFamily: 'monospace', fontSize: 10.5, color: 'text.secondary' }}>
-                        <div>Host: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.host || 'Ã¢â‚¬â€'}</span></div>
-                        <div>Port: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.port || 'Ã¢â‚¬â€'}</span></div>
-                        <div>DB: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.database || 'Ã¢â‚¬â€'}</span></div>
-                        <div>Ã…Âema: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.schema || 'Ã¢â‚¬â€'}</span></div>
-                        <div>User: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.user || 'Ã¢â‚¬â€'}</span></div>
-                        <div>{language === 'tr' ? 'Ã…Âifre' : 'Password'}: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.password ? 'Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢' : 'Ã¢â‚¬â€'}</span></div>
+                        <div>Host: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.host || '—'}</span></div>
+                        <div>Port: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.port || '—'}</span></div>
+                        <div>DB: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.database || '—'}</span></div>
+                        <div>Şema: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.schema || '—'}</span></div>
+                        <div>User: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.user || '—'}</span></div>
+                        <div>{language === 'tr' ? 'Şifre' : 'Password'}: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.password ? '••••••••' : '—'}</span></div>
                       </Box>
                     )}
                   </Box>
@@ -757,7 +912,7 @@ export const SourceManager: React.FC = () => {
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
           <Button onClick={() => setSemanticSourceId(null)} variant="outlined" sx={{ borderColor: 'divider', color: 'text.primary' }}>
-            {language === 'tr' ? 'Ã„Â°ptal' : 'Cancel'}
+            {language === 'tr' ? 'İptal' : 'Cancel'}
           </Button>
           <Button
             type="primary"
@@ -768,6 +923,349 @@ export const SourceManager: React.FC = () => {
           >
             {semanticSaving ? t.semanticBtnSaving : t.semanticBtnSave}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Premium Selective Snapshot Table Selection Dialog */}
+      <Dialog
+        open={tableSelectionOpen}
+        onClose={() => setTableSelectionOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        sx={{ '& .MuiDialog-paper': { borderRadius: '12px' } }}
+      >
+        <DialogTitle sx={{ p: 2.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box sx={{ width: 32, height: 32, borderRadius: '6px', bgcolor: 'rgba(0, 120, 212, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0078d4' }}>
+              <Layers size={16} />
+            </Box>
+            <Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 'extrabold', fontSize: 13, m: 0 }}>
+                {language === 'tr' ? 'Seçmeli Tablo Snapshot Kopyalaması' : 'Selective Table Snapshot Replication'}
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.2 }}>
+                {tableSelectionSource?.display_name}
+              </Typography>
+            </Box>
+          </Box>
+          <IconButton onClick={() => setTableSelectionOpen(false)} size="small">
+            <X size={15} />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent sx={{ p: 2.5, maxHeight: '60vh', display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary', lineHeight: 1.4 }}>
+            {language === 'tr' 
+              ? 'Lokal SQLite yedeğine aktarmak istediğiniz tabloları seçin. Yalnızca seçilen tablolar kopyalanacak, böylece kopyalama işlemi hızlanacak ve disk alanı tasarrufu sağlanacaktır.' 
+              : 'Select the tables you want to replicate into the local SQLite backup. Only selected tables will be copied, which speeds up copying and saves disk space.'}
+          </Typography>
+
+          {/* Search Table */}
+          <TextField
+            fullWidth
+            size="small"
+            placeholder={language === 'tr' ? 'Tablo ara...' : 'Search tables...'}
+            value={tableSearchQuery}
+            onChange={(e) => setTableSearchQuery(e.target.value)}
+            InputProps={{
+              startAdornment: <Search size={14} style={{ marginRight: 8, color: 'var(--color-muted)' }} />
+            }}
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+          />
+
+          {/* Quick Select Buttons */}
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => {
+                const updated = { ...selectedTables };
+                Object.keys(tableSelectionSource?.schema ?? {}).forEach(t => {
+                  updated[t] = true;
+                });
+                setSelectedTables(updated);
+              }}
+              sx={{ borderRadius: '6px', fontSize: 10.5, py: 0.5, px: 1.5, borderColor: 'divider', color: 'text.primary', textTransform: 'none' }}
+            >
+              {language === 'tr' ? 'Tümünü Seç' : 'Select All'}
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => {
+                const updated = { ...selectedTables };
+                Object.keys(tableSelectionSource?.schema ?? {}).forEach(t => {
+                  updated[t] = false;
+                });
+                setSelectedTables(updated);
+              }}
+              sx={{ borderRadius: '6px', fontSize: 10.5, py: 0.5, px: 1.5, borderColor: 'divider', color: 'text.primary', textTransform: 'none' }}
+            >
+              {language === 'tr' ? 'Tümünü Temizle' : 'Clear All'}
+            </Button>
+          </Box>
+
+          {/* Scrollable list of tables with Checkboxes */}
+          <Box sx={{ flex: 1, overflowY: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: '8px', maxHeight: '300px', p: 1, bgcolor: 'action.hover' }}>
+            {Object.entries(tableSelectionSource?.schema ?? {})
+              .filter(([tblName]) => tblName.toLowerCase().includes(tableSearchQuery.toLowerCase()))
+              .map(([tblName, cols]) => (
+                <Box
+                  key={tblName}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justify: 'space-between',
+                    px: 1.5,
+                    py: 0.5,
+                    borderRadius: '6px',
+                    '&:hover': { bgcolor: 'action.selected' }
+                  }}
+                >
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={!!selectedTables[tblName]}
+                        onChange={(e) => {
+                          setSelectedTables(prev => ({
+                            ...prev,
+                            [tblName]: e.target.checked
+                          }));
+                        }}
+                      />
+                    }
+                    label={
+                      <Typography variant="body2" sx={{ fontWeight: 600, fontSize: 12 }}>
+                        {tblName}
+                      </Typography>
+                    }
+                  />
+                  <Typography variant="caption" sx={{ color: 'text.secondary', fontFamily: 'monospace', fontSize: 9 }}>
+                    {(cols as any[]).length} {language === 'tr' ? 'kolon' : 'cols'}
+                  </Typography>
+                </Box>
+              ))}
+
+            {Object.keys(tableSelectionSource?.schema ?? {}).filter(t => t.toLowerCase().includes(tableSearchQuery.toLowerCase())).length === 0 && (
+              <Typography variant="caption" sx={{ color: 'text.secondary', fontStyle: 'italic', display: 'block', textAlign: 'center', py: 4 }}>
+                {language === 'tr' ? 'Tablo bulunamadı.' : 'No tables found.'}
+              </Typography>
+            )}
+          </Box>
+        </DialogContent>
+
+        <DialogActions sx={{ p: 2.5, borderTop: '1px solid', borderColor: 'divider', gap: 1 }}>
+          <Button
+            onClick={() => setTableSelectionOpen(false)}
+            variant="outlined"
+            sx={{ borderRadius: '8px', fontSize: 11, fontWeight: 600, px: 2, borderColor: 'divider', color: 'text.primary', textTransform: 'none' }}
+          >
+            {t.closeBtn}
+          </Button>
+          <Button
+            onClick={() => {
+              const chosen = Object.keys(selectedTables).filter(k => selectedTables[k]);
+              if (chosen.length === 0) {
+                alert(language === 'tr' ? 'Lütfen en az bir tablo seçin.' : 'Please select at least one table.');
+                return;
+              }
+              setTableSelectionOpen(false);
+              runSnapshotReplication(tableSelectionSource, chosen);
+            }}
+            variant="contained"
+            disabled={Object.keys(selectedTables).filter(k => selectedTables[k]).length === 0}
+            sx={{ borderRadius: '8px', fontSize: 11, fontWeight: 600, px: 2.5, bgcolor: '#0078d4', '&:hover': { bgcolor: '#106ebe' }, color: '#ffffff', textTransform: 'none' }}
+          >
+            {language === 'tr' ? 'Snapshot Kopyalamasını Başlat' : 'Start Snapshot Replication'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Premium Guided Snapshot Progress Dialog */}
+      <Dialog
+        open={snapshotDialogOpen}
+        onClose={snapshotProgress.status !== 'running' ? () => setSnapshotDialogOpen(false) : undefined}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle sx={{ p: 2.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', justify: 'space-between' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box sx={{ width: 32, height: 32, borderRadius: '6px', bgcolor: 'rgba(0, 120, 212, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0078d4' }}>
+              <HardDrive size={16} />
+            </Box>
+            <Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 'extrabold', fontSize: 13, m: 0 }}>
+                {language === 'tr' ? 'Veri Tabanı Snapshot Kopyalama Paneli' : 'Database Snapshot Replication Panel'}
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.2 }}>
+                {snapshotSource?.display_name} → {language === 'tr' ? 'Yerel Çevrimdışı Depo' : 'Local Offline Store'}
+              </Typography>
+            </Box>
+          </Box>
+          {snapshotProgress.status !== 'running' && (
+            <IconButton onClick={() => setSnapshotDialogOpen(false)} size="small">
+              <X size={15} />
+            </IconButton>
+          )}
+        </DialogTitle>
+        <DialogContent sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+          {/* 1. Educational Guided Info Card */}
+          <Alert severity="info" icon={<ShieldCheck size={20} />} sx={{ borderRadius: '8px', bgcolor: 'rgba(0, 120, 212, 0.03)', border: '1px solid rgba(0, 120, 212, 0.15)', '& .MuiAlert-message': { width: '100%' } }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: 11, mb: 0.5, color: '#0078d4', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+              {language === 'tr' ? '💡 Snapshot Teknolojisi Nasıl Çalışır?' : '💡 How does Snapshot Technology Work?'}
+            </Typography>
+            <Typography variant="caption" sx={{ display: 'block', lineHeight: 1.5, color: 'text.secondary' }}>
+              {language === 'tr' 
+                ? 'Bu panel, canlı veritabanınızdaki şemayı tarayarak tüm tabloları ve verileri tablo tablo keşfeder. Veriler, sunucu RAM tüketimini sıfıra yakın tutmak amacıyla 5000\'er satırlık paketler halinde çekilip yerel diskteki yüksek performanslı SQLite veritabanına aktarılır. Aynı zamanda, yapay zekanın analitik DuckDB birleştirmelerini ve sorgularını milisaniyeler seviyesinde koşturabilmesi için tüm birincil/yabancı anahtarlara (ID, Key, Tarih vb.) otomatik olarak akıllı indeksler tanımlanır.' 
+                : 'This panel scans the schema in your live database and discovers all tables and data table-by-table. To keep server RAM usage near zero, rows are fetched in chunks of 5000 and streamed into a high-performance local SQLite database. Simultaneously, smart database indexes are automatically created on primary/foreign keys and date columns (IDs, Keys, Dates) to accelerate downstream multi-source DuckDB joins and AI analytical queries.'}
+            </Typography>
+          </Alert>
+
+          {/* 2. Visual table-by-table list with live status */}
+          <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '8px', overflow: 'hidden', bgcolor: 'background.paper' }}>
+            <Box sx={{ px: 2.5, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'action.hover', display: 'flex', alignItems: 'center', justify: 'space-between' }}>
+              <Typography variant="caption" sx={{ fontWeight: 700, textTransform: 'uppercase', tracking: '0.03em', display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Database size={13} style={{ color: '#0078d4' }} />
+                {language === 'tr' ? 'Keşfedilen Tablolar ve Kopyalama Durumu' : 'Discovered Tables & Replication Status'}
+              </Typography>
+              {snapshotProgress.discoveredTables.length > 0 && (
+                <Chip 
+                  label={`${snapshotProgress.discoveredTables.length} ${language === 'tr' ? 'Tablo' : 'Tables'}`} 
+                  size="small" 
+                  sx={{ height: 18, fontSize: 8.5, fontWeight: 700, bgcolor: 'rgba(0, 120, 212, 0.1)', color: '#0078d4' }} 
+                />
+              )}
+            </Box>
+
+            <Box sx={{ p: 2.5, maxH: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 1.2 }}>
+              {snapshotProgress.discoveredTables.length === 0 ? (
+                <Box sx={{ py: 3, textAlign: 'center', color: 'text.secondary' }}>
+                  <CircularProgress size={18} sx={{ mb: 1 }} />
+                  <Typography variant="caption" sx={{ display: 'block', fontStyle: 'italic' }}>
+                    {language === 'tr' ? 'Tablolar taranıyor ve analiz ediliyor...' : 'Scanning and analyzing tables...'}
+                  </Typography>
+                </Box>
+              ) : (
+                <Grid container spacing={1.5}>
+                  {snapshotProgress.discoveredTables.map((t, idx) => {
+                    const statusInfo = snapshotProgress.completedTables[t] || { rows: 0, indexes: 0, status: 'pending' };
+                    let statusBg = 'rgba(255, 255, 255, 0.02)';
+                    let statusBorder = 'divider';
+                    let statusColor = 'text.secondary';
+                    let statusText = language === 'tr' ? 'Bekliyor' : 'Pending';
+                    let statusIcon = <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: 'text.disabled' }} />;
+
+                    if (statusInfo.status === 'running') {
+                      statusBg = 'rgba(0, 120, 212, 0.03)';
+                      statusBorder = '#0078d4';
+                      statusColor = '#0078d4';
+                      statusText = language === 'tr' ? `Aktarılıyor (${statusInfo.rows} satır)` : `Copying (${statusInfo.rows} rows)`;
+                      statusIcon = <CircularProgress size={8} color="inherit" />;
+                    } else if (statusInfo.status === 'completed') {
+                      statusBg = 'rgba(46, 125, 50, 0.03)';
+                      statusBorder = 'rgba(46, 125, 50, 0.25)';
+                      statusColor = 'success.main';
+                      statusText = language === 'tr' ? `Tamamlandı (${statusInfo.rows} satır, ${statusInfo.indexes} indeks)` : `Success (${statusInfo.rows} rows, ${statusInfo.indexes} idx)`;
+                      statusIcon = <ShieldCheck size={10} style={{ color: 'var(--color-success)' }} />;
+                    } else if (statusInfo.status === 'failed') {
+                      statusBg = 'rgba(211, 47, 47, 0.03)';
+                      statusBorder = 'rgba(211, 47, 47, 0.25)';
+                      statusColor = 'error.main';
+                      statusText = language === 'tr' ? 'Hata' : 'Failed';
+                      statusIcon = <AlertCircle size={10} style={{ color: 'var(--color-error)' }} />;
+                    }
+
+                    return (
+                      <Grid size={{ xs: 12, sm: 6 }} key={`snapshot-tab-${t}`}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', p: '6px 12px', border: '1px solid', borderColor: statusBorder, bgcolor: statusBg, borderRadius: '6px', fontSize: 10.5 }}>
+                          <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{t}</span>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: statusColor, fontWeight: 700, fontSize: 9.5 }}>
+                            {statusIcon}
+                            <span>{statusText}</span>
+                          </Box>
+                        </Box>
+                      </Grid>
+                    );
+                  })}
+                </Grid>
+              )}
+            </Box>
+          </Box>
+
+          {/* 3. Progress bars and live counts */}
+          {snapshotProgress.discoveredTables.length > 0 && (
+            <Box className="panel-inset" sx={{ p: 2, borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              <Box sx={{ display: 'flex', justify: 'space-between', alignItems: 'center', fontSize: 11, fontWeight: 600 }}>
+                <span>
+                  {language === 'tr' ? 'Toplam Kopyalama İlerlemesi' : 'Overall Replication Progress'}
+                </span>
+                <span style={{ color: '#0078d4' }}>
+                  {snapshotProgress.status === 'completed' 
+                    ? (language === 'tr' ? 'Tamamlandı' : 'Completed')
+                    : `${snapshotProgress.currentTableIndex + 1} / ${snapshotProgress.discoveredTables.length} ${language === 'tr' ? 'Tablo' : 'Tables'}`}
+                </span>
+              </Box>
+
+              {/* Progress bar */}
+              <Box sx={{ height: 6, width: '100%', bgcolor: 'divider', borderRadius: '3px', overflow: 'hidden' }}>
+                <Box 
+                  sx={{ 
+                    height: '100%', 
+                    bgcolor: snapshotProgress.status === 'completed' ? 'success.main' : '#0078d4', 
+                    borderRadius: '3px', 
+                    transition: 'width 0.3s ease', 
+                    width: `${((snapshotProgress.status === 'completed' ? snapshotProgress.discoveredTables.length : snapshotProgress.currentTableIndex) / snapshotProgress.discoveredTables.length) * 100}%` 
+                  }} 
+                />
+              </Box>
+            </Box>
+          )}
+
+          {/* 4. Live log outputs console */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.8 }}>
+            <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.03em' }}>
+              {language === 'tr' ? 'Anlık İşlem Kaydı (Terminal)' : 'Live Operation Logs (Console)'}
+            </Typography>
+            <Box 
+              sx={{ 
+                p: 2, 
+                bgcolor: 'black', 
+                color: '#00ff00', 
+                fontFamily: 'monospace', 
+                fontSize: 10, 
+                borderRadius: '6px', 
+                minHeight: 110, 
+                maxHeight: 140, 
+                overflowY: 'auto',
+                border: '1px solid',
+                borderColor: 'divider',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 0.5
+              }}
+              ref={(el) => { if (el) el.scrollTop = el.scrollHeight; }}
+            >
+              {snapshotProgress.logs.map((log, idx) => (
+                <div key={`log-${idx}`} style={{ wordBreak: 'break-all' }}>{log}</div>
+              ))}
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, borderTop: '1px solid', borderColor: 'divider', gap: 1 }}>
+          {snapshotProgress.status !== 'running' && (
+            <Button onClick={() => setSnapshotDialogOpen(false)} variant="contained" sx={{ bgcolor: '#0078d4', '&:hover': { bgcolor: '#106ebe' }, color: '#ffffff', fontWeight: 600 }}>
+              {language === 'tr' ? 'Kapat' : 'Close'}
+            </Button>
+          )}
+          {snapshotProgress.status === 'running' && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pr: 1 }}>
+              <CircularProgress size={14} />
+              <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                {snapshotProgress.message}
+              </Typography>
+            </Box>
+          )}
         </DialogActions>
       </Dialog>
 
@@ -842,19 +1340,19 @@ export const SourceManager: React.FC = () => {
 
                     {/* Actions Toolbar */}
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }} onClick={(e) => e.stopPropagation()}>
-                      <Tooltip title={language === 'tr' ? 'DetaylarÃ„Â± ve Etiketleri GÃƒÂ¶r' : 'View Details & Tags'}>
+                      <Tooltip title={language === 'tr' ? 'Detayları ve Etiketleri Gör' : 'View Details & Tags'}>
                         <IconButton size="small" onClick={(e) => openDetails(e, src.id)}>
                           <Eye size={13.5} />
                         </IconButton>
                       </Tooltip>
 
-                      <Tooltip title={language === 'tr' ? 'Semantik Katman TanÃ„Â±mlarÃ„Â±' : 'Semantic Layer Mappings'}>
+                      <Tooltip title={language === 'tr' ? 'Semantik Katman Tanımları' : 'Semantic Layer Mappings'}>
                         <IconButton size="small" onClick={(e) => openSemanticModal(e, src.id)}>
                           <Tag size={13.5} />
                         </IconButton>
                       </Tooltip>
 
-                      <Tooltip title={language === 'tr' ? 'BaÃ„Å¸lantÃ„Â±yÃ„Â± Klonla' : 'Clone Connection'}>
+                      <Tooltip title={language === 'tr' ? 'Bağlantıyı Klonla' : 'Clone Connection'}>
                         <IconButton size="small" onClick={(e) => handleClone(e, src.id)} disabled={cloningId === src.id}>
                           {cloningId === src.id ? <CircularProgress size={13.5} /> : <Copy size={13.5} />}
                         </IconButton>
@@ -867,7 +1365,7 @@ export const SourceManager: React.FC = () => {
                       </Tooltip>
 
                       {src.id !== 'demo_sqlite' && (
-                        <Tooltip title={language === 'tr' ? 'BaÃ„Å¸lantÃ„Â±yÃ„Â± DÃƒÂ¼zenle' : 'Edit Connection'}>
+                        <Tooltip title={language === 'tr' ? 'Bağlantıyı Düzenle' : 'Edit Connection'}>
                           <IconButton size="small" onClick={(e) => handleStartEdit(e, src)}>
                             <Edit3 size={13.5} />
                           </IconButton>
@@ -875,21 +1373,21 @@ export const SourceManager: React.FC = () => {
                       )}
 
                       {src.type !== 'sqlite' && !src.connection_details?.is_snapshot && (
-                        <Tooltip title={language === 'tr' ? 'Snapshot Al (Yerel YedeÃ„Å¸e DÃƒÂ¶nÃƒÂ¼Ã…Å¸tÃƒÂ¼r)' : 'Take Snapshot (Convert to Local Backup)'}>
-                          <IconButton size="small" onClick={(e) => handleTakeSnapshot(e, src.id)} disabled={snapshotting === src.id}>
+                        <Tooltip title={language === 'tr' ? 'Snapshot Al (Yerel Yedeğe Dönüştür)' : 'Take Snapshot (Convert to Local Backup)'}>
+                          <IconButton size="small" onClick={(e) => handleStartSnapshotFlow(e, src.id)} disabled={snapshotting === src.id}>
                             {snapshotting === src.id ? <CircularProgress size={13.5} /> : <HardDrive size={13.5} />}
                           </IconButton>
                         </Tooltip>
                       )}
 
-                      <Tooltip title={language === 'tr' ? 'Ã…ÂemayÃ„Â± Yenile ve KeÃ…Å¸fet' : 'Refresh & Auto-Scan Schema'}>
+                      <Tooltip title={language === 'tr' ? 'Şemayı Yenile ve Keşfet' : 'Refresh & Auto-Scan Schema'}>
                         <IconButton size="small" onClick={(e) => handleRefreshSchema(e, src.id)} disabled={refreshing === src.id}>
                           {refreshing === src.id ? <CircularProgress size={13.5} /> : <RefreshCw size={13.5} />}
                         </IconButton>
                       </Tooltip>
 
                       {src.id !== 'demo_sqlite' && (
-                        <Tooltip title={language === 'tr' ? 'Veri TabanÃ„Â±nÃ„Â± Sil' : 'Delete Database'}>
+                        <Tooltip title={language === 'tr' ? 'Veri Tabanını Sil' : 'Delete Database'}>
                           <IconButton size="small" color="error" onClick={(e) => handleDelete(e, src.id)} disabled={deleting === src.id}>
                             {deleting === src.id ? <CircularProgress size={13.5} color="inherit" /> : <Trash2 size={13.5} />}
                           </IconButton>
@@ -902,7 +1400,7 @@ export const SourceManager: React.FC = () => {
                           onClick={() => setActiveSourceId(src.id)}
                           sx={{ fontSize: 9.5, fontWeight: 600, border: '1px solid', borderColor: 'divider', color: 'text.secondary', borderRadius: '6px', py: 0.3 }}
                         >
-                          {language === 'tr' ? 'SeÃƒÂ§' : 'Select'}
+                          {language === 'tr' ? 'Seç' : 'Select'}
                         </Button>
                       )}
                     </Box>
@@ -934,7 +1432,7 @@ export const SourceManager: React.FC = () => {
                               <Box className="panel-inset" sx={{ p: 1.5, borderRadius: '8px', bgcolor: 'rgba(0, 120, 212, 0.02)', border: '1px solid', borderColor: 'divider' }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', borderBottom: '1px solid', borderColor: 'divider', pb: 0.5, mb: 1 }}>
                                   <span style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 10.5 }}>{tbl}</span>
-                                  <span style={{ fontSize: 9, color: '#9aa6bf', fontFamily: 'monospace' }}>{(cols as string[]).length} {language === 'tr' ? 'sÃƒÂ¼tun' : 'columns'}</span>
+                                  <span style={{ fontSize: 9, color: '#9aa6bf', fontFamily: 'monospace' }}>{(cols as string[]).length} {language === 'tr' ? 'sütun' : 'columns'}</span>
                                 </Box>
                                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                                   {(cols as string[]).map(col => (
@@ -966,7 +1464,7 @@ export const SourceManager: React.FC = () => {
                 <Box sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', borderBottom: '1px solid', borderColor: 'divider', pb: 1.5 }}>
                   <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.primary', textTransform: 'uppercase', tracking: '0.05em', display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Database className="w-3.5 h-3.5 text-gh-accent" />
-                    {editingSourceId ? (language === 'tr' ? 'BaÃ„Å¸lantÃ„Â±yÃ„Â± DÃƒÂ¼zenle' : 'Edit Connection') : t.addBtn}
+                    {editingSourceId ? (language === 'tr' ? 'Bağlantıyı Düzenle' : 'Edit Connection') : t.addBtn}
                   </Typography>
                   <IconButton onClick={() => { setShowForm(false); setEditingSourceId(null); }} size="small">
                     <X size={15} />
@@ -977,7 +1475,7 @@ export const SourceManager: React.FC = () => {
                 {!editingSourceId && (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
-                      {language === 'tr' ? 'VeritabanÃ„Â± Tipi' : 'Database Type'}
+                      {language === 'tr' ? 'Veritabanı Tipi' : 'Database Type'}
                     </Typography>
                     <ToggleButtonGroup
                       value={formValues.type}
@@ -1011,7 +1509,7 @@ export const SourceManager: React.FC = () => {
                 {editingSourceId && (
                   <Alert severity="info" sx={{ borderRadius: '8px', fontSize: 11, py: 0.5 }}>
                     <span style={{ fontWeight: 'extrabold', display: 'block' }}>{t.editModeActive}</span>
-                    {t.editModeDesc.replace('veritabanÃ„Â±nÃ„Â±n', labelTextFor(formValues.type))}
+                    {t.editModeDesc.replace('veritabanının', labelTextFor(formValues.type))}
                   </Alert>
                 )}
 
@@ -1019,13 +1517,13 @@ export const SourceManager: React.FC = () => {
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
-                      {language === 'tr' ? 'BaÃ„Å¸lantÃ„Â± GÃƒÂ¶rÃƒÂ¼ntÃƒÂ¼leme Ã„Â°smi' : 'Display Connection Name'}
+                      {language === 'tr' ? 'Bağlantı Görüntüleme İsmi' : 'Display Connection Name'}
                     </Typography>
                     <TextField
                       fullWidth
                       value={formValues.display_name}
                       onChange={e => setFormValues(p => ({ ...p, display_name: e.target.value }))}
-                      placeholder={language === 'tr' ? 'Ãƒâ€“rn: PostgreSQL CanlÃ„Â±' : 'E.g. Live PostgreSQL'}
+                      placeholder={language === 'tr' ? 'Örn: PostgreSQL Canlı' : 'E.g. Live PostgreSQL'}
                       sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
                     />
                   </Box>
@@ -1142,7 +1640,7 @@ export const SourceManager: React.FC = () => {
                               type="password"
                               value={formValues.password}
                               onChange={e => setFormValues(p => ({ ...p, password: e.target.value }))}
-                              placeholder={editingSourceId ? (language === 'tr' ? "Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢ (BoÃ…Å¸sa deÃ„Å¸iÃ…Å¸mez)" : "Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢ (Keep blank to preserve)") : "Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢"}
+                              placeholder={editingSourceId ? (language === 'tr' ? "•••••••• (Boşsa değişmez)" : "•••••••• (Keep blank to preserve)") : "••••••••"}
                               sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
                             />
                           </Box>
@@ -1174,7 +1672,7 @@ export const SourceManager: React.FC = () => {
                     startIcon={!testing && <Play size={14} />}
                     sx={{ width: '100%', borderRadius: '8px', borderColor: 'divider', color: 'text.primary', fontWeight: 600, fontSize: 11, py: 1 }}
                   >
-                    {testing ? <CircularProgress size={14} color="inherit" /> : (language === 'tr' ? 'BaÃ„Å¸lantÃ„Â±yÃ„Â± Test Et' : 'Test Connection')}
+                    {testing ? <CircularProgress size={14} color="inherit" /> : (language === 'tr' ? 'Bağlantıyı Test Et' : 'Test Connection')}
                   </Button>
                   <Button
                     onClick={handleSave}
@@ -1187,7 +1685,7 @@ export const SourceManager: React.FC = () => {
                       '&:hover': { bgcolor: testResult?.success ? 'success.dark' : 'action.disabledBackground' }
                     }}
                   >
-                    {saving ? <CircularProgress size={14} color="inherit" /> : (editingSourceId ? (language === 'tr' ? 'DeÃ„Å¸iÃ…Å¸iklikleri GÃƒÂ¼ncelle' : 'Update Connection Details') : (language === 'tr' ? 'BaÃ„Å¸lantÃ„Â±yÃ„Â± Kaydet & Ã…ÂemayÃ„Â± Ãƒâ€¡Ã„Â±kar' : 'Save Connection & Extract Schema'))}
+                    {saving ? <CircularProgress size={14} color="inherit" /> : (editingSourceId ? (language === 'tr' ? 'Değişiklikleri Güncelle' : 'Update Connection Details') : (language === 'tr' ? 'Bağlantıyı Kaydet & Şemayı Çıkar' : 'Save Connection & Extract Schema'))}
                   </Button>
                 </Box>
               </CardContent>
@@ -1225,15 +1723,15 @@ export const SourceManager: React.FC = () => {
                 </Box>
                 <ul className="text-[11px] text-gh-muted leading-relaxed space-y-2 list-none p-0 m-0 select-none">
                   <li className="flex items-start gap-2">
-                    <span style={{ color: '#0078d4', fontWeight: 600 }}>Ã¢â‚¬Â¢</span>
+                    <span style={{ color: '#0078d4', fontWeight: 600 }}>•</span>
                     <span>{t.securityPoint1}</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span style={{ color: '#0078d4', fontWeight: 600 }}>Ã¢â‚¬Â¢</span>
+                    <span style={{ color: '#0078d4', fontWeight: 600 }}>•</span>
                     <span>{t.securityPoint2}</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span style={{ color: '#0078d4', fontWeight: 600 }}>Ã¢â‚¬Â¢</span>
+                    <span style={{ color: '#0078d4', fontWeight: 600 }}>•</span>
                     <span>{t.securityPoint3}</span>
                   </li>
                 </ul>

@@ -256,7 +256,7 @@ export const ResultVisualizer: React.FC = () => {
     }
   }, [chartCollapsed, chartType, xAxisCol, yAxisCol, themeColor, data, isDarkMode, visualization]);
 
-  // â”€â”€â”€ Table filtering & pagination â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── Table filtering & pagination ─────────────────────────────────────────
   const sortedRows = useMemo(() => {
     if (sortDirection === 'none' || !sortColumn || !columns || !rawRows) return rawRows;
     const colIdx = columns.indexOf(sortColumn);
@@ -295,7 +295,7 @@ export const ResultVisualizer: React.FC = () => {
   const totalPages = Math.ceil(filteredRows.length / itemsPerPage);
   const paginatedRows = filteredRows.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  // â”€â”€â”€ Export handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── Export handlers ───────────────────────────────────────────────────────
   const handleExport = async (format: 'pdf' | 'excel' | 'csv') => {
     let chartImage: string | null = null;
     if (window.Plotly && chartRef.current && !chartCollapsed) {
@@ -347,7 +347,7 @@ export const ResultVisualizer: React.FC = () => {
     }
   };
 
-  // â”€â”€â”€ Empty state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── Empty state ──────────────────────────────────────────────────────────
   if (!activeMessage) {
     return (
       <Box sx={{ flex: 1, height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 4, bgcolor: 'background.default', borderLeft: '1px solid', borderColor: 'divider' }}>
@@ -423,7 +423,7 @@ export const ResultVisualizer: React.FC = () => {
   return (
     <Box sx={{ flex: 1, height: '100vh', display: 'flex', flexDirection: 'column', bgcolor: 'background.default', borderLeft: '1px solid', borderColor: 'divider', overflow: 'hidden' }}>
 
-      {/* â”€â”€ Chart Section (collapsible) â”€â”€ */}
+      {/* ── Chart Section (collapsible) ── */}
       {hasChart && (
         <Box sx={{ flexShrink: 0, borderBottom: '1px solid', borderColor: 'divider', bgcolor: isDarkMode ? 'rgba(0, 120, 212, 0.015)' : 'rgba(0, 120, 212, 0.005)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
 
@@ -475,7 +475,7 @@ export const ResultVisualizer: React.FC = () => {
                     </Select>
                   </FormControl>
 
-                  <span style={{ fontSize: 11, color: 'text.secondary', fontWeight: 600 }}>Ã—</span>
+                  <span style={{ fontSize: 11, color: 'text.secondary', fontWeight: 600 }}>×</span>
 
                   <FormControl size="small" sx={{ m: 0, p: 0 }}>
                     <Select
@@ -554,17 +554,17 @@ export const ResultVisualizer: React.FC = () => {
                     if (!val) return;
                     
                     // Chart Type mapping
-                    if (val.includes('Ã§izgi') || val.includes('line')) setChartType('Line');
-                    else if (val.includes('bar') || val.includes('sÃ¼tun') || val.includes('column')) setChartType('Bar');
+                    if (val.includes('çizgi') || val.includes('line')) setChartType('Line');
+                    else if (val.includes('bar') || val.includes('sütun') || val.includes('column')) setChartType('Bar');
                     else if (val.includes('alan') || val.includes('area')) setChartType('Area');
-                    else if (val.includes('saÃ§Ä±lÄ±m') || val.includes('scatter') || val.includes('nokta')) setChartType('Scatter');
+                    else if (val.includes('saçılım') || val.includes('scatter') || val.includes('nokta')) setChartType('Scatter');
                     else if (val.includes('pie') || val.includes('pasta') || val.includes('daire')) setChartType('Pie');
                     
                     // Theme color mapping
                     if (val.includes('mavi') || val.includes('blue')) setThemeColor('#0078d4');
-                    else if (val.includes('yeÅŸil') || val.includes('green')) setThemeColor('#34a853');
-                    else if (val.includes('sarÄ±') || val.includes('yellow')) setThemeColor('#f9ab00');
-                    else if (val.includes('kÄ±rmÄ±zÄ±') || val.includes('red')) setThemeColor('#ea4335');
+                    else if (val.includes('yeşil') || val.includes('green')) setThemeColor('#34a853');
+                    else if (val.includes('sarı') || val.includes('yellow')) setThemeColor('#f9ab00');
+                    else if (val.includes('kırmızı') || val.includes('red')) setThemeColor('#ea4335');
                     else if (val.includes('mor') || val.includes('purple')) setThemeColor('#a78bfa');
                     
                     // Column mapping
@@ -608,7 +608,7 @@ export const ResultVisualizer: React.FC = () => {
         </Box>
       )}
 
-      {/* â”€â”€ Table Section â”€â”€ */}
+      {/* ── Table Section ── */}
       <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
 
         {/* Table toolbar */}

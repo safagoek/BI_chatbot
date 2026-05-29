@@ -711,6 +711,23 @@ def take_source_snapshot(source_id: str):
         raise HTTPException(status_code=500, detail=f"Snapshot oluşturulurken hata oluştu: {str(e)}")
 
 
+@app.get("/api/sources/{source_id}/snapshot/stream")
+def stream_source_snapshot(source_id: str, tables: Optional[str] = None):
+    """Creates a local offline SQLite snapshot and streams detailed table-by-table progress."""
+    from app.database.snapshots import yield_database_snapshot_progress
+    from fastapi.responses import StreamingResponse
+    import json
+    
+    selected_tables = None
+    if tables:
+        selected_tables = [t.strip() for t in tables.split(",") if t.strip()]
+        
+    def event_generator():
+        for event in yield_database_snapshot_progress(source_id, selected_tables):
+            yield f"data: {json.dumps(event)}\n\n"
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
 @app.put("/api/sources/{source_id}/refresh-schema")
 def refresh_schema(source_id: str):
     """Refreshes schema cache for an existing data source."""

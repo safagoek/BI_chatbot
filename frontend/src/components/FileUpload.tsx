@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useBIStore, BACKEND_BASE } from '../context/store';
 import { translations } from '../context/translations';
 import { useDropzone } from 'react-dropzone';
@@ -68,10 +68,10 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
             setPage(0);
           } else {
             const err = await res.json();
-            setUploadError(err.detail || (language === 'tr' ? 'Ã–n izleme yÃ¼kleme hatasÄ±.' : 'Preview loading error.'));
+            setUploadError(err.detail || (language === 'tr' ? 'Ön izleme yükleme hatası.' : 'Preview loading error.'));
           }
         } catch (err: any) {
-          setUploadError(err.message || (language === 'tr' ? 'Ã–n izleme alÄ±nÄ±rken baÄŸlantÄ± hatasÄ± oluÅŸtu.' : 'Connection error occurred while retrieving preview.'));
+          setUploadError(err.message || (language === 'tr' ? 'Ön izleme alınırken bağlantı hatası oluştu.' : 'Connection error occurred while retrieving preview.'));
         } finally {
           setUploading(false);
         }
@@ -110,7 +110,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
       const result = response.ok ? await response.json() : null;
       
       if (!response.ok || !result) {
-        const errDetail = result?.detail || (language === 'tr' ? 'Dosya yÃ¼kleme hatasÄ±.' : 'File upload error.');
+        const errDetail = result?.detail || (language === 'tr' ? 'Dosya yükleme hatası.' : 'File upload error.');
         throw new Error(errDetail);
       }
       
@@ -128,7 +128,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
       setActiveSourceId(result.metadata.id);
       
     } catch (err: any) {
-      setUploadError(err.message || (language === 'tr' ? 'Bilinmeyen bir hata oluÅŸtu.' : 'An unknown error occurred.'));
+      setUploadError(err.message || (language === 'tr' ? 'Bilinmeyen bir hata oluştu.' : 'An unknown error occurred.'));
     } finally {
       setUploading(false);
     }
@@ -136,11 +136,11 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
 
   const handleDeleteFile = (e: React.MouseEvent, id: string, name: string) => {
     e.stopPropagation();
-    if (!window.confirm(language === 'tr' ? `"${name}" dosyasÄ±nÄ± silmek istediÄŸinizden emin misiniz?` : `Are you sure you want to delete file "${name}"?`)) return;
+    if (!window.confirm(language === 'tr' ? `"${name}" dosyasını silmek istediğinizden emin misiniz?` : `Are you sure you want to delete file "${name}"?`)) return;
     try {
       deleteFile(id);
     } catch (err: any) {
-      alert(language === 'tr' ? 'Dosya silinirken hata oluÅŸtu.' : 'Error occurred while deleting file.');
+      alert(language === 'tr' ? 'Dosya silinirken hata oluştu.' : 'Error occurred while deleting file.');
     }
   };
 
@@ -243,7 +243,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
           {previewData && (
             <Alert severity="success" sx={{ borderRadius: '8px', fontSize: 11 }}>
               {language === 'tr' 
-                ? `Veri kÃ¼meniz "${previewData.alias}" adÄ±yla sisteme eklendi.` 
+                ? `Veri kümeniz "${previewData.alias}" adıyla sisteme eklendi.` 
                 : `Your dataset was added to the system as "${previewData.alias}".`}
             </Alert>
           )}
@@ -283,7 +283,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
                         </Box>
                       </Box>
                       <ListItemSecondaryAction sx={{ right: 8 }}>
-                        <Tooltip title={language === 'tr' ? 'Dosya KaynaÄŸÄ±nÄ± Sil' : 'Delete File Source'}>
+                        <Tooltip title={language === 'tr' ? 'Dosya Kaynağını Sil' : 'Delete File Source'}>
                           <IconButton edge="end" size="small" onClick={(e) => handleDeleteFile(e, file.id, file.alias)}>
                             <Trash2 size={13.5} />
                           </IconButton>
@@ -322,7 +322,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
                 </Box>
                 {uploading ? (
                   <span style={{ fontSize: 8.5, color: '#0078d4', fontFamily: 'monospace', fontWeight: 600, animation: 'pulse 1.5s infinite' }}>
-                    {language === 'tr' ? 'AKILLI TARAMA Ã‡ALIÅIYOR...' : 'SMART SCAN RUNNING...'}
+                    {language === 'tr' ? 'AKILLI TARAMA ÇALIŞIYOR...' : 'SMART SCAN RUNNING...'}
                   </span>
                 ) : previewData ? (
                   <Chip label={language === 'tr' ? `TOPLAM ${previewData.row_count} SATIR` : `TOTAL ${previewData.row_count} ROWS`} size="small" sx={{ height: 16, fontSize: 8.5, fontWeight: 600, bgcolor: 'rgba(0, 120, 212, 0.1)', color: '#0078d4', border: 0 }} />
@@ -332,8 +332,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
               {uploading ? (
                 <Box sx={{ display: 'flex', flexDirection: 'column', justify: 'center', alignItems: 'center', py: 12, gap: 1.5 }}>
                   <Loader2 className="w-8 h-8 animate-spin text-gh-accent" />
-                  <Typography variant="body2" sx={{ fontWeight: 'extrabold' }}>{language === 'tr' ? 'Veri YapÄ±sÄ± KeÅŸfediliyor...' : 'Discovering Data Structure...'}</Typography>
-                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>{language === 'tr' ? 'SÃ¼tun veri tipleri otomatik algÄ±lanÄ±p ÅŸemalandÄ±rÄ±lÄ±yor.' : 'Column data types are automatically detected and structured.'}</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 'extrabold' }}>{language === 'tr' ? 'Veri Yapısı Keşfediliyor...' : 'Discovering Data Structure...'}</Typography>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>{language === 'tr' ? 'Sütun veri tipleri otomatik algılanıp şemalandırılıyor.' : 'Column data types are automatically detected and structured.'}</Typography>
                 </Box>
               ) : previewData ? (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
@@ -346,13 +346,13 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                       {Object.entries(previewData.schema).map(([colName, colType]) => {
                         let color: 'primary' | 'secondary' | 'success' | 'warning' | 'info' | 'default' = 'default';
-                        if (colType === 'SayÄ±') color = 'info';
+                        if (colType === 'Sayı') color = 'info';
                         else if (colType === 'Tarih') color = 'warning';
                         else if (colType === 'Boole') color = 'success';
                         
                         let colTypeLabel = colType;
                         if (language === 'en') {
-                          if (colType === 'SayÄ±') colTypeLabel = 'Number';
+                          if (colType === 'Sayı') colTypeLabel = 'Number';
                           else if (colType === 'Tarih') colTypeLabel = 'Date';
                           else if (colType === 'Boole') colTypeLabel = 'Boolean';
                           else if (colType === 'Metin') colTypeLabel = 'Text';
@@ -371,7 +371,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
                   {/* Data Preview Table using MUI components */}
                   <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                     <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', display: 'block', mb: 1.5 }}>
-                      {language === 'tr' ? 'Veri Tablosu (Ä°lk 20 SatÄ±r)' : 'Data Table (First 20 Rows)'}
+                      {language === 'tr' ? 'Veri Tablosu (İlk 20 Satır)' : 'Data Table (First 20 Rows)'}
                     </Typography>
                     
                     <TableContainer component={Paper} variant="outlined" sx={{ border: '1px solid', borderColor: 'divider', bgcolor: 'rgba(0, 120, 212, 0.01)', maxHeight: 380 }}>
@@ -392,7 +392,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
                               </TableCell>
                               {previewData.columns.map((col) => (
                                 <TableCell key={col} sx={{ fontFamily: 'monospace', fontSize: 10, borderRight: '1px solid', borderColor: 'divider', p: 0.8, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxW: 140 }}>
-                                  {row[col] === null ? <span style={{ fontStyle: 'italic', opacity: 0.5 }}>â€”</span> : String(row[col])}
+                                  {row[col] === null ? <span style={{ fontStyle: 'italic', opacity: 0.5 }}>—</span> : String(row[col])}
                                 </TableCell>
                               ))}
                             </TableRow>

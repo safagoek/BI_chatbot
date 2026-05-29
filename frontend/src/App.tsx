@@ -35,10 +35,10 @@ export const App: React.FC = () => {
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('theme');
-      if (saved === 'light') return 'light';
-      return 'dark'; // Default to premium dark theme
+      if (saved === 'dark') return 'dark';
+      return 'light'; // Default to premium light theme (Nordic Minimalist)
     }
-    return 'dark';
+    return 'light';
   });
 
   useEffect(() => {
