@@ -125,12 +125,18 @@ def get_session(session_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    return Response(status_code=204)
+
+
 @app.get("/api/health")
 def health_check():
     try:
         return {"status": "ok", "time": int(pd.Timestamp.now().timestamp())}
     except Exception:
         return {"status": "ok"}
+
 
 
 @app.get("/api/settings")
