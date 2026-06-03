@@ -113,7 +113,7 @@ export const SourceManager: React.FC = () => {
   // Refresh / delete states per source
   const [refreshing, setRefreshing] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
-  const [snapshotting, setSnapshotting] = useState<string | null>(null);
+  const [snapshotting, _setSnapshotting] = useState<string | null>(null);
 
   // Selective Snapshot Table Selection States
   const [tableSelectionOpen, setTableSelectionOpen] = useState(false);
@@ -1018,9 +1018,11 @@ export const SourceManager: React.FC = () => {
             placeholder={language === 'tr' ? 'Tablo ara...' : 'Search tables...'}
             value={tableSearchQuery}
             onChange={(e) => setTableSearchQuery(e.target.value)}
-            InputProps={{
-              startAdornment: <Search size={14} style={{ marginRight: 8, color: 'var(--color-muted)' }} />
-            }}
+            slotProps={{
+               input: {
+                 startAdornment: <Search size={14} style={{ marginRight: 8, color: 'var(--color-muted)' }} />
+               }
+             }}
             sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
           />
 
@@ -1066,7 +1068,7 @@ export const SourceManager: React.FC = () => {
                   sx={{
                     display: 'flex',
                     alignItems: 'center',
-                    justify: 'space-between',
+                    justifyContent: 'space-between',
                     px: 1.5,
                     py: 0.5,
                     borderRadius: '6px',
@@ -1199,7 +1201,7 @@ export const SourceManager: React.FC = () => {
                 </Box>
               ) : (
                 <Grid container spacing={1.5}>
-                  {snapshotProgress.discoveredTables.map((t, idx) => {
+                  {snapshotProgress.discoveredTables.map((t) => {
                     const statusInfo = snapshotProgress.completedTables[t] || { rows: 0, indexes: 0, status: 'pending' };
                     let statusBg = 'rgba(255, 255, 255, 0.02)';
                     let statusBorder = 'divider';
@@ -1295,7 +1297,7 @@ export const SourceManager: React.FC = () => {
                 flexDirection: 'column',
                 gap: 0.5
               }}
-              ref={(el) => { if (el) el.scrollTop = el.scrollHeight; }}
+              ref={(el: any) => { if (el) el.scrollTop = el.scrollHeight; }}
             >
               {snapshotProgress.logs.map((log, idx) => (
                 <div key={`log-${idx}`} style={{ wordBreak: 'break-all' }}>{log}</div>

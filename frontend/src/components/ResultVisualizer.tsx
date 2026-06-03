@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useBIStore, BACKEND_BASE } from '../context/store';
 import { translations } from '../context/translations';
 import {
@@ -18,11 +18,11 @@ declare global {
 }
 
 const CHART_COLORS = [
-  { hex: '#0078d4', name: 'Communication Blue' },
-  { hex: '#34a853', name: 'Google Green' },
-  { hex: '#f9ab00', name: 'Google Yellow' },
-  { hex: '#ea4335', name: 'Google Red' },
-  { hex: '#a78bfa', name: 'Material Purple' },
+  { hex: '#6366f1', name: 'Indigo Accent' },
+  { hex: '#10b981', name: 'Emerald Success' },
+  { hex: '#f59e0b', name: 'Amber Warning' },
+  { hex: '#ef4444', name: 'Rose Danger' },
+  { hex: '#8b5cf6', name: 'Violet Premium' },
 ];
 
 export const ResultVisualizer: React.FC = () => {
@@ -63,7 +63,7 @@ export const ResultVisualizer: React.FC = () => {
   const [xAxisCol, setXAxisCol] = useState('');
   const [yAxisCol, setYAxisCol] = useState('');
 
-  const [themeColor, setThemeColor] = useState('#0078d4');
+  const [themeColor, setThemeColor] = useState('#6366f1');
   const chartRef = useRef<HTMLDivElement>(null);
 
   // Resize states
@@ -357,14 +357,14 @@ export const ResultVisualizer: React.FC = () => {
             p: 5,
             maxWidth: 420,
             textAlign: 'center',
-            borderRadius: '8px',
+            borderRadius: '16px',
             border: '1px solid',
             borderColor: 'divider',
             background: isDarkMode
-              ? 'linear-gradient(135deg, rgba(30, 30, 30, 0.6) 0%, rgba(20, 20, 20, 0.8) 100%)'
-              : 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(240, 244, 248, 0.9) 100%)',
-            backdropFilter: 'blur(10px)',
-            boxShadow: isDarkMode ? '0 12px 32px rgba(0, 0, 0, 0.3)' : '0 12px 32px rgba(0, 120, 212, 0.05)',
+              ? 'linear-gradient(135deg, rgba(24, 24, 27, 0.7) 0%, rgba(9, 9, 11, 0.85) 100%)'
+              : 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(244, 244, 245, 0.9) 100%)',
+            backdropFilter: 'blur(20px)',
+            boxShadow: isDarkMode ? '0 16px 40px rgba(0, 0, 0, 0.4)' : '0 16px 40px rgba(99, 102, 241, 0.04)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center'
@@ -374,27 +374,23 @@ export const ResultVisualizer: React.FC = () => {
             sx={{
               width: 56,
               height: 56,
-              borderRadius: '14px',
-              border: '1px solid rgba(0, 120, 212, 0.25)',
+              borderRadius: '16px',
+              border: '1px solid rgba(99, 102, 241, 0.25)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               mb: 3,
-              bgcolor: 'rgba(0, 120, 212, 0.08)',
-              boxShadow: '0 8px 16px rgba(0, 120, 212, 0.1)',
-              animation: 'pulse 2s infinite ease-in-out',
-              '@keyframes pulse': {
-                '0%, 100%': { transform: 'scale(1)', opacity: 0.9 },
-                '50%': { transform: 'scale(1.05)', opacity: 1 }
-              }
+              bgcolor: 'rgba(99, 102, 241, 0.08)',
+              boxShadow: '0 8px 24px rgba(99, 102, 241, 0.15)',
+              animation: 'pulseSubtle 2s infinite ease-in-out',
             }}
           >
-            <Eye size={24} style={{ color: '#0078d4' }} />
+            <Eye size={24} style={{ color: '#6366f1' }} />
           </Box>
-          <Typography variant="body2" sx={{ fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', fontSize: 12, color: 'text.primary', mb: 1.5 }}>
+          <Typography variant="body2" sx={{ fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', fontSize: 12, color: 'text.primary', mb: 1.5, fontFamily: 'var(--font-mono)' }}>
             {t.visualizerEmptyTitle}
           </Typography>
-          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', maxWidth: 300, textAlign: 'center', lineHeight: 1.5, fontSize: 11 }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', maxWidth: 300, textAlign: 'center', lineHeight: 1.6, fontSize: 11, fontFamily: 'var(--font-mono)' }}>
             {t.visualizerEmptyDesc}
           </Typography>
         </Paper>
@@ -410,7 +406,7 @@ export const ResultVisualizer: React.FC = () => {
       <span>
         {parts.map((part, i) => 
           regex.test(part) ? (
-            <span key={i} style={{ backgroundColor: 'rgba(0, 120, 212, 0.22)', color: '#0078d4', fontWeight: 600, padding: '1px 3px', borderRadius: '3px' }}>{part}</span>
+            <span key={i} style={{ backgroundColor: 'rgba(99, 102, 241, 0.2)', color: '#818cf8', fontWeight: 600, padding: '2px 4px', borderRadius: '4px' }}>{part}</span>
           ) : part
         )}
       </span>
@@ -425,13 +421,13 @@ export const ResultVisualizer: React.FC = () => {
 
       {/* ── Chart Section (collapsible) ── */}
       {hasChart && (
-        <Box sx={{ flexShrink: 0, borderBottom: '1px solid', borderColor: 'divider', bgcolor: isDarkMode ? 'rgba(0, 120, 212, 0.015)' : 'rgba(0, 120, 212, 0.005)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+        <Box sx={{ flexShrink: 0, borderBottom: '1px solid', borderColor: 'divider', bgcolor: isDarkMode ? 'rgba(99, 102, 241, 0.015)' : 'rgba(99, 102, 241, 0.005)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
 
           {/* Chart header / toolbar */}
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2.5, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', flexWrap: 'wrap', gap: 1.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifycontent: 'space-between', px: 2.5, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', flexWrap: 'wrap', gap: 1.5 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <BarChart2 size={16} style={{ color: '#0078d4' }} />
-              <Typography variant="caption" sx={{ fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'text.primary' }}>
+              <BarChart2 size={16} style={{ color: '#6366f1' }} />
+              <Typography variant="caption" sx={{ fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'text.primary', fontFamily: 'var(--font-mono)' }}>
                 {t.chartTitle}
               </Typography>
             </Box>
@@ -445,11 +441,12 @@ export const ResultVisualizer: React.FC = () => {
                 onChange={(_, val) => val && setChartType(val)}
                 size="small"
                 sx={{
-                  height: 28, border: '1px solid', borderColor: 'divider', borderRadius: '6px', p: 0.2, bgcolor: 'background.paper',
+                  height: 28, border: '1px solid', borderColor: 'divider', borderRadius: '8px', p: 0.2, bgcolor: 'background.paper',
                   '& .MuiToggleButton-root': {
                     border: 0, px: 1.5, py: 0, fontSize: 10, fontWeight: 600, textTransform: 'none', color: 'text.secondary',
-                    borderRadius: '4px',
-                    '&.Mui-selected': { bgcolor: 'rgba(0, 120, 212, 0.12)', color: '#0078d4', '&:hover': { bgcolor: 'rgba(0, 120, 212, 0.18)' } }
+                    borderRadius: '6px',
+                    fontFamily: 'var(--font-mono)',
+                    '&.Mui-selected': { bgcolor: 'rgba(99, 102, 241, 0.12)', color: '#6366f1', '&:hover': { bgcolor: 'rgba(99, 102, 241, 0.18)' } }
                   }
                 }}
               >
@@ -466,7 +463,7 @@ export const ResultVisualizer: React.FC = () => {
                       value={xAxisCol}
                       onChange={e => setXAxisCol(e.target.value)}
                       sx={{
-                        fontSize: 10, height: 28, fontFamily: 'var(--font-mono)', borderRadius: '6px', bgcolor: 'background.paper', minWidth: 90,
+                        fontSize: 10, height: 28, fontFamily: 'var(--font-mono)', borderRadius: '8px', bgcolor: 'background.paper', minWidth: 90,
                         '& .MuiSelect-select': { py: 0.5, px: 1.5 }
                       }}
                       title={language === 'tr' ? "X Ekseni" : "X Axis"}
@@ -482,7 +479,7 @@ export const ResultVisualizer: React.FC = () => {
                       value={yAxisCol}
                       onChange={e => setYAxisCol(e.target.value)}
                       sx={{
-                        fontSize: 10, height: 28, fontFamily: 'var(--font-mono)', borderRadius: '6px', bgcolor: 'background.paper', minWidth: 90,
+                        fontSize: 10, height: 28, fontFamily: 'var(--font-mono)', borderRadius: '8px', bgcolor: 'background.paper', minWidth: 90,
                         '& .MuiSelect-select': { py: 0.5, px: 1.5 }
                       }}
                       title={language === 'tr' ? "Y Ekseni" : "Y Axis"}
@@ -503,7 +500,7 @@ export const ResultVisualizer: React.FC = () => {
                     style={{
                       width: 14, height: 14, borderRadius: '50%', backgroundColor: c.hex, border: themeColor === c.hex ? '2px solid var(--color-text)' : '1px solid transparent',
                       cursor: 'pointer', outline: 'none', padding: 0, transition: 'all 0.15s',
-                      boxShadow: themeColor === c.hex ? '0 0 6px rgba(0, 120, 212, 0.4)' : 'none'
+                      boxShadow: themeColor === c.hex ? '0 0 8px rgba(99, 102, 241, 0.45)' : 'none'
                     }}
                   />
                 ))}
@@ -511,14 +508,14 @@ export const ResultVisualizer: React.FC = () => {
 
               {/* Collapse toggle */}
               <Tooltip title={chartCollapsed ? t.chartShow : t.chartHide}>
-                <IconButton onClick={() => setChartCollapsed(p => !p)} size="small" sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '6px', p: 0.6, mr: 1 }}>
+                <IconButton onClick={() => setChartCollapsed(p => !p)} size="small" sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '8px', p: 0.6, mr: 1 }}>
                   {chartCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
                 </IconButton>
               </Tooltip>
 
               {/* Close / Dismiss visualizer panel */}
               <Tooltip title={t.closePanelTooltip}>
-                <IconButton onClick={() => setVisualizerDismissed(true)} size="small" sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '6px', p: 0.6, color: 'error.main', '&:hover': { bgcolor: 'rgba(234, 67, 53, 0.08)', borderColor: 'error.light' } }}>
+                <IconButton onClick={() => setVisualizerDismissed(true)} size="small" sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '8px', p: 0.6, color: 'error.main', '&:hover': { bgcolor: 'rgba(239, 68, 68, 0.08)', borderColor: 'error.light' } }}>
                   <X size={14} />
                 </IconButton>
               </Tooltip>
@@ -543,7 +540,7 @@ export const ResultVisualizer: React.FC = () => {
                   input: {
                     startAdornment: (
                       <InputAdornment position="start">
-                        <Sparkles size={13} style={{ color: '#0078d4' }} />
+                        <Sparkles size={13} style={{ color: '#6366f1' }} />
                       </InputAdornment>
                     ),
                   }
@@ -561,11 +558,11 @@ export const ResultVisualizer: React.FC = () => {
                     else if (val.includes('pie') || val.includes('pasta') || val.includes('daire')) setChartType('Pie');
                     
                     // Theme color mapping
-                    if (val.includes('mavi') || val.includes('blue')) setThemeColor('#0078d4');
-                    else if (val.includes('yeşil') || val.includes('green')) setThemeColor('#34a853');
-                    else if (val.includes('sarı') || val.includes('yellow')) setThemeColor('#f9ab00');
-                    else if (val.includes('kırmızı') || val.includes('red')) setThemeColor('#ea4335');
-                    else if (val.includes('mor') || val.includes('purple')) setThemeColor('#a78bfa');
+                    if (val.includes('mavi') || val.includes('blue')) setThemeColor('#6366f1');
+                    else if (val.includes('yeşil') || val.includes('green')) setThemeColor('#10b981');
+                    else if (val.includes('sarı') || val.includes('yellow')) setThemeColor('#f59e0b');
+                    else if (val.includes('kırmızı') || val.includes('red')) setThemeColor('#ef4444');
+                    else if (val.includes('mor') || val.includes('purple')) setThemeColor('#8b5cf6');
                     
                     // Column mapping
                     columns.forEach(col => {
@@ -586,6 +583,7 @@ export const ResultVisualizer: React.FC = () => {
                     height: 28,
                     fontSize: 10.5,
                     bgcolor: 'background.paper',
+                    fontFamily: 'var(--font-mono)',
                     '& input': { py: 0.5 }
                   }
                 }}
@@ -598,7 +596,7 @@ export const ResultVisualizer: React.FC = () => {
             <Box
               onPointerDown={startResize}
               sx={{
-                height: 6, bgcolor: 'divider', '&:hover': { bgcolor: '#0078d4' }, cursor: 'row-resize',
+                height: 6, bgcolor: 'divider', '&:hover': { bgcolor: '#6366f1' }, cursor: 'row-resize',
                 transition: 'background-color 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 10
               }}
             >
@@ -612,9 +610,9 @@ export const ResultVisualizer: React.FC = () => {
       <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
 
         {/* Table toolbar */}
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2.5, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', bgcolor: isDarkMode ? 'rgba(0, 120, 212, 0.008)' : 'rgba(0, 120, 212, 0.002)', flexShrink: 0, gap: 2, flexWrap: 'wrap' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2.5, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', bgcolor: isDarkMode ? 'rgba(99, 102, 241, 0.008)' : 'rgba(99, 102, 241, 0.002)', flexShrink: 0, gap: 2, flexWrap: 'wrap' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1, minWidth: 260 }}>
-            <TableIcon size={16} style={{ color: '#0078d4' }} />
+            <TableIcon size={16} style={{ color: '#6366f1' }} />
             <TextField
               size="small"
               value={searchTerm}
@@ -636,6 +634,7 @@ export const ResultVisualizer: React.FC = () => {
                   height: 28,
                   fontSize: 11,
                   bgcolor: 'background.paper',
+                  fontFamily: 'var(--font-mono)',
                   '& input': { py: 0.5 }
                 }
               }}
@@ -643,13 +642,13 @@ export const ResultVisualizer: React.FC = () => {
             <Chip
               label={`${filteredRows.length} ${t.rowsCountBadge}`}
               size="small"
-              sx={{ height: 18, fontSize: 9, fontWeight: 600, bgcolor: 'rgba(0, 120, 212, 0.12)', color: '#0078d4', border: 0, borderRadius: '6px' }}
+              sx={{ height: 18, fontSize: 9, fontWeight: 600, bgcolor: 'rgba(99, 102, 241, 0.12)', color: '#818cf8', border: 0, borderRadius: '6px', fontFamily: 'var(--font-mono)' }}
             />
             {selectedRows.length > 0 && (
               <Chip
                 label={`${selectedRows.length} ${t.selectedCountBadge}`}
                 size="small"
-                sx={{ height: 18, fontSize: 9, fontWeight: 600, bgcolor: 'rgba(52, 168, 83, 0.12)', color: '#34a853', border: 0, borderRadius: '6px', animation: 'pulse 1.5s infinite' }}
+                sx={{ height: 18, fontSize: 9, fontWeight: 600, bgcolor: 'rgba(16, 185, 129, 0.12)', color: '#10b981', border: 0, borderRadius: '6px', animation: 'pulseSubtle 1.5s infinite', fontFamily: 'var(--font-mono)' }}
               />
             )}
           </Box>
@@ -665,9 +664,10 @@ export const ResultVisualizer: React.FC = () => {
                   startIcon={<FileDown size={12} />}
                   sx={{
                     py: 0.5, px: 1.5, fontSize: 10, fontWeight: 600, textTransform: 'none',
-                    borderColor: 'rgba(52, 168, 83, 0.2)', color: 'success.main', borderRadius: '6px',
-                    bgcolor: 'rgba(52, 168, 83, 0.05)',
-                    '&:hover': { borderColor: 'success.dark', bgcolor: 'rgba(52, 168, 83, 0.12)' }
+                    borderColor: 'rgba(16, 185, 129, 0.2)', color: 'success.main', borderRadius: '6px',
+                    bgcolor: 'rgba(16, 185, 129, 0.05)',
+                    fontFamily: 'var(--font-mono)',
+                    '&:hover': { borderColor: 'success.dark', bgcolor: 'rgba(16, 185, 129, 0.12)' }
                   }}
                 >
                   Excel
@@ -682,9 +682,10 @@ export const ResultVisualizer: React.FC = () => {
                   startIcon={<FileDown size={12} />}
                   sx={{
                     py: 0.5, px: 1.5, fontSize: 10, fontWeight: 600, textTransform: 'none',
-                    borderColor: 'rgba(234, 67, 53, 0.2)', color: 'error.main', borderRadius: '6px',
-                    bgcolor: 'rgba(234, 67, 53, 0.05)',
-                    '&:hover': { borderColor: 'error.dark', bgcolor: 'rgba(234, 67, 53, 0.12)' }
+                    borderColor: 'rgba(239, 68, 68, 0.2)', color: 'error.main', borderRadius: '6px',
+                    bgcolor: 'rgba(239, 68, 68, 0.05)',
+                    fontFamily: 'var(--font-mono)',
+                    '&:hover': { borderColor: 'error.dark', bgcolor: 'rgba(239, 68, 68, 0.12)' }
                   }}
                 >
                   PDF
@@ -701,6 +702,7 @@ export const ResultVisualizer: React.FC = () => {
                     py: 0.5, px: 1.5, fontSize: 10, fontWeight: 600, textTransform: 'none',
                     borderColor: 'divider', color: 'text.secondary', borderRadius: '6px',
                     bgcolor: 'action.hover',
+                    fontFamily: 'var(--font-mono)',
                     '&:hover': { borderColor: 'text.primary', bgcolor: 'rgba(255, 255, 255, 0.05)' }
                   }}
                 >
@@ -718,7 +720,7 @@ export const ResultVisualizer: React.FC = () => {
                     borderRadius: '6px', 
                     p: 0.6, 
                     color: 'error.main', 
-                    '&:hover': { bgcolor: 'rgba(234, 67, 53, 0.08)', borderColor: 'error.light' },
+                    '&:hover': { bgcolor: 'rgba(239, 68, 68, 0.08)', borderColor: 'error.light' },
                     ml: 0.5
                   }}
                 >
@@ -740,9 +742,9 @@ export const ResultVisualizer: React.FC = () => {
                 overflow: 'auto',
                 border: '1px solid',
                 borderColor: 'divider',
-                borderRadius: '8px',
+                borderRadius: '12px',
                 minHeight: 0,
-                boxShadow: isDarkMode ? 'inset 0 0 10px rgba(0,0,0,0.2)' : 'none',
+                boxShadow: isDarkMode ? 'inset 0 0 12px rgba(0,0,0,0.3)' : 'none',
                 bgcolor: 'background.paper'
               }}
             >
@@ -770,36 +772,36 @@ export const ResultVisualizer: React.FC = () => {
                       const isSorted = sortColumn === col;
                       return (
                         <TableCell
-                          key={col}
-                          align={isNumeric ? 'right' : 'left'}
-                          onClick={() => {
-                            if (sortColumn === col) {
-                              if (sortDirection === 'asc') setSortDirection('desc');
-                              else if (sortDirection === 'desc') setSortDirection('none');
-                              else setSortDirection('asc');
-                            } else {
-                              setSortColumn(col);
-                              setSortDirection('asc');
-                            }
-                          }}
-                          sx={{
-                            fontWeight: 600,
-                            bgcolor: 'background.paper',
-                            borderRight: '1px solid',
-                            borderColor: 'divider',
-                            color: 'text.primary',
-                            fontSize: 11,
-                            cursor: 'pointer',
-                            userSelect: 'none',
-                            transition: 'background-color 0.15s',
-                            '&:hover': { bgcolor: 'action.hover' }
-                          }}
+                           key={col}
+                           align={isNumeric ? 'right' : 'left'}
+                           onClick={() => {
+                             if (sortColumn === col) {
+                               if (sortDirection === 'asc') setSortDirection('desc');
+                               else if (sortDirection === 'desc') setSortDirection('none');
+                               else setSortDirection('asc');
+                             } else {
+                               setSortColumn(col);
+                               setSortDirection('asc');
+                             }
+                           }}
+                           sx={{
+                             fontWeight: 600,
+                             bgcolor: 'background.paper',
+                             borderRight: '1px solid',
+                             borderColor: 'divider',
+                             color: isSorted ? '#6366f1' : 'text.primary',
+                             fontSize: 11,
+                             cursor: 'pointer',
+                             userSelect: 'none',
+                             transition: 'background-color 0.15s',
+                             '&:hover': { bgcolor: 'action.hover' }
+                           }}
                         >
                           <Box sx={{ display: 'inline-flex', alignItems: 'center', justifyContent: isNumeric ? 'flex-end' : 'flex-start', gap: 0.5 }}>
                             <span>{col}</span>
                             {isSorted && sortDirection !== 'none' && (
-                              <span style={{ fontSize: 9, color: '#0078d4', fontWeight: 600 }}>
-                                {sortDirection === 'asc' ? 'â–²' : 'â–¼'}
+                              <span style={{ fontSize: 9, color: '#6366f1', fontWeight: 600 }}>
+                                {sortDirection === 'asc' ? '▲' : '▼'}
                               </span>
                             )}
                           </Box>
@@ -818,8 +820,8 @@ export const ResultVisualizer: React.FC = () => {
                         hover 
                         selected={isChecked}
                         sx={{ 
-                          '&:hover': { bgcolor: 'rgba(0, 120, 212, 0.035) !important' },
-                          '&.Mui-selected': { bgcolor: 'rgba(52, 168, 83, 0.04) !important', '&:hover': { bgcolor: 'rgba(52, 168, 83, 0.08) !important' } }
+                          '&:hover': { bgcolor: 'rgba(99, 102, 241, 0.04) !important' },
+                          '&.Mui-selected': { bgcolor: 'rgba(16, 185, 129, 0.06) !important', '&:hover': { bgcolor: 'rgba(16, 185, 129, 0.1) !important' } }
                         }}
                       >
                         {/* Row Checkbox Cell */}
@@ -879,18 +881,18 @@ export const ResultVisualizer: React.FC = () => {
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage(p => p - 1)}
                   size="small"
-                  sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '6px' }}
+                  sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '8px' }}
                 >
                   <ChevronLeft size={14} />
                 </IconButton>
-                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
-                  {t.page} <strong style={{ color: '#0078d4' }}>{currentPage}</strong> / {totalPages}
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>
+                  {t.page} <strong style={{ color: '#6366f1' }}>{currentPage}</strong> / {totalPages}
                 </Typography>
                 <IconButton
                   disabled={currentPage === totalPages}
                   onClick={() => setCurrentPage(p => p + 1)}
                   size="small"
-                  sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '6px' }}
+                  sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '8px' }}
                 >
                   <ChevronRight size={14} />
                 </IconButton>
@@ -898,9 +900,9 @@ export const ResultVisualizer: React.FC = () => {
             )}
           </Box>
         ) : (
-          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', p: 6, m: 2.5, border: '1px dashed', borderColor: 'divider', borderRadius: '6px', bgcolor: 'rgba(0, 120, 212, 0.005)' }}>
-            <TableIcon size={32} style={{ color: '#0078d4', opacity: 0.3, marginBottom: 12 }} />
-            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', maxWidth: 260, mx: 'auto', textAlign: 'center', lineHeight: 1.5, fontSize: 11 }}>
+          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', p: 6, m: 2.5, border: '1px dashed', borderColor: 'divider', borderRadius: '12px', bgcolor: 'rgba(99, 102, 241, 0.005)' }}>
+            <TableIcon size={32} style={{ color: '#6366f1', opacity: 0.3, marginBottom: 12 }} />
+            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', maxWidth: 260, mx: 'auto', textAlign: 'center', lineHeight: 1.6, fontSize: 11, fontFamily: 'var(--font-mono)' }}>
               {t.noTableData}
             </Typography>
           </Box>

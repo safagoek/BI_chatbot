@@ -888,3 +888,95 @@
 :root.light .entity-card { background: #ffffff; }
 :root.light .entity-card:hover { background: #fafaf9; }
 :root.light .entity-card.active { background: rgba(0, 120, 212, 0.05); }
+
+/* ═══════════════════════════════════════════════════════════
+   PREMIUM UX/UI ADDITIONS — Glassmorphism, Steppers, & Glows
+   ═══════════════════════════════════════════════════════════ */
+.premium-glass {
+  background: rgba(28, 28, 28, 0.7) !important;
+  backdrop-filter: blur(20px) saturate(120%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(120%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4) !important;
+}
+:root.light .premium-glass {
+  background: rgba(255, 255, 255, 0.75) !important;
+  backdrop-filter: blur(20px) saturate(120%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(120%) !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 120, 212, 0.03) !important;
+}
+
+.editor-monaco-style {
+  font-family: var(--font-mono);
+  background: #18181b !important;
+  color: #f4f4f5 !important;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+:root.light .editor-monaco-style {
+  background: #fafafa !important;
+  color: #18181b !important;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.agent-step-node {
+  position: relative;
+  padding-left: 24px;
+}
+.agent-step-node::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #0078d4;
+  box-shadow: 0 0 8px #0078d4;
+  transition: all 0.2s ease;
+}
+.agent-step-node::after {
+  content: '';
+  position: absolute;
+  left: 9px;
+  top: 15px;
+  bottom: -9px;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.08);
+}
+:root.light .agent-step-node::after {
+  background: rgba(0, 0, 0, 0.08);
+}
+.agent-step-node:last-child::after {
+  display: none;
+}
+
+.animate-glow-border {
+  border-color: rgba(0, 120, 212, 0.35) !important;
+  box-shadow: 0 0 12px rgba(0, 120, 212, 0.25) !important;
+}
+
+.animate-pulse-subtle {
+  animation: pulseSubtle 2s infinite ease-in-out;
+}
+@keyframes pulseSubtle {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; transform: scale(1.01); }
+}
+
+.skeleton-loading {
+  background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%);
+  background-size: 200% 100%;
+  animation: loading-pulse 1.5s infinite;
+  border-radius: 4px;
+}
+:root.light .skeleton-loading {
+  background: linear-gradient(90deg, rgba(0,0,0,0.03) 25%, rgba(0,0,0,0.06) 50%, rgba(0,0,0,0.03) 75%);
+  background-size: 200% 100%;
+}
+@keyframes loading-pulse {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+

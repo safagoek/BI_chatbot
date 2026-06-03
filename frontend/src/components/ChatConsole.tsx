@@ -32,7 +32,7 @@ const extractKPIs = (text: string) => {
   return kpis.slice(0, 3);
 };
 
-/* ── Simple Python & SQL Syntax Highlighter ── */
+/* ── Simple Python & SQL Syntax Highlighter with Premium Nord theme ── */
 const highlightCode = (code: string, lang: 'python' | 'sql' | string) => {
   if (!code) return '';
   const escaped = code
@@ -40,41 +40,44 @@ const highlightCode = (code: string, lang: 'python' | 'sql' | string) => {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 
-  // Extract strings & comments first so we don't accidentally match/disrupt them with subsequent rules
+  // Extract strings & comments first
   const stringsAndComments: string[] = [];
-  let tokenized = escaped.replace(/('.*?'|".*?"|#.*)/g, (match) => {
+  let tokenized = escaped.replace(/('.*?'|".*?"|#.*|--.*)/g, (match) => {
     stringsAndComments.push(match);
     return `___STR_PLACEHOLDER_${stringsAndComments.length - 1}___`;
   });
 
   if (lang === 'sql') {
     tokenized = tokenized.replace(
-      /\b(SELECT|FROM|WHERE|JOIN|LEFT|RIGHT|INNER|ON|GROUP BY|ORDER BY|LIMIT|AND|OR|AS|CREATE TABLE|INSERT INTO|DELETE|UPDATE|SET|PRAGMA|NULL)\b/gi,
-      '<span class="text-[#6366f1] font-bold">$1</span>'
+      /\b(SELECT|FROM|WHERE|JOIN|LEFT|RIGHT|INNER|ON|GROUP BY|ORDER BY|LIMIT|AND|OR|AS|CREATE TABLE|INSERT INTO|DELETE|UPDATE|SET|PRAGMA|NULL|DESCRIBE|UNION|ALL|HAVING)\b/gi,
+      '<span class="text-[#818cf8] font-semibold">$1</span>'
+    ).replace(
+      /\b(COUNT|SUM|AVG|MIN|MAX|ROUND|COALESCE|CAST|NOW|DATE|INTERVAL)\b/gi,
+      '<span class="text-[#38bdf8]">$1</span>'
     ).replace(
       /\b(\d+)\b/g,
-      '<span class="text-[#a78bfa]">$1</span>'
+      '<span class="text-[#c084fc]">$1</span>'
     );
   } else if (lang === 'python') {
     tokenized = tokenized.replace(
-      /\b(def|import|from|class|return|if|else|elif|for|while|try|except|as|in|is|not|and|or|print|lambda)\b/g,
-      '<span class="text-[#ef4444] font-bold">$1</span>'
+      /\b(def|import|from|class|return|if|else|elif|for|while|try|except|as|in|is|not|and|or|print|lambda|with|assert|pass|break|continue)\b/g,
+      '<span class="text-[#f472b6] font-semibold">$1</span>'
     ).replace(
-      /\b(self|pd|np|plt|sns|go|px|sqlite3|conn|df|columns|rows)\b/g,
-      '<span class="text-[#f59e0b] font-semibold">$1</span>'
+      /\b(self|pd|np|plt|sns|go|px|sqlite3|conn|df|columns|rows|px|dict|list|str|int|float|set|tuple|len|range)\b/g,
+      '<span class="text-[#fb923c]">$1</span>'
     ).replace(
       /\b(\d+)\b/g,
-      '<span class="text-[#a78bfa]">$1</span>'
+      '<span class="text-[#c084fc]">$1</span>'
     );
   }
 
-  // Restore string literals and comments with styled tags
+  // Restore strings and comments
   const restored = tokenized.replace(/___STR_PLACEHOLDER_(\d+)___/g, (_, index) => {
     const rawMatch = stringsAndComments[parseInt(index, 10)];
-    if (rawMatch.startsWith('#')) {
-      return `<span class="text-[#52525b] italic">${rawMatch}</span>`;
+    if (rawMatch.startsWith('#') || rawMatch.startsWith('--')) {
+      return `<span class="text-zinc-500 italic">${rawMatch}</span>`;
     }
-    return `<span class="text-[#10b981]">${rawMatch}</span>`;
+    return `<span class="text-[#34d399] font-medium">${rawMatch}</span>`;
   });
 
   return restored;
@@ -84,29 +87,34 @@ const highlightCode = (code: string, lang: 'python' | 'sql' | string) => {
 /* ── Minimal markdown renderer ── */
 const renderText = (text: string = '') =>
   text.split('\n').map((line, i) => {
-    const bold = (s: string) => {
+    const boldAndItalic = (s: string) => {
       const parts: React.ReactNode[] = [];
       let last = 0;
+      // Bold Regex
       const re = /\*\*(.*?)\*\*/g;
       let m;
       while ((m = re.exec(s)) !== null) {
         if (m.index > last) parts.push(s.slice(last, m.index));
-        parts.push(<strong key={`b${i}-${m.index}`} className="text-gh-text font-bold">{m[1]}</strong>);
+        parts.push(<strong key={`b${i}-${m.index}`} className="text-gh-text font-bold dark:text-zinc-100 text-zinc-800">{m[1]}</strong>);
         last = re.lastIndex;
       }
       if (last < s.length) parts.push(s.slice(last));
       return parts.length ? parts : s;
     };
 
-    if (line.startsWith('### '))
-      return <div key={i} className="text-[10px] font-bold text-gh-accent uppercase tracking-widest mt-3 mb-1 font-mono">{line.replace('### ', '')}</div>;
-    if (line.startsWith('## '))
-      return <div key={i} className="text-xs font-bold text-gh-text mt-2.5 mb-1 font-mono uppercase tracking-wide">{line.replace('## ', '')}</div>;
-    if (line.startsWith('- '))
-      return <li key={i} className="text-xs text-gh-muted ml-3.5 list-disc mt-1.5 leading-relaxed font-mono">{bold(line.replace('- ', ''))}</li>;
-    if (line.trim() === '')
-      return <div key={i} className="h-1.5" />;
-    return <p key={i} className="text-xs text-gh-muted leading-relaxed mt-0.5 font-mono">{bold(line)}</p>;
+    if (line.startsWith('### ')) {
+      return <h4 key={i} className="text-[11px] font-bold text-indigo-400 uppercase tracking-widest mt-4 mb-2 font-mono flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>{line.replace('### ', '')}</h4>;
+    }
+    if (line.startsWith('## ')) {
+      return <h3 key={i} className="text-xs font-bold text-zinc-200 mt-5 mb-2 font-mono uppercase tracking-wider border-b border-zinc-800/40 pb-1.5">{line.replace('## ', '')}</h3>;
+    }
+    if (line.startsWith('- ')) {
+      return <li key={i} className="text-xs text-zinc-400 dark:text-zinc-300 ml-4 list-disc mt-1.5 leading-relaxed font-mono">{boldAndItalic(line.replace('- ', ''))}</li>;
+    }
+    if (line.trim() === '') {
+      return <div key={i} className="h-2" />;
+    }
+    return <p key={i} className="text-xs text-zinc-400 dark:text-zinc-300 leading-relaxed mt-1 font-mono">{boldAndItalic(line)}</p>;
   });
 
 export const ChatConsole: React.FC = () => {
@@ -142,7 +150,7 @@ export const ChatConsole: React.FC = () => {
   // Thumbs Feedback & Interactive Schema Selection States (Suggestion 2 & 6)
   const [messageRatings, setMessageRatings] = useState<Record<string, 'positive' | 'negative'>>({});
   const [selectedCol, setSelectedCol] = useState<{ sourceId: string; tableName?: string; columnName: string } | null>(null);
-  const [redrawTrigger, setRedrawTrigger] = useState(0);
+  const [_redrawTrigger, setRedrawTrigger] = useState(0);
 
   useEffect(() => {
     if (showSourcePicker) {
@@ -1133,17 +1141,17 @@ export const ChatConsole: React.FC = () => {
                                   return (
                                     <div 
                                       key={`canvas-tbl-${sid}-${tbl}`}
-                                      className="border border-gh-border rounded-lg bg-gh-surface shadow-sm overflow-hidden select-none hover:border-gh-muted transition-colors"
+                                      className="border border-gh-border/50 rounded-xl bg-gh-surface shadow-md overflow-hidden select-none hover:border-indigo-500/40 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-[1px]"
                                       style={{ background: 'var(--color-bg)' }}
                                     >
                                       {/* Table Header */}
-                                      <div className="px-3 py-2 bg-gh-canvas border-b border-gh-border flex items-center gap-1.5 shrink-0 select-none" style={{ background: 'var(--color-surface)' }}>
-                                        {isDb ? <Database size={11} className="text-gh-accent" /> : <FileText size={11} className="text-success-main" />}
-                                        <span className="font-mono font-bold text-[9.5px] text-gh-text truncate" title={tableKey}>{tableKey}</span>
+                                      <div className="px-3 py-2 border-b border-gh-border/50 flex items-center gap-2 shrink-0 select-none bg-zinc-900/10 dark:bg-white/[0.02]">
+                                        {isDb ? <Database size={11} className="text-indigo-400" /> : <FileText size={11} className="text-emerald-400" />}
+                                        <span className="font-mono font-bold text-[9.5px] text-gh-text truncate dark:text-zinc-200 text-zinc-800" title={tableKey}>{tableKey}</span>
                                       </div>
                                       
                                       {/* Column list nodes */}
-                                      <div className="p-1.5 space-y-1 select-none">
+                                      <div className="p-2 space-y-1.5 select-none">
                                         {cols.map((col) => {
                                           const colPath = isDb ? `${tbl}.${col}` : col;
                                           const nodeDomId = `col-node-${sid}-${colPath.replace('.', '-')}`;
@@ -1179,11 +1187,11 @@ export const ChatConsole: React.FC = () => {
                                                   }
                                                 }
                                               }}
-                                              className={`flex items-center justify-between px-2.5 py-1.5 rounded text-[10px] font-mono select-none cursor-pointer transition-all border ${
+                                              className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[10px] font-mono select-none cursor-pointer transition-all border ${
                                                 isSelected 
-                                                  ? 'bg-gh-accent-subtle border-gh-accent text-gh-accent font-bold shadow-[0_0_6px_var(--color-accent-subtle)] animate-pulse'
+                                                  ? 'bg-indigo-500/10 border-indigo-500 text-indigo-400 font-bold shadow-[0_0_8px_rgba(99,102,241,0.25)] animate-pulse'
                                                   : isJoined
-                                                    ? 'bg-gh-canvas border-gh-border text-gh-text hover:border-gh-muted'
+                                                    ? 'bg-gh-canvas border-gh-border text-gh-text hover:border-zinc-500'
                                                     : 'bg-transparent border-transparent text-gh-muted hover:bg-gh-surface hover:text-gh-text'
                                               }`}
                                             >
@@ -1191,9 +1199,9 @@ export const ChatConsole: React.FC = () => {
                                               <div 
                                                 className={`w-2 h-2 rounded-full border transition-all ${
                                                   isSelected 
-                                                    ? 'bg-gh-accent border-gh-accent scale-110'
+                                                    ? 'bg-indigo-500 border-indigo-500 scale-110 shadow-[0_0_6px_#6366f1]'
                                                     : isJoined
-                                                      ? 'bg-gh-accent/65 border-gh-accent/40'
+                                                      ? 'bg-indigo-500/60 border-indigo-500/30'
                                                       : 'bg-transparent border-gh-border'
                                                 }`}
                                               />
@@ -1349,43 +1357,41 @@ export const ChatConsole: React.FC = () => {
           const canActivateAgent = !!(msg.data || msg.visualization || msg.error);
 
           return (
-            <div key={msg.id} className="animate-fade-in w-full">
+            <div key={msg.id} className="animate-fade-in w-full px-2 py-1">
 
               {/* ── USER QUERY ROW ── */}
               {!isAgent && (
                 <div
                   onClick={() => canActivateUser && activateMessageForIndex(msgIdx)}
-                  className={`msg-user transition-all duration-200 border-l-4 ${canActivateUser ? 'cursor-pointer hover:border-gh-accent hover:shadow-[0_4px_12px_rgba(26,115,232,0.06)]' : ''}`}
-                  style={isUserActive ? {
-                    borderLeft: '4px solid #0078d4',
-                    borderColor: '#0078d4',
-                    background: 'rgba(0, 120, 212, 0.04)',
-                    boxShadow: '0 4px 16px rgba(0, 120, 212, 0.08)'
-                  } : undefined}
+                  className={`msg-user transition-all duration-300 border-l-4 ${canActivateUser ? 'cursor-pointer hover:border-indigo-500/80 hover:shadow-[0_8px_24px_rgba(99,102,241,0.06)]' : ''} ${isUserActive ? 'border-indigo-500 bg-indigo-500/[0.04] shadow-[0_4px_20px_rgba(99,102,241,0.08)]' : ''}`}
+                  style={{
+                    borderRadius: '0 12px 12px 0',
+                    borderLeftColor: isUserActive ? '#6366f1' : 'var(--color-accent)'
+                  }}
                   title={canActivateUser ? (language === 'tr' ? "Panele yansıtmak için tıklayın" : "Click to display in panel") : undefined}
                 >
-                  <div className="flex gap-3 items-start">
+                  <div className="flex gap-4 items-start">
                     {/* User Avatar */}
                     <div
-                      className="flex-shrink-0 w-8 h-8 rounded-full border border-gh-border bg-gh-surface flex items-center justify-center shadow-sm"
+                      className="flex-shrink-0 w-8 h-8 rounded-xl border border-gh-border bg-gh-surface flex items-center justify-center shadow-md"
                       style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
                     >
-                      <User size={14} style={{ color: '#0078d4' }} />
+                      <User size={13} style={{ color: '#6366f1' }} />
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center justify-between mb-1.5">
                         <div className="flex items-center gap-2">
-                          <span className="text-[9px] font-mono font-bold text-gh-accent uppercase tracking-widest">›  SORGU</span>
-                          <span className="text-[9px] font-mono text-gh-faint">{new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</span>
+                          <span className="text-[9px] font-mono font-bold text-indigo-400 uppercase tracking-widest">›  SORGU</span>
+                          <span className="text-[9px] font-mono text-gh-faint/60">{new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                         {isUserActive && (
-                          <span className="text-[9px] font-mono font-bold text-gh-accent uppercase tracking-widest bg-gh-accent-subtle px-1.5 py-0.5 rounded border border-gh-accent/20">
+                          <span className="text-[8px] font-mono font-bold text-indigo-400 uppercase tracking-widest bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/20">
                             {language === 'tr' ? 'GÖSTERİLİYOR' : 'DISPLAYED'}
                           </span>
                         )}
                       </div>
-                      <p className="font-mono text-xs text-gh-text select-text whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+                      <p className="font-mono text-xs text-gh-text select-text whitespace-pre-wrap leading-relaxed dark:text-zinc-200 text-zinc-800">{msg.text}</p>
                     </div>
                   </div>
                 </div>
@@ -1395,38 +1401,37 @@ export const ChatConsole: React.FC = () => {
               {isAgent && (
                 <div
                   onClick={() => canActivateAgent && activateMessageForIndex(msgIdx)}
-                  className={`msg-agent transition-all duration-200 border-l-4 ${canActivateAgent ? 'cursor-pointer hover:border-gh-accent hover:shadow-[0_4px_16px_rgba(26,115,232,0.08)]' : ''}`}
-                  style={isAgentActive ? {
-                    borderLeft: '4px solid #0078d4',
-                    borderColor: '#0078d4',
-                    background: 'rgba(0, 120, 212, 0.04)',
-                    boxShadow: '0 4px 20px rgba(0, 120, 212, 0.1)'
-                  } : undefined}
+                  className={`msg-agent transition-all duration-300 border-l-4 ${canActivateAgent ? 'cursor-pointer hover:border-indigo-500/80 hover:shadow-[0_8px_24px_rgba(99,102,241,0.06)]' : ''} ${isAgentActive ? 'animate-glow-border border-indigo-500' : 'border-gh-border'}`}
+                  style={{
+                    borderRadius: '12px',
+                    borderLeftColor: isAgentActive ? '#6366f1' : 'var(--color-border)',
+                    boxShadow: isAgentActive ? '0 12px 36px rgba(99, 102, 241, 0.15)' : 'none'
+                  }}
                   title={canActivateAgent ? (language === 'tr' ? "Panele yansıtmak için tıklayın" : "Click to display in panel") : undefined}
                 >
-                  <div className="flex gap-3 items-start">
+                  <div className="flex gap-4 items-start">
                     {/* Agent Avatar */}
                     <div
-                      className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center shadow-md mt-0.5"
+                      className="flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center shadow-lg mt-0.5"
                       style={{
-                        background: 'linear-gradient(135deg, #0078d4 0%, #a78bfa 100%)',
-                        boxShadow: '0 4px 10px rgba(0, 120, 212, 0.25)'
+                        background: 'linear-gradient(135deg, #6366f1 0%, #a78bfa 100%)',
+                        boxShadow: '0 4px 14px rgba(99, 102, 241, 0.35)'
                       }}
                     >
-                      <Sparkles size={14} style={{ color: '#ffffff' }} />
+                      <Sparkles size={13} style={{ color: '#ffffff' }} />
                     </div>
 
                     <div className="flex-1 min-w-0">
                       {/* Section header */}
-                      <div className="flex items-center justify-between mb-3.5 pb-2.5" style={{ borderBottom: '1px solid var(--color-border)' }}>
+                      <div className="flex items-center justify-between mb-4 pb-3" style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}>
                         <div className="flex items-center gap-3">
-                          <span className="text-[9px] font-mono font-bold text-gh-muted uppercase tracking-widest">ANALİZ RAPORU &amp; ÇIKTILAR</span>
+                          <span className="text-[9px] font-mono font-bold text-gh-muted uppercase tracking-widest flex items-center gap-1.5"><Sparkles size={11} className="text-indigo-400" /> {language === 'tr' ? 'ANALİZ RAPORU & ÇIKTILAR' : 'ANALYSIS REPORT & OUTPUTS'}</span>
                           {isThinking && msgIdx === chatHistory.length - 1 && (
                             <span className="dot-processing" />
                           )}
                         </div>
                         {isAgentActive && (
-                          <span className="text-[9px] font-mono font-bold text-gh-accent uppercase tracking-widest bg-gh-accent-subtle px-1.5 py-0.5 rounded border border-gh-accent/20">
+                          <span className="text-[8px] font-mono font-bold text-indigo-400 uppercase tracking-widest bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/20">
                             {language === 'tr' ? 'GÖSTERİLİYOR' : 'DISPLAYED'}
                           </span>
                         )}
@@ -1435,31 +1440,23 @@ export const ChatConsole: React.FC = () => {
                       {/* KPI Cards (Glassmorphism layout) */}
                       {(() => {
                         const kpis = extractKPIs(msg.text || '');
-                        const isDark = typeof document !== 'undefined' ? document.documentElement.classList.contains('dark') : true;
                         if (kpis.length > 0) {
                           return (
-                            <div className="grid grid-cols-3 gap-2.5 mb-4 animate-slide-up select-none">
+                            <div className="grid grid-cols-3 gap-3 mb-4 animate-slide-up select-none">
                               {kpis.map((kpi, kpiIdx) => {
-                                const colors = ['#0078d4', '#34a853', '#a78bfa'];
+                                const colors = ['#818cf8', '#34d399', '#f472b6'];
                                 const activeColor = colors[kpiIdx % colors.length];
                                 return (
                                   <div
                                     key={kpiIdx}
-                                    className="border border-gh-border p-3.5 relative overflow-hidden transition-all duration-300 hover:scale-[1.03] hover:-translate-y-[2px]"
+                                    className="premium-glass p-3 relative overflow-hidden transition-all duration-300 hover:scale-[1.03] hover:-translate-y-[2px]"
                                     style={{
                                       borderLeft: `3px solid ${activeColor}`,
-                                      borderRadius: '10px',
-                                      background: isDark
-                                        ? 'rgba(30, 30, 30, 0.45)'
-                                        : 'rgba(255, 255, 255, 0.75)',
-                                      backdropFilter: 'blur(8px)',
-                                      boxShadow: isDark
-                                        ? '0 4px 12px rgba(0, 0, 0, 0.15)'
-                                        : '0 4px 12px rgba(0, 120, 212, 0.03)'
+                                      borderRadius: '10px'
                                     }}
                                   >
-                                    <span className="text-[9px] uppercase font-bold tracking-wider block text-gh-muted font-mono mb-1">{kpi.label}</span>
-                                    <span className="text-base font-bold tracking-tight block font-mono" style={{ color: activeColor }}>
+                                    <span className="text-[8px] uppercase font-bold tracking-wider block text-zinc-400 font-mono mb-1">{kpi.label}</span>
+                                    <span className="text-sm font-bold tracking-tight block font-mono" style={{ color: activeColor }}>
                                       {kpi.value}
                                     </span>
                                   </div>
@@ -1473,24 +1470,25 @@ export const ChatConsole: React.FC = () => {
 
                       {/* Auto-correction badge */}
                       {msg.auto_corrections && msg.auto_corrections.applied && (
-                        <div className="mb-3 px-3 py-2 text-[11px] font-semibold border border-gh-border text-gh-accent flex items-center justify-between font-mono" style={{ background: 'var(--color-accent-subtle)', borderLeft: '3px solid var(--color-accent)', borderRadius: '8px' }}>
-                          <div>
+                        <div className="mb-4 px-3.5 py-2.5 text-[11px] font-semibold border border-indigo-500/20 text-indigo-400 flex items-center justify-between font-mono rounded-lg" style={{ background: 'rgba(99, 102, 241, 0.06)', borderLeft: '3px solid #6366f1' }}>
+                          <div className="flex items-center gap-2">
+                            <Sparkles size={11} className="text-indigo-400 shrink-0" />
                             <span>Tablo çözümleme düzeltmesi uygulandı: </span>
-                            <span className="font-mono bg-gh-canvas/40 px-1 py-0.5 border border-gh-border text-gh-text ml-1">
-                              {Object.entries(msg.auto_corrections.applied).map(([k, v]) => `${k}â†’${v}`).join(', ')}
+                            <span className="font-mono bg-indigo-500/10 px-1.5 py-0.5 border border-indigo-500/20 text-indigo-300 rounded ml-1">
+                              {Object.entries(msg.auto_corrections.applied).map(([k, v]) => `${k}→${v}`).join(', ')}
                             </span>
                           </div>
-                          <button onClick={() => setLogOpen(p => ({ ...p, [`corr-${msg.id}`]: !(p[`corr-${msg.id}`]) }))} className="text-[10px] underline hover:text-gh-accent-fg">Detay</button>
+                          <button onClick={() => setLogOpen(p => ({ ...p, [`corr-${msg.id}`]: !(p[`corr-${msg.id}`]) }))} className="text-[10px] underline hover:text-indigo-300">Detay</button>
                           {logOpen[`corr-${msg.id}`] && (
-                            <div className="mt-2 text-[11px] text-gh-muted bg-gh-bg p-2 border border-gh-border font-mono">
-                              <div><strong>Düzeltme Adımları:</strong></div>
-                              <ul className="list-disc list-inside mt-1 font-mono">
+                            <div className="mt-2.5 text-[10.5px] text-zinc-400 bg-zinc-950/40 p-2.5 border border-gh-border font-mono rounded-md w-full">
+                              <div className="text-zinc-300 font-bold mb-1">Düzeltme Adımları:</div>
+                              <ul className="list-disc list-inside space-y-1 font-mono">
                                 {Object.entries(msg.auto_corrections.applied).map(([k, v]) => (
-                                  <li key={`ac-${k}`}>{k} â†’ {String(v)}</li>
+                                  <li key={`ac-${k}`}>{k} → {String(v)}</li>
                                 ))}
                               </ul>
                               {msg.auto_corrections.ambiguous && (
-                                <div className="mt-2 text-[11px] text-gh-warning">Belirsiz şema referansları: {msg.auto_corrections.ambiguous.join(', ')}</div>
+                                <div className="mt-2 text-[10.5px] text-amber-400">Belirsiz şema referansları: {msg.auto_corrections.ambiguous.join(', ')}</div>
                               )}
                             </div>
                           )}
@@ -1499,57 +1497,50 @@ export const ChatConsole: React.FC = () => {
 
                       {/* Processing log (Timeline Pipeline layout) */}
                       {hasLog && (
-                        <div className="log-panel mb-3.5" onClick={(e) => e.stopPropagation()}>
+                        <div className="log-panel mb-4" onClick={(e) => e.stopPropagation()}>
                           <button
                             onClick={() => setLogOpen(p => ({ ...p, [msg.id]: !p[msg.id] }))}
-                            className="log-header w-full"
-                            style={{ cursor: 'pointer' }}
+                            className="log-header w-full flex items-center justify-between px-3 py-2 border border-gh-border bg-gh-surface2/45 rounded-lg hover:bg-gh-surface transition-colors cursor-pointer"
                           >
-                            <div className="flex items-center gap-2" style={{ color: 'var(--color-muted)', fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em' }}>
-                              <span style={{ color: 'var(--color-accent)' }}>$</span>
+                            <div className="flex items-center gap-2 text-[10px] font-bold font-mono text-zinc-400 uppercase tracking-wider">
+                              <span className="text-indigo-400 font-bold">$</span>
                               <span>{t.executionLogTitle.replace('{count}', String(msg.statusHistory.length))}</span>
                             </div>
                             {isLogOpen
-                              ? <ChevronDown size={11} className="text-gh-faint" />
-                              : <ChevronRight size={11} className="text-gh-faint" />}
+                              ? <ChevronDown size={12} className="text-zinc-500" />
+                              : <ChevronRight size={12} className="text-zinc-500" />}
                           </button>
                           {isLogOpen && (
-                            <div className="px-4 py-3 space-y-0.5 overflow-y-auto" style={{ maxHeight: 150, background: 'var(--color-log-bg)', borderTop: '1px solid var(--color-border)' }}>
+                            <div className="px-4 py-3.5 space-y-0.5 overflow-y-auto rounded-b-lg border-x border-b border-gh-border" style={{ maxHeight: 160, background: 'rgba(0,0,0,0.15)' }}>
                               {msg.statusHistory.map((s, sIdx) => {
                                 const isLast = sIdx === msg.statusHistory.length - 1;
                                 const live = isLast && isThinking && msgIdx === chatHistory.length - 1;
                                 const isCompleted = !live;
                                 return (
-                                  <div key={sIdx} className="flex gap-3.5 relative min-h-[28px]">
-                                    {/* Timeline line */}
+                                  <div key={sIdx} className="agent-step-node flex gap-3.5 relative min-h-[30px]">
+                                    {/* Timeline line overrides */}
                                     {!isLast && (
                                       <div
-                                        className="absolute left-[7px] top-[14px] bottom-[-14px] w-[2px]"
-                                        style={{ background: isCompleted ? '#34a853' : 'var(--color-border)' }}
+                                        className="absolute left-[9px] top-[15px] bottom-[-15px] w-[1px]"
+                                        style={{ background: isCompleted ? '#10b981' : 'var(--color-border)' }}
                                       />
                                     )}
 
                                     {/* Icon node */}
-                                    <div className="flex-shrink-0 z-10" style={{ background: 'var(--color-log-bg)', padding: '2px 0' }}>
+                                    <div className="flex-shrink-0 z-10" style={{ padding: '2px 0' }}>
                                       {live ? (
-                                        <Loader2 className="animate-spin" size={13} style={{ color: '#0078d4' }} />
+                                        <Loader2 className="animate-spin text-indigo-400" size={13} />
                                       ) : isCompleted ? (
-                                        <CheckCircle2 size={13} style={{ color: '#34a853' }} />
+                                        <CheckCircle2 size={13} style={{ color: '#10b981' }} />
                                       ) : (
                                         <Circle size={13} style={{ color: 'var(--color-faint)' }} />
                                       )}
                                     </div>
 
                                     {/* Description */}
-                                    <div className="flex-1 pb-1.5">
+                                    <div className="flex-1 pb-2">
                                       <span
-                                        style={{
-                                          fontSize: 10.5,
-                                          color: live ? '#0078d4' : 'var(--color-muted)',
-                                          fontWeight: live ? 'bold' : 'normal',
-                                          fontFamily: 'var(--font-mono)',
-                                          lineHeight: 1.4
-                                        }}
+                                        className={`font-mono text-[10.5px] leading-relaxed block ${live ? 'text-indigo-400 font-bold' : 'text-zinc-400'}`}
                                       >
                                         {s}
                                       </span>
@@ -1562,53 +1553,32 @@ export const ChatConsole: React.FC = () => {
                         </div>
                       )}
 
-                      {/* Code block (Mock Editor Layout) */}
+                      {/* Code visualizer block (VS Code Monaco style) */}
                       {hasCode && (
                         <div
-                          className="code-block mb-3.5 overflow-hidden shadow-md"
-                          style={{
-                            width: '100%',
-                            borderRadius: '10px',
-                            border: '1px solid var(--color-border)',
-                            background: '#131416'
-                          }}
+                          className="border border-gh-border rounded-lg overflow-hidden mb-4 shadow-sm w-full select-none"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <div className="code-block-header flex items-center justify-between px-4 py-2.5 bg-[#18191c] border-b border-gh-border">
-                            {/* Mac-style Window Buttons */}
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <div className="w-2 h-2 rounded-full bg-[#ff5f56]" />
-                              <div className="w-2 h-2 rounded-full bg-[#ffbd2e]" />
-                              <div className="w-2 h-2 rounded-full bg-[#27c93f]" />
-
-                              <span
-                                className="flex items-center gap-1.5 font-bold uppercase tracking-widest text-[9px] font-mono ml-3"
-                                style={{ color: 'var(--color-muted)' }}
-                              >
-                                <FileCode size={11} style={{ color: '#0078d4' }} />
-                                {msg.codeLanguage ?? (language === 'tr' ? 'KOD' : 'CODE')}
-                                {editingMessageId === msg.id && <span style={{ color: 'var(--color-warning)' }}>{t.editModeLabel}</span>}
-                              </span>
+                          <div className="flex items-center justify-between px-3 py-2 bg-zinc-900 border-b border-gh-border shrink-0 select-none">
+                            <div className="flex items-center gap-2">
+                              <FileCode size={12} className="text-indigo-400" />
+                              <span className="text-[10px] font-mono font-bold text-zinc-300 uppercase tracking-wider">{msg.codeLanguage ?? 'code'}</span>
                             </div>
-
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1">
                               {editingMessageId === msg.id ? (
                                 <>
                                   <button
+                                    onClick={() => handleRunEditedCode(msg.id, msg.codeLanguage as any)}
                                     disabled={isExecutingCode}
-                                    onClick={() => handleRunEditedCode(msg.id, msg.codeLanguage ?? 'python')}
-                                    className="btn-icon cursor-pointer"
-                                    style={{ padding: 3, background: 'transparent', borderColor: 'var(--color-success-subtle)', color: 'var(--color-success)' }}
-                                    title={t.runEditedCodeTooltip}
+                                    className="p-1 rounded bg-indigo-500 hover:bg-indigo-600 disabled:bg-zinc-800 text-white cursor-pointer"
+                                    title={language === 'tr' ? "Kodu Çalıştır" : "Run Code"}
                                   >
                                     {isExecutingCode ? <Loader2 size={11} className="animate-spin" /> : <Play size={11} />}
                                   </button>
                                   <button
-                                    disabled={isExecutingCode}
                                     onClick={cancelEditing}
-                                    className="btn-icon cursor-pointer"
-                                    style={{ padding: 3, background: 'transparent', borderColor: 'var(--color-danger-subtle)', color: 'var(--color-danger)' }}
-                                    title={t.cancelBtnTooltip}
+                                    className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 cursor-pointer"
+                                    title={language === 'tr' ? "İptal" : "Cancel"}
                                   >
                                     <X size={11} />
                                   </button>
@@ -1617,25 +1587,22 @@ export const ChatConsole: React.FC = () => {
                                 <>
                                   <button
                                     onClick={() => startEditing(msg.id, msg.code ?? '')}
-                                    className="btn-icon cursor-pointer"
-                                    style={{ padding: 3 }}
-                                    title={t.editCodeTooltip}
+                                    className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 cursor-pointer"
+                                    title={language === 'tr' ? "Düzenle" : "Edit"}
                                   >
                                     <Edit3 size={11} />
                                   </button>
                                   <button
                                     onClick={() => copyCode(msg.code ?? '', msg.id)}
-                                    className="btn-icon cursor-pointer"
-                                    style={{ padding: 3 }}
-                                    title={t.copyTooltip}
+                                    className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 cursor-pointer"
+                                    title={language === 'tr' ? "Kopyala" : "Copy"}
                                   >
-                                    {copied === msg.id ? <Check size={11} style={{ color: '#34a853' }} /> : <Copy size={11} />}
+                                    {copied === msg.id ? <Check size={11} className="text-green-400" /> : <Copy size={11} />}
                                   </button>
                                   <button
                                     onClick={() => downloadCode(msg.code ?? '', msg.codeLanguage, msg.id)}
-                                    className="btn-icon cursor-pointer"
-                                    style={{ padding: 3 }}
-                                    title={t.downloadTooltip}
+                                    className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 cursor-pointer"
+                                    title={language === 'tr' ? "İndir" : "Download"}
                                   >
                                     <Download size={11} />
                                   </button>
@@ -1645,9 +1612,9 @@ export const ChatConsole: React.FC = () => {
                           </div>
 
                           {editingMessageId === msg.id ? (
-                            <div className="flex flex-col bg-gh-canvas/20 border-t border-gh-border w-full">
-                              <div className="flex font-mono text-[11px] bg-gh-bg w-full relative overflow-hidden" style={{ minHeight: 160 }}>
-                                <div className="select-none text-right pr-2 pl-3 py-3 bg-gh-surface/30 border-r border-gh-border text-gh-faint/40 flex flex-col pointer-events-none" style={{ minWidth: 32, userSelect: 'none' }}>
+                            <div className="flex flex-col bg-zinc-950/20 border-t border-gh-border w-full">
+                              <div className="flex font-mono text-[11px] bg-zinc-900 w-full relative overflow-hidden" style={{ minHeight: 160 }}>
+                                <div className="select-none text-right pr-2.5 pl-3 py-3 bg-zinc-950/40 border-r border-gh-border text-zinc-600 flex flex-col pointer-events-none" style={{ minWidth: 36, userSelect: 'none' }}>
                                   {Array.from({ length: Math.max(editedCodeText.split('\n').length, 1) }).map((_, idx) => (
                                     <div key={idx} style={{ height: 19, lineHeight: '19px' }}>{idx + 1}</div>
                                   ))}
@@ -1656,19 +1623,19 @@ export const ChatConsole: React.FC = () => {
                                   value={editedCodeText}
                                   disabled={isExecutingCode}
                                   onChange={(e) => setEditedCodeText(e.target.value)}
-                                  className="font-mono text-[11px] p-3 select-text bg-transparent text-gh-text focus:outline-none border-none w-full flex-1"
+                                  className="font-mono text-[11.5px] p-3 select-text bg-transparent text-[#e4e4e7] focus:outline-none border-none w-full flex-1"
                                   style={{ minHeight: 160, lineHeight: '19px', fontFamily: 'var(--font-mono)', resize: 'vertical', whiteSpace: 'pre', overflowX: 'auto' }}
                                 />
                               </div>
                               {executionError && (
-                                <div className="px-3 py-2 bg-red-950/20 border-t border-red-900/40 text-red-400 text-xs font-mono whitespace-pre-wrap select-text max-h-36 overflow-y-auto">
+                                <div className="px-3.5 py-2.5 bg-red-950/40 border-t border-red-900/30 text-red-400 text-xs font-mono whitespace-pre-wrap select-text max-h-36 overflow-y-auto">
                                   {executionError}
                                 </div>
                               )}
                             </div>
                           ) : (
                             isCodeOpen && (
-                              <pre className="overflow-x-auto px-4 py-3.5 select-text" style={{ maxHeight: 240, fontSize: 11.5, lineHeight: 1.65, background: '#131416', color: '#e8eaed' }}>
+                              <pre className="overflow-x-auto px-4.5 py-4 select-text" style={{ maxHeight: 240, fontSize: 11.5, lineHeight: 1.65, background: '#18181b', color: '#f4f4f5' }}>
                                 <code dangerouslySetInnerHTML={{ __html: highlightCode(msg.code ?? '', msg.codeLanguage ?? '') }} />
                               </pre>
                             )
@@ -1679,36 +1646,36 @@ export const ChatConsole: React.FC = () => {
                       {/* Response text */}
                       {msg.text && <div className="text-xs font-mono leading-relaxed" style={{ color: 'var(--color-muted)' }}>{renderText(msg.text)}</div>}
 
-                      {/* Thumbs Up / Down Geri Bildirim Butonları (Suggestion 2) */}
+                      {/* Thumbs Feedback */}
                       {!isThinking && (
-                        <div className="flex items-center gap-2 mt-3 select-none">
+                        <div className="flex items-center gap-2 mt-4 select-none">
                           <button
                             onClick={() => handleFeedback(msg.id, 'positive')}
-                            className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold font-mono transition-all border cursor-pointer ${
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold font-mono transition-all border cursor-pointer ${
                               messageRatings[msg.id] === 'positive'
-                                ? 'bg-green-500/15 border-green-500/30 text-green-400'
+                                ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
                                 : 'bg-gh-surface border-gh-border text-gh-muted hover:border-gh-muted hover:text-gh-text'
                             }`}
                             title={t.feedbackTooltipPositive}
                           >
-                            <ThumbsUp size={10} />
+                            <ThumbsUp size={11} />
                             {language === 'tr' ? 'Faydalı' : 'Helpful'}
                           </button>
                           <button
                             onClick={() => handleFeedback(msg.id, 'negative')}
-                            className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold font-mono transition-all border cursor-pointer ${
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold font-mono transition-all border cursor-pointer ${
                               messageRatings[msg.id] === 'negative'
                                 ? 'bg-red-500/15 border-red-500/30 text-red-400'
                                 : 'bg-gh-surface border-gh-border text-gh-muted hover:border-gh-muted hover:text-gh-text'
                             }`}
                             title={t.feedbackTooltipNegative}
                           >
-                            <ThumbsDown size={10} />
+                            <ThumbsDown size={11} />
                             {language === 'tr' ? 'Hatalı' : 'Incorrect'}
                           </button>
                           {messageRatings[msg.id] && (
-                            <span className="text-[9px] text-green-400/80 font-mono animate-pulse ml-1 inline-flex items-center gap-1">
-                              <Sparkles size={9} className="text-green-400 shrink-0" /> {t.feedbackSuccess}
+                            <span className="text-[9px] text-emerald-400 font-mono animate-pulse ml-1 inline-flex items-center gap-1">
+                              <Sparkles size={9} className="text-emerald-400 shrink-0" /> {t.feedbackSuccess}
                             </span>
                           )}
                         </div>
@@ -1716,8 +1683,8 @@ export const ChatConsole: React.FC = () => {
 
                       {/* Error display */}
                       {msg.error && !msg.text && (
-                        <div className="text-xs font-mono text-gh-danger border border-gh-danger/30 px-3 py-2" style={{ background: 'rgba(224,84,84,0.05)', borderRadius: '8px' }}>
-                          <span className="flex items-center gap-1.5"><AlertTriangle size={12} className="text-gh-danger shrink-0" /> {msg.error}</span>
+                        <div className="text-xs font-mono text-red-400 border border-red-500/20 px-3.5 py-2.5 mt-3 rounded-lg" style={{ background: 'rgba(239, 68, 68, 0.05)' }}>
+                          <span className="flex items-center gap-1.5"><AlertTriangle size={12} className="text-red-400 shrink-0" /> {msg.error}</span>
                         </div>
                       )}
                     </div>
