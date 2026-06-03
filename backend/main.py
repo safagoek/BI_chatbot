@@ -22,6 +22,7 @@ from app.database.manager import (
 from app.database.demo_db import init_demo_db
 from app.database.connectors import test_connection, discover_schema
 from app.agent.supervisor import SupervisorAgent
+from app.core.logger import logger
 
 # Initialize FastAPI
 app = FastAPI()
@@ -45,8 +46,7 @@ try:
     init_metadata_db()
     init_demo_db()
 except Exception as _e:
-    # Print to stdout so dev server logs show the issue but continue
-    print("Warning: metadata/demo DB init failed:", str(_e))
+    logger.warning(f"metadata/demo DB init failed: {str(_e)}")
 class DBSourceStatusUpdate(BaseModel):
     is_active: bool
 
@@ -250,7 +250,8 @@ async def execute_edited_code(session_id: str, message_id: str, req: CodeExecute
         if is_sql:
             try:
                 from app.core.sql_sanitizer import sanitize_and_validate_sql
-                safe_sql = sanitize_and_validate_sql(req.code)
+                db_type = source_meta.get("db_type") if source_meta.get("type") == "database" else None
+                safe_sql = sanitize_and_validate_sql(req.code, db_type=db_type)
                 is_direct_db = (source_meta["type"] == "database")
                 if is_direct_db:
                     exec_result = agent._execute_local_sql(safe_sql, source_meta)
@@ -948,6 +949,7 @@ def update_message_feedback(session_id: str, message_id: str, payload: Dict[str,
 @app.websocket("/ws/chat")
 async def websocket_chat(websocket: WebSocket):
     await websocket.accept()
+    logger.info("WebSocket chat connection accepted.")
     
     try:
         while True:
@@ -986,7 +988,7 @@ async def websocket_chat(websocket: WebSocket):
                 text=user_text
             )
             
-            # Setup supervisor agent with client configs if provided sasdasdasdasdas bruası çok önemli
+            # Setup supervisor agent with client configs if provided
             agent = SupervisorAgent(api_key=api_key, base_url=base_url, model=model)
             
             # Define WebSocket callback for sending steps and tracking status history
@@ -1069,15 +1071,16 @@ async def websocket_chat(websocket: WebSocket):
                 )
                 
     except WebSocketDisconnect:
-        pass # Client disconnected
+        logger.info("WebSocket chat connection closed by client.")
     except Exception as e:
-            try:
-                await websocket.send_json({
-                    "type": "error",
-                    "message": f"Kritik Sistem Hatası: {str(e)}"
-                })
-            except Exception:
-                pass
+        logger.error(f"Critical WebSocket error: {str(e)}", exc_info=True)
+        try:
+            await websocket.send_json({
+                "type": "error",
+                "message": f"Kritik Sistem Hatası: {str(e)}"
+            })
+        except Exception:
+            pass
 
 @app.get("/api/sources/{source_id}/semantic")
 def get_source_semantic(source_id: str):

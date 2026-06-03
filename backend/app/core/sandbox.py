@@ -18,29 +18,55 @@ class PythonSandbox:
         Validates that the user/LLM generated code does not contain malicious system calls or imports.
         """
         import ast
-        
+
+        forbidden_builtins = {
+            "eval", "exec", "open", "__import__", "getattr", "setattr", "locals", "globals",
+            "dir", "vars", "compile", "breakpoint", "input", "help", "execfile", "evalfile"
+        }
+
+        forbidden_modules = {
+            "os", "sys", "subprocess", "shutil", "socket", "urllib", "requests", "pty", "ctypes", 
+            "importlib", "platform", "pickle", "marshal", "shelve", "dbm", "sqlite3", "tempfile"
+        }
+
         unsafe_keywords = [
-            "__builtins__", "eval", "exec", "subprocess", "os.system", "os.popen", "shutil", 
-            "pty", "ctypes", "socket", "urllib", "requests", "open", "builtins", "importlib"
+            "__builtins__", "subprocess", "os.system", "os.popen", "shutil", 
+            "pty", "ctypes", "socket", "urllib", "requests", "importlib"
         ]
-        
+
         try:
             tree = ast.parse(code)
             for node in ast.walk(tree):
+                # 1. Imports check
                 if isinstance(node, ast.Import):
                     for alias in node.names:
-                        if any(kw in alias.name for kw in ["os", "sys", "subprocess", "shutil", "socket", "urllib", "requests", "pty", "ctypes"]):
+                        base_module = alias.name.split('.')[0]
+                        if base_module in forbidden_modules:
                             return f"'{alias.name}' modülünün yüklenmesine izin verilmiyor."
                 elif isinstance(node, ast.ImportFrom):
-                    if node.module and any(kw in node.module for kw in ["os", "sys", "subprocess", "shutil", "socket", "urllib", "requests", "pty", "ctypes"]):
-                        return f"'{node.module}' modülünden import yapılmasına izin verilmiyor."
-                elif isinstance(node, ast.Call):
-                    if isinstance(node.func, ast.Name):
-                        if node.func.id in ["eval", "exec", "open"]:
-                            return f"'{node.func.id}' fonksiyonunun çağrılmasına izin verilmiyor."
-        except Exception:
-            pass
+                    if node.module:
+                        base_module = node.module.split('.')[0]
+                        if base_module in forbidden_modules:
+                            return f"'{node.module}' modülünden import yapılmasına izin verilmiyor."
 
+                # 2. Block access to builtins and magic variables by name
+                elif isinstance(node, ast.Name):
+                    if node.id in forbidden_builtins:
+                        return f"'{node.id}' fonksiyonu/değişkeninin kullanılması yasaktır."
+                    if node.id.startswith("_") or "__" in node.id:
+                        return f"Gizli veya özel isimlerin ('{node.id}') kullanılması yasaktır."
+
+                # 3. Block double-underscores (dunder) / private attributes access
+                elif isinstance(node, ast.Attribute):
+                    if node.attr.startswith("_") or "__" in node.attr:
+                        return f"'{node.attr}' özniteliğine erişim yasaktır."
+                    if node.attr in forbidden_builtins:
+                        return f"'{node.attr}' fonksiyonuna erişim yasaktır."
+
+        except Exception as e:
+            return f"Kod sözdizimi doğrulanırken hata oluştu: {str(e)}"
+
+        # 4. Fallback string checks for dangerous words
         for kw in unsafe_keywords:
             if kw in code:
                 return f"'{kw}' ifadesinin kullanılmasına izin verilmiyor."

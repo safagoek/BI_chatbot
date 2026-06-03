@@ -16,40 +16,97 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
-# Determine font names supporting Turkish characters on Windows
+# Determine font names supporting Turkish characters
 FONT_REGULAR = 'Helvetica'
 FONT_BOLD = 'Helvetica-Bold'
 FONT_MONO = 'Courier'
 
 try:
-    windir = os.environ.get('WINDIR', 'C:\\Windows')
-    fonts_dir = os.path.join(windir, 'Fonts')
+    # 1. Gather all potential font directories
+    font_dirs = []
     
-    # We can search multiple candidate paths on Windows
-    system_fonts = [
-        ('Arial', 'arial.ttf', 'arialbd.ttf'),
-        ('Segoe UI', 'segoeui.ttf', 'segoeuib.ttf'),
-        ('Calibri', 'calibri.ttf', 'calibrib.ttf'),
-        ('Microsoft Sans Serif', 'micross.ttf', 'micross.ttf'),
+    # Windows paths
+    windir = os.environ.get('WINDIR', 'C:\\Windows')
+    font_dirs.append(os.path.join(windir, 'Fonts'))
+    
+    # Linux paths
+    font_dirs.extend([
+        '/usr/share/fonts',
+        '/usr/share/fonts/truetype',
+        '/usr/share/fonts/truetype/dejavu',
+        '/usr/share/fonts/truetype/liberation',
+        '/usr/share/fonts/truetype/ubuntu',
+        '/usr/local/share/fonts',
+        os.path.expanduser('~/.fonts')
+    ])
+    
+    # 2. Candidate specifications: (name, regular_filename, bold_filename, mono_filename)
+    candidates = [
+        # Windows candidates
+        ('Arial', 'arial.ttf', 'arialbd.ttf', 'cour.ttf'),
+        ('Segoe UI', 'segoeui.ttf', 'segoeuib.ttf', 'cour.ttf'),
+        # Linux DejaVu
+        ('DejaVuSans', 'DejaVuSans.ttf', 'DejaVuSans-Bold.ttf', 'DejaVuSansMono.ttf'),
+        # Linux Liberation
+        ('LiberationSans', 'LiberationSans-Regular.ttf', 'LiberationSans-Bold.ttf', 'LiberationMono-Regular.ttf'),
+        # Linux Ubuntu
+        ('Ubuntu', 'Ubuntu-R.ttf', 'Ubuntu-B.ttf', 'UbuntuMono-R.ttf'),
     ]
     
-    for font_name, reg_file, bold_file in system_fonts:
-        reg_path = os.path.join(fonts_dir, reg_file)
-        bold_path = os.path.join(fonts_dir, bold_file)
-        if os.path.exists(reg_path) and os.path.exists(bold_path):
-            pdfmetrics.registerFont(TTFont(font_name, reg_path))
-            pdfmetrics.registerFont(TTFont(f"{font_name}-Bold", bold_path))
-            FONT_REGULAR = font_name
-            FONT_BOLD = f"{font_name}-Bold"
+    registered = False
+    
+    for name, reg_file, bold_file, mono_file in candidates:
+        for f_dir in font_dirs:
+            if not os.path.exists(f_dir):
+                continue
+            
+            # Direct check
+            reg_path = os.path.join(f_dir, reg_file)
+            bold_path = os.path.join(f_dir, bold_file)
+            mono_path = os.path.join(f_dir, mono_file)
+            
+            # If not found directly, check subdirectories recursively
+            if not (os.path.exists(reg_path) and os.path.exists(bold_path)):
+                found_reg, found_bold, found_mono = None, None, None
+                for root, _, files in os.walk(f_dir):
+                    for fn in files:
+                        if fn.lower() == reg_file.lower():
+                            found_reg = os.path.join(root, fn)
+                        elif fn.lower() == bold_file.lower():
+                            found_bold = os.path.join(root, fn)
+                        elif fn.lower() == mono_file.lower():
+                            found_mono = os.path.join(root, fn)
+                    if found_reg and found_bold:
+                        reg_path, bold_path = found_reg, found_bold
+                        if found_mono:
+                            mono_path = found_mono
+                        break
+            
+            # Register if found
+            if os.path.exists(reg_path) and os.path.exists(bold_path):
+                pdfmetrics.registerFont(TTFont(name, reg_path))
+                pdfmetrics.registerFont(TTFont(f"{name}-Bold", bold_path))
+                FONT_REGULAR = name
+                FONT_BOLD = f"{name}-Bold"
+                
+                if os.path.exists(mono_path):
+                    pdfmetrics.registerFont(TTFont(f"{name}-Mono", mono_path))
+                    FONT_MONO = f"{name}-Mono"
+                else:
+                    # Monospace fallback if custom TTF is not found
+                    cour_path = os.path.join(os.path.join(windir, 'Fonts'), 'cour.ttf')
+                    if os.path.exists(cour_path):
+                        pdfmetrics.registerFont(TTFont('CourierNew', cour_path))
+                        FONT_MONO = 'CourierNew'
+                
+                registered = True
+                break
+        if registered:
             break
             
-    # Register Courier New for monospace Turkish character support
-    cour_path = os.path.join(fonts_dir, 'cour.ttf')
-    if os.path.exists(cour_path):
-        pdfmetrics.registerFont(TTFont('CourierNew', cour_path))
-        FONT_MONO = 'CourierNew'
 except Exception as e:
-    print(f"Turkish font registration warning: {e}")
+    import sys
+    print(f"Turkish font registration warning: {e}", file=sys.stderr)
 
 
 def build_excel_report(

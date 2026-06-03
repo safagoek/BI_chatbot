@@ -232,7 +232,7 @@ export const translations: Record<'tr' | 'en', TranslationKeys> = {
     tablesDetected: "Tablo Keşfedildi",
     noTablesDetected: "Bağlantıda herhangi bir tablo keşfedilmedi. Şemayı yenilemeyi deneyin.",
     addNewSourceCard: "Yeni Veri Tabanı Ekle",
-    addNewSourcePrompt: "PostgreSQL, MySQL veya SQLite bağlantısı ekleyerek analize başlayın.",
+    addNewSourcePrompt: "PostgreSQL, MySQL, SQLite, Snowflake, MS SQL Server veya Google BigQuery bağlantısı ekleyerek analize başlayın.",
     securitySectionTitle: "Güvenli Erişim & Altyapı",
     securityPoint1: "Tüm SQL sorguları sqlglot ile dezenfekte edilir.",
     securityPoint2: "Yalnızca READ-ONLY yetkisine sahip kullanıcılar kullanılması önerilir.",
@@ -254,7 +254,7 @@ export const translations: Record<'tr' | 'en', TranslationKeys> = {
     editModeDesc: "Seçilen veritabanının parametrelerini güncelliyorsunuz. Şifre değişmeyecekse boş bırakabilirsiniz.",
     saveConnectionBtn: "Bağlantıyı Kaydet & Şemayı Çıkar",
     saveConnectionLoading: "Kaydediliyor...",
-
+    
     uploadTitle: "Excel / CSV Veri Yükleme",
     uploadSubtitle: "Kendi yerel veri kümelerinizi yükleyin, otomatik şemalandırma ve ön izleme ile anında sorgulayın.",
     dragDropPrompt: "Dosyanızı Buraya Sürükleyin",
@@ -275,7 +275,7 @@ export const translations: Record<'tr' | 'en', TranslationKeys> = {
     tableHeadNumber: "#",
     previewEmptyStateTitle: "Ön izleme tablosu boş.",
     previewEmptyStateDesc: "Soldaki panelden Excel veya CSV dosyasını yükleyin, veriler otomatik şemalandırılarak burada ön izlenecektir.",
-
+    
     // Chat Console
     queryPlaceholder: "sorgu girin veya / yazın...",
     calculating: "hesaplanıyor...",
@@ -296,7 +296,7 @@ export const translations: Record<'tr' | 'en', TranslationKeys> = {
     copyTooltip: "Kopyala",
     downloadTooltip: "Kodu İndir",
     executionLogTitle: "İŞLEM KAYDI — {count} ADIM",
-
+    
     // Result Visualizer
     visualizerEmptyTitle: "Sonuç Görselleştirme Paneli",
     visualizerEmptyDesc: "Sohbet ekranında sorduğunuz analizlerin etkileşimli tabloları ve grafikleri burada anında görüntülenecektir.",
@@ -308,7 +308,7 @@ export const translations: Record<'tr' | 'en', TranslationKeys> = {
     noTableData: "Sorgu sonucunda herhangi bir veri tablosu bulunamadı.",
     exportError: "Aktarım sırasında bir hata oluştu.",
     page: "Sayfa",
-
+    
     // Added Premium elements
     closePanelTooltip: "Paneli Kapat",
     chartTunerPlaceholder: "Grafiği düzenle (örn: \"çizgi yap\", \"mor yap\", \"X eksenini ... yap\")",
@@ -337,7 +337,7 @@ export const translations: Record<'tr' | 'en', TranslationKeys> = {
     passive: "PASSIVE",
     noResults: "— No results —",
     renameTooltip: "Double click to rename session",
-
+    
     llmSettingsTitle: "Calculation Engine Connection Settings",
     llmSettingsSubtitle: "DeepBI Analytics Studio Core Engine",
     engineSelection: "Engine Selection",
@@ -357,7 +357,7 @@ export const translations: Record<'tr' | 'en', TranslationKeys> = {
     savedBtn: "Configuration Saved",
     testSuccess: "Connection successful.",
     testFailed: "Connection failed.",
-
+    
     sourcesTitle: "Unified Data Sources Hub",
     sourcesSubtitle: "Upload CSV/Excel sheets, connect remote databases, and inspect schema structures instantly.",
     refreshBtn: "Refresh",
@@ -393,7 +393,7 @@ export const translations: Record<'tr' | 'en', TranslationKeys> = {
     tablesDetected: "Tables Discovered",
     noTablesDetected: "No tables discovered. Try refreshing connection schema mapping.",
     addNewSourceCard: "Add Remote Database",
-    addNewSourcePrompt: "Establish secure PostgreSQL, MySQL, or SQLite connections to run analysis.",
+    addNewSourcePrompt: "Establish secure PostgreSQL, MySQL, SQLite, Snowflake, MS SQL Server, or Google BigQuery connections to run analysis.",
     securitySectionTitle: "Secure Data Access & Framework",
     securityPoint1: "All executed queries are sanitized and checked using sqlglot engine.",
     securityPoint2: "We highly recommend using accounts with READ-ONLY permissions.",

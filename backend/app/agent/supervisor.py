@@ -14,6 +14,7 @@ from app.core.sql_sanitizer import sanitize_and_validate_sql, SQLSanitationError
 from app.agent.rag import retrieve_similar, add_to_memory, self_correct_loop
 from app.database.manager import get_data_sources, get_uploaded_files
 from app.database.demo_db import DEMO_DB_PATH
+from app.core.logger import logger
 
 class SupervisorAgent:
     def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None, model: Optional[str] = None):
@@ -49,6 +50,7 @@ class SupervisorAgent:
                 await ws_callback({"type": "code", "language": lang, "code": code})
 
         # Step 1: Discover schema & metadata of the selected source
+        logger.info(f"Processing query: '{user_question}' for source: '{active_source_id}'")
         await send_status("[RouterAgent] Kullanıcı sorusu ve veri kaynağı şeması analiz ediliyor...")
         
         resolved = self._resolve_sources(active_source_id, source_ids or [], bool(source_ids))
@@ -349,7 +351,8 @@ Report:"""
         async def execute_sql_fn(code_to_exec: str) -> Tuple[bool, Any]:
             try:
                 import pandas as pd
-                safe_sql = sanitize_and_validate_sql(code_to_exec)
+                db_type = source_meta.get("db_type") if source_meta.get("type") == "database" else None
+                safe_sql = sanitize_and_validate_sql(code_to_exec, db_type=db_type)
                 result_data = self._execute_local_sql(safe_sql, source_meta)
                 
                 # If is_forecast is requested, execute time series prediction
@@ -1198,11 +1201,17 @@ Report:"""
         db_type = meta.get("db_type", "sqlite")
         dialect = ""
         if db_type in ("sap_s4hana", "hana"):
-            dialect = "\nDiyalekt: SAP HANA SQL. Dummy tablo için DUMM  kullan."
+            dialect = "\nDiyalekt: SAP HANA SQL. Dummy tablo için DUMMY kullan."
         elif db_type == "postgresql":
             dialect = "\nDiyalekt: PostgreSQL. Uygun sözdizimini kullan."
         elif db_type == "mysql":
             dialect = "\nDiyalekt: MySQL 8+. BACKTICK ile tablo/sütun sar."
+        elif db_type == "snowflake":
+            dialect = "\nDiyalekt: Snowflake SQL. Sütun ve tablo isimlerini büyük harfle çift tırnak (örneğin \"ID\", \"NAME\") ile sarmak gerekebilir."
+        elif db_type in ("mssql", "sqlserver"):
+            dialect = "\nDiyalekt: Microsoft SQL Server (T-SQL). Sorguda LIMIT yerine SELECT TOP N kullanın."
+        elif db_type in ("bigquery", "google_bigquery"):
+            dialect = "\nDiyalekt: Google BigQuery Standard SQL. Dataset ve tablo adlarını backtick (örneğin `dataset.table`) ile sar."
 
         semantic_desc = self._build_semantic_context(meta.get("id") or meta.get("alias"))
 

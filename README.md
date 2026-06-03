@@ -1,6 +1,6 @@
 # 📊 DeepBI Analytics Studio: Çok Kaynaklı Otonom Yapay Zekâ Veri Asistanı & BI İstasyonu
 
-DeepBI Analytics Studio; ilişkisel veritabanları (**SQLite, PostgreSQL, MySQL, SAP S/4HANA**) ve yapılandırılmış veri dosyaları (**Excel, CSV, TSV**) üzerinde doğal dilde analitik sorgular gerçekleştiren, akıllı tahminleme ve kümeleme algoritmaları çalıştıran, otonom hata düzeltme (**Self-Correction**) döngüsüne sahip, **RAM dostu DuckDB analitik SQL motoru** ve **Yerel Depolama Yedeği (Snapshots)** altyapısı barındıran **uçtan uca bir otonom veri bilimi ve iş zekası (BI) platformudur**.
+DeepBI Analytics Studio; ilişkisel veritabanları (**SQLite, PostgreSQL, MySQL, MS SQL Server, Snowflake, Google BigQuery, SAP S/4HANA**) ve yapılandırılmış veri dosyaları (**Excel, CSV, TSV**) üzerinde doğal dilde analitik sorgular gerçekleştiren, akıllı tahminleme, kümeleme ve anomali tespiti algoritmaları çalıştıran, otonom hata düzeltme (**Self-Correction**) döngüsüne sahip, **RAM dostu DuckDB analitik SQL motoru** ve **Yerel Depolama Yedeği (Snapshots)** altyapısı barındıran **uçtan uca bir otonom veri bilimi ve iş zekası (BI) platformudur**.
 
 Proje; modern ve premium **Vercel/Linear Minimalist Indigo** tasarım diline sahip React/TypeScript arayüzü ile FastAPI/Uvicorn tabanlı izole, yüksek hızlı ve sandbox korumalı bir veri işleme katmanını bir araya getirir.
 
@@ -37,7 +37,7 @@ graph TB
 
     %% Dış Kaynaklar ve Sandbox
     subgraph DisKatman [Veri Kaynakları & Güvenli Ortam]
-        DB_Exec[connectors.py - PostgreSQL/MySQL/HANA]
+        DB_Exec[connectors.py - PostgreSQL/MySQL/HANA/Snowflake/MSSQL/BigQuery]
         Sandbox[sandbox.py - AST-Tabanlı İzole Python Sandbox]
     end
 
@@ -91,9 +91,10 @@ Arayüz tasarımı, standart şablonlardan arındırılarak kurumsal bir SaaS ka
 
 ## 🚀 Çekirdek Sistem Kabiliyetleri ve İleri Seviye Özellikler
 
-### 1. SAP S/4HANA Entegrasyonu & 5000 Satırlık Akıllı Snapshots
-* **HANA Konnektörü**: Kurumsal SAP HANA sistemlerine optimize edilmiş `hdbcli` sürücüsüyle bağlanır. Canlı schema discovery (`discover_schema`) ile HANA system tablolarından aktif şemayı (`SELECT CURRENT_SCHEMA FROM DUMMY`), tabloları ve kolonları otomatik okur.
-* **Hızlı Snapshot Motoru**: Canlı ERP sistemlerine yük bindirmemek için verileri 5000'er satırlık paketler halinde (`fetchmany`) çekerek yerel DuckDB/SQLite replikasına kopyalar.
+### 1. Kurumsal Veritabanı Konnektörleri & 5000 Satırlık Akıllı Snapshots
+* **Genişletilmiş Veritabanı Desteği**: Standart veritabanlarının yanı sıra kurumsal düzeyde **SAP S/4HANA**, **Snowflake**, **Google BigQuery** ve **Microsoft SQL Server (MSSQL)** sistemleri için tam entegre schema discovery ve bağlantı yönetimi sunar.
+* **Ayrıntılı Şema Keşfi**: Canlı sistemlerden dinamik olarak tabloları ve sütunları sorgulayarak şemaları otomatik çıkartır.
+* **Hızlı Snapshot Motoru**: Canlı ERP ve OLTP sistemlerine yük bindirmemek için verileri 5000'er satırlık paketler halinde (`fetchmany`) çekerek yerel DuckDB/SQLite replikasına kopyalar.
 * **Otomatik İndeksleme**: Snapshot tablolarındaki `id`, `key`, `kod`, `date` vb. anahtar kelimeleri içeren sütunlarda otomatik `CREATE INDEX` tetiklenerek downstream DuckDB JOIN sorguları milisaniyeler seviyesine indirilir.
 
 ### 2. İnteraktif SVG Şema Tasarımcısı (Schema Designer)
@@ -105,12 +106,16 @@ Arayüz tasarımı, standart şablonlardan arındırılarak kurumsal bir SaaS ka
 * **Çoklu Satır Seçimi**: Satırların solundaki checkbox'lar ile seçim yapılabilir. Seçim yapıldığında sağ üstte yeşil bir parlama efektiyle `"X Satır Seçildi"` rozeti belirir.
 * **Seçime Göre Dışa Aktarma**: Excel (OpenPyXL) ve PDF (ReportLab) indirme butonları, eğer satır seçilmişse **sadece seçilen satırları**, seçilmemişse tüm veri kümesini kurumsal rapor formatında dışa aktarır.
 
-### 4. Yerel Semantik RAG Bellek Döngüsü
+### 4. Güvenli Kod ve Sandbox Altyapısı
+* **AST Sandbox Filtresi**: Python kodlarını AST (Abstract Syntax Tree) ile derinlemesine inceleyerek dunder metotlara (`__class__`, `__subclasses__`, `__globals__`, `__dict__`) erişimi, `getattr`/`setattr` fonksiyonlarını, `eval`, `exec`, `open`, `__import__` gibi tehlikeli çağrıları ve yetkisiz sistem kütüphanelerini engeller.
+* **Multi-Platform PDF Font Desteği**: Rapor çıktılarındaki Türkçe karakter sorununu çözmek amacıyla Linux sistemlerinde (`/usr/share/fonts`, `/usr/local/share/fonts`, `~/.fonts`) tarama yaparak `DejaVuSans.ttf` veya `LiberationSans.ttf` gibi Unicode destekleyen sistem yazı tiplerini otomatik olarak tespit edip entegre eder.
+
+### 5. Yerel Semantik RAG Bellek Döngüsü
 * **FastEmbed ve Hugging Face**: Semantik arama için yerel olarak `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` modeli kullanılır. Türkçe ve İngilizce sorguları yüksek doğrulukla anlamlandırır.
 * **SQLite rag_memory**: Eski düz JSON (`query_memory.json`) dosyası yerine, WAL modunda çalışan SQLite tabanlı bir vektör saklama alanı kullanılarak eşzamanlı yazma sorunları engellenmiştir.
 * **Geri Bildirim Döngüsü (Reinforcement)**: Arayüzdeki her mesaja eklenen Beğen (Thumbs Up) / Beğenme (Thumbs Down) ikonları üzerinden `/api/sessions/{session_id}/messages/{message_id}/feedback` uç noktasına sinyal gönderilir. Başarılı sorgular RAG hafızasına otomatik eğitilmek üzere kaydedilir.
 
-### 5. Doğal Dilli Grafik Ayarlayıcısı (Client-side Chart Tuner)
+### 6. Doğal Dilli Grafik Ayarlayıcısı (Client-side Chart Tuner)
 * **Anında Düzenleme**: Plotly grafik panelinin altında yer alan kutucuğa *"sütun grafiğe çevir ve mor yap"* gibi komutlar yazıldığında, istemci tarafındaki akıllı parser komutu işler ve sunucuya gitmeden grafiği anında günceller.
 
 ---
@@ -141,7 +146,7 @@ Projedeki her bir dizin ve kritik dosya, belirli sorumlulukları üstlenen temiz
   * *Plotly Grafik Entegrasyonu*: Gelen JSON grafik verisini Vercel/Linear Indigo koyu temasıyla derleyip ekrana basar.
   * *Gelişmiş Spreadsheet*: Sütun başlığına tıklayarak sıralama yapan `handleSort` algoritmasını ve çoklu satır seçimi sağlayan checkbox mantığını yönetir.
   * *Client-side Chart Tuner*: Kullanıcının doğal dilde yazdığı grafik düzenleme komutlarını işleyen yerel parser metodunu içerir.
-* **`components/SourceManager.tsx`**: Veritabanı bağlantılarının (SQLite, PG, MySQL, HANA) oluşturulduğu, test edildiği ve düzenlendiği gelişmiş CRUD arayüzüdür.
+* **`components/SourceManager.tsx`**: Veritabanı bağlantılarının (SQLite, PG, MySQL, MSSQL, Snowflake, BigQuery, HANA) oluşturulduğu, test edildiği ve düzenlendiği gelişmiş CRUD arayüzüdür.
   * *`handleTest`*: `/api/sources/test-connection` üzerinden kimlik bilgilerini test eder.
   * *`handleSave`*: Yeni bağlantı kaydeder veya düzenleme modunda `PUT` isteği gönderir.
   * *`handleTakeSnapshot`*: Seçilen veritabanının anlık kopyasını yerel ortama kopyalamak için backend snapshot tetikler.
@@ -176,18 +181,16 @@ Projedeki her bir dizin ve kritik dosya, belirli sorumlulukları üstlenen temiz
 * **`report_builder.py`**: PDF ve Excel formatında dışa aktarım yapan raporlama ünitesidir.
   * *`build_excel_report`*: `openpyxl` kullanarak sayısal hücreleri sağa hizalı, kolon genişlikleri otomatik ayarlanmış Excel sayfaları tasarlar.
   * *`build_pdf_report`*: `reportlab` ile kurumsal kapak, grafik vektör görseli ve veri tabloları içeren şık PDF raporları üretir.
+* **`logger.py`**: Yapılandırılmış ve izlenebilir bir üretim ortamı için merkezi günlük tutma sistemidir.
+  * *Özelleştirilmiş Log Şablonları*: Uvicorn/FastAPI ve çoklu ajan işlem akışlarının, hata ve uyarıların tek bir formattan yönetilmesini sağlar.
 * **`clustering.py`**: Veri kümeleri üzerinde K-Means kümeleme algoritması koşturur.
-  * *`run_kmeans_clustering`*: Scikit-Learn kullanarak verileri segmentlere ayırır ve PCA ile 2 boyuta düşürerek renkli Plotly scatter grafikleri için hazırlar.
 * **`anomaly.py`**: Verilerdeki sıra dışı sapmaları yakalar.
-  * *`detect_anomalies`*: `IsolationForest` algoritmasıyla anomali skorları hesaplar ve sapan satırları belirler.
 * **`predictor.py`**: Zaman serisi tahminlemesi yapar.
-  * *`run_time_series_forecast`*: Doğrusal regresyon veya trend analiziyle gelecek dönem verilerini simüle eder.
 * **`correlation.py`**: Sayısal kolonların birbiriyle ilişkisini hesaplar.
-  * *`compute_correlation`*: Korelasyon matrisini çıkarır.
 
 #### 💾 Veritabanı ve Bağlantı Havuzu Katmanı (`app/database`)
 * **`connectors.py`**: Farklı veritabanı türleriyle bağlantı kuran havuz katmanıdır.
-  * *`get_connection`*: SQLite, PostgreSQL, MySQL ve SAP S/4HANA (`hdbcli` tabanlı) için özelleşmiş connection nesnelerini üretir.
+  * *`get_connection`*: SQLite, PostgreSQL, MySQL, MSSQL, Snowflake, Google BigQuery ve SAP S/4HANA için özelleşmiş connection nesnelerini üretir.
   * *`discover_schema`*: Veritabanı sistem katalog tablolarını sorgulayarak tablo isimlerini ve sütun yapılarını keşfeder.
 * **`manager.py`**: SQLite `metadata.db` üzerindeki CRUD operasyonlarını yönetir.
   * *`init_metadata_db`*: Veritabanını WAL modunda başlatır; `data_sources`, `uploaded_files`, `sessions`, `chat_messages`, `rag_memory` gibi tabloları oluşturur.
@@ -228,7 +231,6 @@ Projedeki her bir dizin ve kritik dosya, belirli sorumlulukları üstlenen temiz
    ```bash
    pip install -r requirements.txt
    ```
-   *(Not: SAP HANA bağlantısı kuracaksanız `pip install hdbcli` komutuyla sürücüyü ayrıca kurabilirsiniz.)*
 
 4. **Çevresel Değişkenleri Yapılandırın:**
    `backend` dizininde bir `.env` dosyası oluşturun ve LLM kimlik bilgilerinizi girin:
@@ -236,7 +238,6 @@ Projedeki her bir dizin ve kritik dosya, belirli sorumlulukları üstlenen temiz
    DEEPSEEK_API_KEY=sk-your-api-key-here
    DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
    ```
-   *(Sistem ayrıca arayüzdeki Ayarlar panelinden bu yapılandırmaları dinamik olarak SQLite veritabanına kaydetmeyi de destekler).*
 
 5. **Sunucuyu başlatın:**
    ```bash
@@ -266,11 +267,14 @@ Projedeki her bir dizin ve kritik dosya, belirli sorumlulukları üstlenen temiz
 
 ---
 
-### 🛠️ Tek Tıkla Geliştirici Ortamı Başlatma (Windows)
+### 🛠️ Tek Tıkla Geliştirici Ortamı Başlatma (Linux)
 
-Proje kök dizininde yer alan `rundev.bat` dosyasını çift tıklatarak çalıştırabilirsiniz. Bu batch script'i:
-1. Backend dizininde sanal ortamı otomatik aktif ederek FastAPI sunucusunu `8000` portunda başlatır.
-2. Frontend dizininde Vite sunucusunu ayağa kaldırarak tarayıcınızda uygulamayı otomatik açar.
+Linux üzerinde tek tıkla geliştirici ortamını ayağa kaldırmak için proje kök dizininde:
+```bash
+chmod +x setup_dev_linux.sh run_dev_linux.sh
+./run_dev_linux.sh
+```
+Betikler otomatik olarak hem sanal ortamı aktifleştirip backend sunucusunu çalıştıracak hem de frontend Vite sunucusunu ayağa kaldıracaktır.
 
 ---
 
@@ -278,7 +282,7 @@ Proje kök dizininde yer alan `rundev.bat` dosyasını çift tıklatarak çalı�
 
 Tüm sohbet geçmişleri, yüklenen dosya meta verileri, veritabanı bağlantı şifreleri (şifrelenmiş olarak) ve LLM ayarları backend'deki `metadata.db` isimli SQLite dosyasında saklanır. 
 
-* Veritabanı tablolarının kolon yapıları, tipleri ve veri tabanı ilişkileri hakkında detaylı bilgi almak için kök dizindeki [metadata_schema.md](file:///c:/Users/safgok/Desktop/BI/metadata_schema.md) dosyasını okuyabilirsiniz.
+* Veritabanı tablolarının kolon yapıları, tipleri ve veri tabanı ilişkileri hakkında detaylı bilgi almak için kök dizindeki [metadata_schema.md](file:///home/safagok/Repo/BI_chatbot/metadata_schema.md) dosyasını okuyabilirsiniz.
 
 ---
 

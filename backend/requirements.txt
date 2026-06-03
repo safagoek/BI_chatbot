@@ -17,3 +17,9 @@ duckdb>=0.9.0
 scikit-learn>=1.2.0
 plotly>=5.15.0
 websockets>=12.0
+
+# Kurumsal Veritabanı Bağlayıcıları (İsteğe Bağlı)
+# snowflake-connector-python>=3.0.0
+# pymssql>=2.2.0
+# google-cloud-bigquery>=3.0.0
+# google-auth>=2.0.0

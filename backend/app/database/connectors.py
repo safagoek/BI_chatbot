@@ -97,6 +97,84 @@ def _get_sap_s4hana_conn(details: Dict[str, Any]):
     except Exception as e:
         raise ConnectorError(f"SAP S/4HANA (HANA) bağlantısı başarısız: {str(e)}")
 
+def _get_snowflake_conn(details: Dict[str, Any]):
+    try:
+        import snowflake.connector
+    except ImportError:
+        raise ConnectorError("snowflake-connector-python kurulu değil. 'pip install snowflake-connector-python' çalıştırın.")
+    
+    account = details.get("account", "")
+    user = details.get("user", "")
+    password = details.get("password", "")
+    warehouse = details.get("warehouse", "")
+    database = details.get("database", "")
+    schema = details.get("schema", "")
+    
+    try:
+        conn = snowflake.connector.connect(
+            account=account,
+            user=user,
+            password=password,
+            warehouse=warehouse,
+            database=database,
+            schema=schema
+        )
+        return conn, "snowflake"
+    except Exception as e:
+        raise ConnectorError(f"Snowflake bağlantısı başarısız: {str(e)}")
+
+
+def _get_mssql_conn(details: Dict[str, Any]):
+    try:
+        import pymssql
+    except ImportError:
+        raise ConnectorError("pymssql kurulu değil. 'pip install pymssql' çalıştırın.")
+    
+    host = details.get("host", "localhost")
+    port = int(details.get("port", 1433))
+    database = details.get("database", "")
+    user = details.get("user", "")
+    password = details.get("password", "")
+    
+    try:
+        conn = pymssql.connect(
+            server=host,
+            port=port,
+            database=database,
+            user=user,
+            password=password,
+            timeout=5
+        )
+        return conn, "mssql"
+    except Exception as e:
+        raise ConnectorError(f"MSSQL bağlantısı başarısız: {str(e)}")
+
+
+def _get_bigquery_conn(details: Dict[str, Any]):
+    try:
+        from google.cloud import bigquery
+        from google.oauth2 import service_account
+    except ImportError:
+        raise ConnectorError("google-cloud-bigquery kurulu değil. 'pip install google-cloud-bigquery google-auth' çalıştırın.")
+    
+    project_id = details.get("project_id", "")
+    credentials_json = details.get("credentials_json", "")
+    credentials_path = details.get("credentials_path", "")
+    
+    try:
+        if credentials_json:
+            import json
+            info = json.loads(credentials_json)
+            credentials = service_account.Credentials.from_service_account_info(info)
+            client = bigquery.Client(project=project_id, credentials=credentials)
+        elif credentials_path:
+            client = bigquery.Client.from_service_account_json(credentials_path)
+        else:
+            client = bigquery.Client(project=project_id) if project_id else bigquery.Client()
+        return client, "bigquery"
+    except Exception as e:
+        raise ConnectorError(f"Google BigQuery bağlantısı başarısız: {str(e)}")
+
 
 def get_connection(db_type: str, connection_details: Dict[str, Any]):
     """Returns a (connection, db_type) tuple based on db_type."""
@@ -109,6 +187,12 @@ def get_connection(db_type: str, connection_details: Dict[str, Any]):
         return _get_mysql_conn(connection_details)
     elif t in ("sap_s4hana", "hana", "s4hana"):
         return _get_sap_s4hana_conn(connection_details)
+    elif t == "snowflake":
+        return _get_snowflake_conn(connection_details)
+    elif t in ("mssql", "sqlserver"):
+        return _get_mssql_conn(connection_details)
+    elif t in ("bigquery", "google_bigquery"):
+        return _get_bigquery_conn(connection_details)
     else:
         raise ConnectorError(f"Desteklenmeyen veritabanı tipi: {db_type}")
 
@@ -130,6 +214,10 @@ def test_connection(db_type: str, connection_details: Dict[str, Any]) -> Tuple[b
             cursor.execute("SELECT 1 FROM DUMMY")
             conn.close()
             return True, "✅ SAP S/4HANA (HANA) bağlantısı başarılı."
+        elif db_type in ("bigquery", "google_bigquery"):
+            # List datasets to verify credentials/connection
+            list(conn.list_datasets(max_results=1))
+            return True, "✅ Google BigQuery bağlantısı başarılı."
         else:
             cursor = conn.cursor()
             cursor.execute("SELECT 1 AS ping")
@@ -150,6 +238,18 @@ def discover_schema(db_type: str, connection_details: Dict[str, Any]) -> Dict[st
     schema = {}
     
     try:
+        if dtype == "bigquery":
+            datasets = list(conn.list_datasets())
+            for dataset in datasets:
+                dataset_id = dataset.dataset_id
+                tables = list(conn.list_tables(dataset_id))
+                for table in tables:
+                    tbl_name = f"{dataset_id}.{table.table_id}"
+                    table_ref = conn.get_table(table.reference)
+                    cols = [field.name for field in table_ref.schema]
+                    schema[tbl_name] = cols
+            return schema
+
         cursor = conn.cursor()
         
         if dtype == "sqlite":
@@ -170,7 +270,7 @@ def discover_schema(db_type: str, connection_details: Dict[str, Any]) -> Dict[st
             """)
             tables = [row[0] for row in cursor.fetchall()]
             for tbl in tables:
-                cursor.execute(f"""
+                cursor.execute("""
                     SELECT column_name 
                     FROM information_schema.columns 
                     WHERE table_schema='public' AND table_name = %s
@@ -228,11 +328,61 @@ def discover_schema(db_type: str, connection_details: Dict[str, Any]) -> Dict[st
                 """, (schema_name, tbl))
                 cols = [row[0] for row in cursor.fetchall()]
                 schema[tbl] = cols
+
+        elif dtype == "snowflake":
+            current_schema = connection_details.get("schema", "").strip().upper()
+            current_database = connection_details.get("database", "").strip().upper()
+            
+            if not current_schema or not current_database:
+                cursor.execute("SELECT CURRENT_DATABASE(), CURRENT_SCHEMA()")
+                db_res = cursor.fetchone()
+                if db_res:
+                    if not current_database:
+                        current_database = db_res[0]
+                    if not current_schema:
+                        current_schema = db_res[1]
+            
+            if current_database and current_schema:
+                cursor.execute(f"""
+                    SELECT table_name 
+                    FROM {current_database}.information_schema.tables 
+                    WHERE table_schema = '{current_schema}' AND table_type = 'BASE TABLE'
+                    ORDER BY table_name
+                """)
+                tables = [row[0] for row in cursor.fetchall()]
+                for tbl in tables:
+                    cursor.execute(f"""
+                        SELECT column_name 
+                        FROM {current_database}.information_schema.columns 
+                        WHERE table_schema = '{current_schema}' AND table_name = '{tbl}'
+                        ORDER BY ordinal_position
+                    """)
+                    cols = [row[0] for row in cursor.fetchall()]
+                    schema[tbl] = cols
+
+        elif dtype == "mssql":
+            cursor.execute("""
+                SELECT table_name 
+                FROM information_schema.tables 
+                WHERE table_type = 'BASE TABLE'
+                ORDER BY table_name
+            """)
+            tables = [row[0] for row in cursor.fetchall()]
+            for tbl in tables:
+                cursor.execute("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = %s
+                    ORDER BY ordinal_position
+                """, (tbl,))
+                cols = [row[0] for row in cursor.fetchall()]
+                schema[tbl] = cols
                 
         return schema
         
     finally:
-        conn.close()
+        if dtype != "bigquery":
+            conn.close()
 
 
 def execute_safe_sql(db_type: str, connection_details: Dict[str, Any], sql: str) -> Dict[str, Any]:
@@ -242,12 +392,12 @@ def execute_safe_sql(db_type: str, connection_details: Dict[str, Any], sql: str)
     conn, dtype = get_connection(db_type, connection_details)
     
     try:
-        if dtype == "sqlite":
-            cursor = conn.cursor()
-            cursor.execute(sql)
-            columns = [desc[0] for desc in cursor.description]
-            rows = [list(r) for r in cursor.fetchall()]
-        elif dtype == "postgresql":
+        if dtype == "bigquery":
+            query_job = conn.query(sql)
+            results = query_job.result()
+            columns = [field.name for field in results.schema]
+            rows = [list(row.values()) for row in results]
+        elif dtype in ("sqlite", "postgresql", "sap_s4hana", "snowflake", "mssql"):
             cursor = conn.cursor()
             cursor.execute(sql)
             columns = [desc[0] for desc in cursor.description]
@@ -266,15 +416,12 @@ def execute_safe_sql(db_type: str, connection_details: Dict[str, Any], sql: str)
             else:
                 columns = [desc[0] for desc in cursor.description] if cursor.description else []
                 rows = []
-        elif dtype == "sap_s4hana":
-            cursor = conn.cursor()
-            cursor.execute(sql)
-            columns = [desc[0] for desc in cursor.description]
-            rows = [list(r) for r in cursor.fetchall()]
         else:
             raise ConnectorError(f"Desteklenmeyen tip: {dtype}")
             
         return {"columns": columns, "rows": rows, "row_count": len(rows)}
         
     finally:
-        conn.close()
+        if dtype != "bigquery":
+            conn.close()
+

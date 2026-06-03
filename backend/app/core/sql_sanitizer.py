@@ -56,8 +56,28 @@ def _validate_single_statement(expression: exp.Expression, original_sql: str) ->
                 f"Tehlikeli işlem algılandı: {node.__class__.__name__}"
             )
 
+def _map_db_type_to_sqlglot_dialect(db_type: Optional[str]) -> Optional[str]:
+    if not db_type:
+        return None
+    t = db_type.lower()
+    if t in ("postgresql", "postgres"):
+        return "postgres"
+    if t in ("mysql", "mariadb"):
+        return "mysql"
+    if t in ("sap_s4hana", "hana", "s4hana"):
+        return "hana"
+    if t in ("mssql", "sqlserver"):
+        return "tsql"
+    if t in ("bigquery", "google_bigquery"):
+        return "bigquery"
+    if t == "snowflake":
+        return "snowflake"
+    if t == "sqlite":
+        return "sqlite"
+    return None
 
-def sanitize_and_validate_sql(sql_query: str, default_limit: int = 5000) -> str:
+
+def sanitize_and_validate_sql(sql_query: str, default_limit: int = 5000, db_type: Optional[str] = None) -> str:
     """
     Parses ALL statements in the SQL string using sqlglot, verifies every
     statement is read-only (SELECT/WITH/UNION), and enforces a maximum row
@@ -69,11 +89,13 @@ def sanitize_and_validate_sql(sql_query: str, default_limit: int = 5000) -> str:
     # ── Temizle ──────────────────────────────────────────────────────────────
     cleaned_sql = sql_query.strip().strip(";").strip()
 
+    read_dialect = _map_db_type_to_sqlglot_dialect(db_type)
+
     # Çoklu statement kontrolü: ";" ile ayrılmış ifadeler
     # (quoted string içindeki ";" ile karışmaması için basit split yeterli;
     #  sqlglot parse() zaten hepsini döndürür)
     try:
-        parsed_expressions = sqlglot.parse(cleaned_sql)
+        parsed_expressions = sqlglot.parse(cleaned_sql, read=read_dialect)
     except Exception as e:
         raise SQLSanitationError(f"SQL Ayrıştırma Hatası: Geçersiz SQL yazımı. Detay: {str(e)}")
 
@@ -105,9 +127,15 @@ def sanitize_and_validate_sql(sql_query: str, default_limit: int = 5000) -> str:
         except (ValueError, AttributeError):
             limit_node.set("expression", exp.Literal.number(default_limit))
 
-    modified_sql = expression.sql()
+    if not has_limit:
+        if hasattr(expression, "limit"):
+            expression = expression.limit(default_limit)
+            has_limit = True
 
-    if not has_limit and "limit" not in modified_sql.lower():
+    modified_sql = expression.sql(dialect=read_dialect)
+
+    if not has_limit and "limit" not in modified_sql.lower() and "top" not in modified_sql.lower():
         modified_sql = f"{modified_sql} LIMIT {default_limit}"
 
     return modified_sql
+

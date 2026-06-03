@@ -5,7 +5,7 @@ import FileUpload from './FileUpload';
 import {
   Database, Plus, RefreshCw, ShieldCheck, Trash2, X,
   Server, HardDrive, AlertCircle, Eye, Edit3, Copy, Power, Tag, ChevronDown,
-  Cpu, Play, Save, Search, Layers
+  Cpu, Play, Save, Search, Layers, Cloud
 } from 'lucide-react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button,
@@ -16,7 +16,7 @@ import {
 
 const API = BACKEND_BASE;
 
-type DbType = 'sqlite' | 'postgresql' | 'mysql' | 'sap_s4hana';
+type DbType = 'sqlite' | 'postgresql' | 'mysql' | 'sap_s4hana' | 'snowflake' | 'mssql' | 'bigquery';
 
 interface ConnectionForm {
   display_name: string;
@@ -31,6 +31,12 @@ interface ConnectionForm {
   // Credentials
   user: string;
   password: string;
+  // Snowflake / BigQuery specific
+  account?: string;
+  warehouse?: string;
+  project_id?: string;
+  dataset_id?: string;
+  credentials_json?: string;
 }
 
 const DEFAULT_FORM: ConnectionForm = {
@@ -43,6 +49,11 @@ const DEFAULT_FORM: ConnectionForm = {
   schema: '',
   user: '',
   password: '',
+  account: '',
+  warehouse: '',
+  project_id: '',
+  dataset_id: '',
+  credentials_json: '',
 };
 
 const DB_TYPE_OPTIONS = [
@@ -50,6 +61,9 @@ const DB_TYPE_OPTIONS = [
   { value: 'postgresql', label: 'PostgreSQL', icon: Database, color: '#0078d4' },   // Fluent Communication Blue
   { value: 'mysql', label: 'MySQL / MariaDB', icon: Server, color: '#00acac' },
   { value: 'sqlite', label: 'SQLite', icon: HardDrive, color: '#7a4dff' },          // Fluent Purple
+  { value: 'snowflake', label: 'Snowflake', icon: Cloud, color: '#00c0f3' },
+  { value: 'mssql', label: 'MS SQL Server', icon: Database, color: '#e81123' },
+  { value: 'bigquery', label: 'Google BigQuery', icon: Layers, color: '#4285f4' },
 ];
 
 
@@ -58,6 +72,9 @@ const DEFAULT_PORTS: Record<DbType, string> = {
   postgresql: '5432',
   mysql: '3306',
   sqlite: '',
+  snowflake: '',
+  mssql: '1433',
+  bigquery: '',
 };
 
 export const SourceManager: React.FC = () => {
@@ -136,9 +153,25 @@ export const SourceManager: React.FC = () => {
     if (formValues.type === 'sqlite') {
       return { database_path: formValues.database_path };
     }
+    if (formValues.type === 'snowflake') {
+      return {
+        account: formValues.account,
+        warehouse: formValues.warehouse,
+        database: formValues.database,
+        schema: formValues.schema,
+        user: formValues.user,
+        password: formValues.password,
+      };
+    }
+    if (formValues.type === 'bigquery') {
+      return {
+        project_id: formValues.project_id,
+        credentials_json: formValues.credentials_json,
+      };
+    }
     return {
       host: formValues.host,
-      port: parseInt(formValues.port, 10),
+      port: formValues.port ? parseInt(formValues.port, 10) : undefined,
       database: formValues.database,
       schema: formValues.schema,
       user: formValues.user,
@@ -173,6 +206,11 @@ export const SourceManager: React.FC = () => {
       schema: d.schema ?? '',
       user: d.user ?? '',
       password: d.password ?? '',
+      account: d.account ?? '',
+      warehouse: d.warehouse ?? '',
+      project_id: d.project_id ?? '',
+      dataset_id: d.dataset_id ?? '',
+      credentials_json: d.credentials_json ?? '',
     });
     setTestResult(null);
     setSaveError(null);
@@ -762,6 +800,19 @@ export const SourceManager: React.FC = () => {
                       <Typography variant="caption" sx={{ fontFamily: 'monospace', display: 'block', wordBreak: 'break-all' }}>
                         {language === 'tr' ? 'Dosya: ' : 'File: '}<span style={{ color: '#0078d4' }}>{detailDetails.database_path || '—'}</span>
                       </Typography>
+                    ) : detailSource.type === 'snowflake' ? (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, fontFamily: 'monospace', fontSize: 10.5, color: 'text.secondary' }}>
+                        <div>Account ID: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.account || '—'}</span></div>
+                        <div>Warehouse: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.warehouse || '—'}</span></div>
+                        <div>DB: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.database || '—'}</span></div>
+                        <div>Schema: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.schema || '—'}</span></div>
+                        <div>User: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.user || '—'}</span></div>
+                      </Box>
+                    ) : detailSource.type === 'bigquery' ? (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, fontFamily: 'monospace', fontSize: 10.5, color: 'text.secondary' }}>
+                        <div>Project ID: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.project_id || '—'}</span></div>
+                        <div>JSON Key: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.credentials_json ? '✓ Yüklendi (Loaded)' : '—'}</span></div>
+                      </Box>
                     ) : (
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, fontFamily: 'monospace', fontSize: 10.5, color: 'text.secondary' }}>
                         <div>Host: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.host || '—'}</span></div>
@@ -1546,6 +1597,143 @@ export const SourceManager: React.FC = () => {
                         sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
                       />
                     </Box>
+                  ) : formValues.type === 'snowflake' ? (
+                    <>
+                      <Grid container spacing={2}>
+                        <Grid size={12}>
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                            <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
+                              Snowflake {language === 'tr' ? 'Hesap ID' : 'Account ID'}
+                            </Typography>
+                            <TextField
+                              fullWidth
+                              value={formValues.account}
+                              onChange={e => setFormValues(p => ({ ...p, account: e.target.value }))}
+                              placeholder="e.g. xy12345.us-east-2"
+                              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+                            />
+                          </Box>
+                        </Grid>
+                      </Grid>
+
+                      <Grid container spacing={2}>
+                        <Grid size={6}>
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                            <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
+                              {language === 'tr' ? 'Veritabanı' : 'Database'}
+                            </Typography>
+                            <TextField
+                              fullWidth
+                              value={formValues.database}
+                              onChange={e => setFormValues(p => ({ ...p, database: e.target.value }))}
+                              placeholder="e.g. ANALYTICS_DB"
+                              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+                            />
+                          </Box>
+                        </Grid>
+                        <Grid size={6}>
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                            <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
+                              {language === 'tr' ? 'Şema' : 'Schema'}
+                            </Typography>
+                            <TextField
+                              fullWidth
+                              value={formValues.schema}
+                              onChange={e => setFormValues(p => ({ ...p, schema: e.target.value }))}
+                              placeholder="e.g. PUBLIC"
+                              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+                            />
+                          </Box>
+                        </Grid>
+                      </Grid>
+
+                      <Grid container spacing={2}>
+                        <Grid size={12}>
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                            <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
+                              Warehouse
+                            </Typography>
+                            <TextField
+                              fullWidth
+                              value={formValues.warehouse}
+                              onChange={e => setFormValues(p => ({ ...p, warehouse: e.target.value }))}
+                              placeholder="e.g. COMPUTE_WH"
+                              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+                            />
+                          </Box>
+                        </Grid>
+                      </Grid>
+
+                      <Grid container spacing={2}>
+                        <Grid size={6}>
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                            <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
+                              {language === 'tr' ? 'Kullanıcı' : 'Username'}
+                            </Typography>
+                            <TextField
+                              fullWidth
+                              value={formValues.user}
+                              onChange={e => setFormValues(p => ({ ...p, user: e.target.value }))}
+                              placeholder="e.g. user_name"
+                              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+                            />
+                          </Box>
+                        </Grid>
+                        <Grid size={6}>
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                            <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
+                              {language === 'tr' ? 'Şifre' : 'Password'}
+                            </Typography>
+                            <TextField
+                              fullWidth
+                              type="password"
+                              value={formValues.password}
+                              onChange={e => setFormValues(p => ({ ...p, password: e.target.value }))}
+                              placeholder={editingSourceId ? (language === 'tr' ? "•••••••• (Boşsa değişmez)" : "•••••••• (Keep blank to preserve)") : "••••••••"}
+                              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+                            />
+                          </Box>
+                        </Grid>
+                      </Grid>
+                    </>
+                  ) : formValues.type === 'bigquery' ? (
+                    <>
+                      <Grid container spacing={2}>
+                        <Grid size={12}>
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                            <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
+                              Google Cloud Project ID
+                            </Typography>
+                            <TextField
+                              fullWidth
+                              value={formValues.project_id}
+                              onChange={e => setFormValues(p => ({ ...p, project_id: e.target.value }))}
+                              placeholder="e.g. my-gcp-project"
+                              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+                            />
+                          </Box>
+                        </Grid>
+                      </Grid>
+
+                      <Grid container spacing={2}>
+                        <Grid size={12}>
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                            <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
+                              {language === 'tr' ? 'Servis Hesabı Anahtarı (JSON)' : 'Service Account Key (JSON)'}
+                            </Typography>
+                            <TextField
+                              fullWidth
+                              multiline
+                              rows={5}
+                              value={formValues.credentials_json}
+                              onChange={e => setFormValues(p => ({ ...p, credentials_json: e.target.value }))}
+                              placeholder='{ "type": "service_account", ... }'
+                              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px', fontFamily: 'monospace', fontSize: 11 } }}
+                            />
+                          </Box>
+                        </Grid>
+                      </Grid>
+                    </>
                   ) : (
                     <>
                       <Grid container spacing={2}>
