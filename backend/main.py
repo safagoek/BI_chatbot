@@ -125,9 +125,15 @@ def get_session(session_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/")
+def read_root():
+    return {"message": "DeepBI Analytics Studio API is running. Check /api/health for status."}
+
+
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon():
     return Response(status_code=204)
+
 
 
 @app.get("/api/health")
