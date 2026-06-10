@@ -162,6 +162,113 @@ export interface TranslationKeys {
   joinTypeRight: string;
   joinTypeOuter: string;
   schemaDesignerTitle: string;
+
+  // Multi-Source Selection & Relation Editor
+  relationEditorTitle: string;
+  relationEditorSubtitle: string;
+  sourcesToAnalyze: string;
+  selectAll: string;
+  clearSelection: string;
+  searchSourcesPlaceholder: string;
+  csvExcelFileLabel: string;
+  databaseLabelSuffix: string;
+  noSourceFoundMatching: string;
+  relationsLabel: string;
+  addRelationBtn: string;
+  relationIndexLabel: string;
+  removeRelationTooltip: string;
+  leftSourceLabel: string;
+  rightSourceLabel: string;
+  columnSelectDefault: string;
+  columnDefault: string;
+  relationTypeLabel: string;
+  noRelationDefined: string;
+  noRelationDesc: string;
+  columnSelectedBadge: string;
+  visualSchemaEmptyTitle: string;
+  visualSchemaEmptyDesc: string;
+  clickToLinkPrompt: string;
+  totalRelationsBadge: string;
+  startChatBtn: string;
+
+  // Source Manager specific extra translations
+  refreshListTooltip: string;
+  availableTablesLabel: string;
+  noTablesFoundLabel: string;
+  emptySelectionLabel: string;
+  viewDetailsTooltip: string;
+  semanticLayerTooltip: string;
+  cloneConnectionTooltip: string;
+  toggleStatusActiveTooltip: string;
+  toggleStatusPassiveTooltip: string;
+  editConnectionTooltip: string;
+  takeSnapshotTooltip: string;
+  refreshSchemaTooltip: string;
+  deleteDatabaseTooltip: string;
+  selectSourceBtn: string;
+  dbColumnSuffix: string;
+  dbTypeLabel: string;
+  displayConnectionNameLabel: string;
+  displayConnectionNamePlaceholder: string;
+  googleCloudProjectIdLabel: string;
+  serviceAccountKeyJsonLabel: string;
+  testConnectionBtn: string;
+  updateConnectionBtn: string;
+  saveConnectionBtnLong: string;
+  activeSourceBadge: string;
+  passiveSourceBadge: string;
+
+  // Snapshot Table Selection & Progress modal
+  tableReplicationTitle: string;
+  tableReplicationSubtitle: string;
+  searchTablesPlaceholder: string;
+  clearAllBtn: string;
+  selectAtLeastOneTableAlert: string;
+  startReplicationBtn: string;
+  snapshotPanelTitle: string;
+  localOfflineStoreLabel: string;
+  howSnapshotWorksTitle: string;
+  howSnapshotWorksDesc: string;
+  discoveredTablesReplicationStatus: string;
+  tableSuffix: string;
+  tablesSuffix: string;
+  scanningAnalyzingTables: string;
+  pendingStatus: string;
+  copyingRowsStatus: string;
+  successRowsIdxStatus: string;
+  failedStatus: string;
+  overallReplicationProgress: string;
+  liveOperationLogsConsole: string;
+  typeLabel: string;
+  statusLabel: string;
+  lastUpdateLabel: string;
+  fileLabel: string;
+  notFoundLabel: string;
+  tablesLabel: string;
+  schemaLabel: string;
+  cancelBtn: string;
+  serverConnectionFailed: string;
+  saveConnectionFailed: string;
+  deleteConfirm: string;
+  reSnapshotConfirm: string;
+  snapshotStartLog: string;
+  connectionErrorOccurred: string;
+  updateStatusFailed: string;
+  cloningFailed: string;
+  saveTagsFailed: string;
+  loadSemanticFailed: string;
+  loadSemanticError: string;
+  saveSemanticFailed: string;
+  saveSemanticError: string;
+  loadedStatus: string;
+  saveBtn: string;
+  scanSchemaPrompt: string;
+  initRemoteConnection: string;
+  serverConnLostLog: string;
+  completedStatus: string;
+  snowflakeAccountIdLabel: string;
+  passwordPlaceholderEdit: string;
+  passwordPlaceholderNew: string;
 }
 
 export const translations: Record<'tr' | 'en', TranslationKeys> = {
@@ -324,7 +431,114 @@ export const translations: Record<'tr' | 'en', TranslationKeys> = {
     joinTypeLeft: "LEFT JOIN (Sol Kesişim)",
     joinTypeRight: "RIGHT JOIN (Sağ Kesişim)",
     joinTypeOuter: "FULL OUTER JOIN (Tam Kesişim)",
-    schemaDesignerTitle: "Etkileşimli İlişkisel Şema Tasarımcısı"
+    schemaDesignerTitle: "Etkileşimli İlişkisel Şema Tasarımcısı",
+
+    // Multi-Source Selection & Relation Editor
+    relationEditorTitle: "Çoklu Kaynak Seçimi ve İlişki Editörü",
+    relationEditorSubtitle: "Analiz edilecek veri kaynaklarını seçin ve aralarındaki tabloları ilişkilendirin.",
+    sourcesToAnalyze: "1. Analiz Edilecek Kaynaklar",
+    selectAll: "Tümünü Seç",
+    clearSelection: "Seçimleri Temizle",
+    searchSourcesPlaceholder: "Veri kaynaklarında ara...",
+    csvExcelFileLabel: "CSV / Excel Dosyası",
+    databaseLabelSuffix: "Veritabanı",
+    noSourceFoundMatching: "Arama kriterine uygun veri kaynağı bulunamadı.",
+    relationsLabel: "2. Kaynaklar Arası İlişkiler (JOIN)",
+    addRelationBtn: "İlişki Ekle",
+    relationIndexLabel: "İlişki #{number}",
+    removeRelationTooltip: "İlişkiyi Kaldır",
+    leftSourceLabel: "Sol Kaynak / Tablo ve Kolon",
+    rightSourceLabel: "Sağ Kaynak / Tablo ve Kolon",
+    columnSelectDefault: "-- Kolon Seçin --",
+    columnDefault: "-- Kolon --",
+    relationTypeLabel: "Bağlantı Türü",
+    noRelationDefined: "Tanımlı ilişki bulunmuyor.",
+    noRelationDesc: "Birden fazla kaynağı birleştirmek için yukarıdaki butondan ilişki ekleyebilirsiniz.",
+    columnSelectedBadge: "Kolon Seçildi",
+    visualSchemaEmptyTitle: "Görsel Şema Haritası Boş",
+    visualSchemaEmptyDesc: "Yukarıdan veri kaynaklarını seçin ve interaktif olarak tabloları ilişkilendirmek için kolonlara tıklayın.",
+    clickToLinkPrompt: "Kolonları eşlemek için tıklayın",
+    totalRelationsBadge: "Toplam Bağlantı",
+    startChatBtn: "Sohbeti Başlat",
+
+    // Source Manager specific extra translations
+    refreshListTooltip: "Listeyi Yenile",
+    availableTablesLabel: "Kullanılabilir Tablolar:",
+    noTablesFoundLabel: "(Tablo bulunamadı)",
+    emptySelectionLabel: "(Seçim boş veya bulunamadı)",
+    viewDetailsTooltip: "Detayları ve Etiketleri Gör",
+    semanticLayerTooltip: "Semantik Katman Tanımları",
+    cloneConnectionTooltip: "Bağlantıyı Klonla",
+    toggleStatusActiveTooltip: "Pasif Yap",
+    toggleStatusPassiveTooltip: "Aktif Yap",
+    editConnectionTooltip: "Bağlantıyı Düzenle",
+    takeSnapshotTooltip: "Snapshot Al (Yerel Yedeğe Dönüştür)",
+    refreshSchemaTooltip: "Şemayı Yenile ve Keşfet",
+    deleteDatabaseTooltip: "Veri Tabanını Sil",
+    selectSourceBtn: "Seç",
+    dbColumnSuffix: "sütun",
+    dbTypeLabel: "Veritabanı Tipi",
+    displayConnectionNameLabel: "Bağlantı Görüntüleme İsmi",
+    displayConnectionNamePlaceholder: "Örn: PostgreSQL Canlı",
+    googleCloudProjectIdLabel: "Google Cloud Project ID",
+    serviceAccountKeyJsonLabel: "Servis Hesabı Anahtarı (JSON)",
+    testConnectionBtn: "Bağlantıyı Test Et",
+    updateConnectionBtn: "Değişiklikleri Güncelle",
+    saveConnectionBtnLong: "Bağlantıyı Kaydet & Şemayı Çıkar",
+    activeSourceBadge: "AKTİF",
+    passiveSourceBadge: "PASİF",
+
+    // Snapshot Table Selection & Progress modal
+    tableReplicationTitle: "Seçmeli Tablo Snapshot Kopyalaması",
+    tableReplicationSubtitle: "Lokal SQLite yedeğine aktarmak istediğiniz tabloları seçin. Yalnızca seçilen tablolar kopyalanacak, böylece kopyalama işlemi hızlanacak ve disk alanı tasarrufu sağlanacaktır.",
+    searchTablesPlaceholder: "Tablo ara...",
+    clearAllBtn: "Tümünü Temizle",
+    selectAtLeastOneTableAlert: "Lütfen en az bir tablo seçin.",
+    startReplicationBtn: "Snapshot Kopyalamasını Başlat",
+    snapshotPanelTitle: "Veri Tabanı Snapshot Kopyalama Paneli",
+    localOfflineStoreLabel: "Yerel Çevrimdışı Depo",
+    howSnapshotWorksTitle: "💡 Snapshot Teknolojisi Nasıl Çalışır?",
+    howSnapshotWorksDesc: "Bu panel, canlı veritabanınızdaki şemayı tarayarak tüm tabloları ve verileri tablo tablo keşfeder. Veriler, sunucu RAM tüketimini sıfıra yakın tutmak amacıyla 5000'er satırlık paketler halinde çekilip yerel diskteki yüksek performanslı SQLite veritabanına aktarılır. Aynı zamanda, yapay zekanın analitik DuckDB birleştirmelerini ve sorgularını milisaniyeler seviyesinde koşturabilmesi için tüm birincil/yabancı anahtarlara (ID, Key, Tarih vb.) otomatik olarak akıllı indeksler tanımlanır.",
+    discoveredTablesReplicationStatus: "Keşfedilen Tablolar ve Kopyalama Durumu",
+    tableSuffix: "Tablo",
+    tablesSuffix: "Tablo",
+    scanningAnalyzingTables: "Tablolar taranıyor ve analiz ediliyor...",
+    pendingStatus: "Bekliyor",
+    copyingRowsStatus: "Aktarılıyor ({rows} satır)",
+    successRowsIdxStatus: "Tamamlandı ({rows} satır, {indexes} indeks)",
+    failedStatus: "Hata",
+    overallReplicationProgress: "Toplam Kopyalama İlerlemesi",
+    liveOperationLogsConsole: "Anlık İşlem Kaydı (Terminal)",
+    typeLabel: "Tip: ",
+    statusLabel: "Durum: ",
+    lastUpdateLabel: "Son Güncelleme: ",
+    fileLabel: "Dosya: ",
+    notFoundLabel: "Bulunamadı",
+    tablesLabel: "Tablolar: ",
+    schemaLabel: "Şema: ",
+    cancelBtn: "İptal",
+    serverConnectionFailed: "Sunucu ile bağlantı kurulamadı.",
+    saveConnectionFailed: "Bağlantı kaydedilemedi.",
+    deleteConfirm: "Bu veri kaynağını silmek istediğinizden emin misiniz?",
+    reSnapshotConfirm: "Bu veri kaynağı zaten bir snapshot! Yeniden snapshot almak mevcut yerel tabloların üzerine yazacaktır. Devam etmek istiyor musunuz?",
+    snapshotStartLog: "[BAŞLANGIÇ] Veritabanı snapshot kopyalama işlemi başlatıldı.",
+    connectionErrorOccurred: "Bağlantı hatası oluştu.",
+    updateStatusFailed: "Durum güncellenemedi.",
+    cloningFailed: "Klonlama başarısız.",
+    saveTagsFailed: "Etiketler kaydedilemedi.",
+    loadSemanticFailed: "Semantik tanımlar yüklenemedi.",
+    loadSemanticError: "Semantik tanımlar yüklenirken hata oluştu.",
+    saveSemanticFailed: "Semantik tanımlar kaydedilemedi.",
+    saveSemanticError: "Semantik tanımlar kaydedilirken hata oluştu.",
+    loadedStatus: "✓ Yüklendi",
+    saveBtn: "Kaydet",
+    scanSchemaPrompt: "Bu kaynağın şeması henüz taranmamış. Tüm tablolar için tam snapshot başlatılsın mı?",
+    initRemoteConnection: "Uzak sunucu bağlantısı başlatılıyor...",
+    serverConnLostLog: "[HATA] Sunucu ile bağlantı koptu veya işlem yarıda kaldı.",
+    completedStatus: "Tamamlandı",
+    snowflakeAccountIdLabel: "Snowflake Hesap ID",
+    passwordPlaceholderEdit: "•••••••• (Boşsa değişmez)",
+    passwordPlaceholderNew: "••••••••"
   },
   en: {
     notebooks: "Analysis Notebooks",
@@ -485,6 +699,113 @@ export const translations: Record<'tr' | 'en', TranslationKeys> = {
     joinTypeLeft: "LEFT JOIN (Left Intersection)",
     joinTypeRight: "RIGHT JOIN (Right Intersection)",
     joinTypeOuter: "FULL OUTER JOIN (Full Intersection)",
-    schemaDesignerTitle: "Interactive Relational Schema Designer"
+    schemaDesignerTitle: "Interactive Relational Schema Designer",
+
+    // Multi-Source Selection & Relation Editor
+    relationEditorTitle: "Multi-Source Selection & Relationship Editor",
+    relationEditorSubtitle: "Select data sources to analyze and define relationships between their tables.",
+    sourcesToAnalyze: "1. Data Sources to Analyze",
+    selectAll: "Select All",
+    clearSelection: "Clear Selection",
+    searchSourcesPlaceholder: "Search data sources...",
+    csvExcelFileLabel: "CSV / Excel File",
+    databaseLabelSuffix: "Database",
+    noSourceFoundMatching: "No data sources found matching the search.",
+    relationsLabel: "2. Cross-Source Relationships (JOIN)",
+    addRelationBtn: "Add Relationship",
+    relationIndexLabel: "Relationship #{number}",
+    removeRelationTooltip: "Remove Relationship",
+    leftSourceLabel: "Left Source / Table and Column",
+    rightSourceLabel: "Right Source / Table and Column",
+    columnSelectDefault: "-- Select Column --",
+    columnDefault: "-- Column --",
+    relationTypeLabel: "Relationship Type",
+    noRelationDefined: "No relationships defined.",
+    noRelationDesc: "To combine multiple sources, add relationships using the button above.",
+    columnSelectedBadge: "Column Selected",
+    visualSchemaEmptyTitle: "Visual Schema Map is Empty",
+    visualSchemaEmptyDesc: "Select data sources from above and click on columns to link tables interactively.",
+    clickToLinkPrompt: "Click on columns to link",
+    totalRelationsBadge: "Total Relations",
+    startChatBtn: "Start Chat",
+
+    // Source Manager specific extra translations
+    refreshListTooltip: "Refresh List",
+    availableTablesLabel: "Available Tables:",
+    noTablesFoundLabel: "(No tables found)",
+    emptySelectionLabel: "(Selection is empty or not found)",
+    viewDetailsTooltip: "View Details & Tags",
+    semanticLayerTooltip: "Semantic Layer Mappings",
+    cloneConnectionTooltip: "Clone Connection",
+    toggleStatusActiveTooltip: "Make Passive",
+    toggleStatusPassiveTooltip: "Make Active",
+    editConnectionTooltip: "Edit Connection",
+    takeSnapshotTooltip: "Take Snapshot (Convert to Local Backup)",
+    refreshSchemaTooltip: "Refresh & Auto-Scan Schema",
+    deleteDatabaseTooltip: "Delete Database",
+    selectSourceBtn: "Select",
+    dbColumnSuffix: "columns",
+    dbTypeLabel: "Database Type",
+    displayConnectionNameLabel: "Display Connection Name",
+    displayConnectionNamePlaceholder: "E.g. Live PostgreSQL",
+    googleCloudProjectIdLabel: "Google Cloud Project ID",
+    serviceAccountKeyJsonLabel: "Service Account Key (JSON)",
+    testConnectionBtn: "Test Connection",
+    updateConnectionBtn: "Update Connection Details",
+    saveConnectionBtnLong: "Save Connection & Extract Schema",
+    activeSourceBadge: "ACTIVE",
+    passiveSourceBadge: "PASSIVE",
+
+    // Snapshot Table Selection & Progress modal
+    tableReplicationTitle: "Selective Table Snapshot Replication",
+    tableReplicationSubtitle: "Select the tables you want to replicate into the local SQLite backup. Only selected tables will be copied, which speeds up copying and saves disk space.",
+    searchTablesPlaceholder: "Search tables...",
+    clearAllBtn: "Clear All",
+    selectAtLeastOneTableAlert: "Please select at least one table.",
+    startReplicationBtn: "Start Snapshot Replication",
+    snapshotPanelTitle: "Database Snapshot Replication Panel",
+    localOfflineStoreLabel: "Local Offline Store",
+    howSnapshotWorksTitle: "💡 How does Snapshot Technology Work?",
+    howSnapshotWorksDesc: "This panel scans the schema in your live database and discovers all tables and data table-by-table. To keep server RAM usage near zero, rows are fetched in chunks of 5000 and streamed into a high-performance local SQLite database. Simultaneously, smart database indexes are automatically created on primary/foreign keys and date columns (IDs, Keys, Dates) to accelerate downstream multi-source DuckDB joins and AI analytical queries.",
+    discoveredTablesReplicationStatus: "Discovered Tables & Replication Status",
+    tableSuffix: "Table",
+    tablesSuffix: "Tables",
+    scanningAnalyzingTables: "Scanning and analyzing tables...",
+    pendingStatus: "Pending",
+    copyingRowsStatus: "Copying ({rows} rows)",
+    successRowsIdxStatus: "Success ({rows} rows, {indexes} idx)",
+    failedStatus: "Failed",
+    overallReplicationProgress: "Overall Replication Progress",
+    liveOperationLogsConsole: "Live Operation Logs (Console)",
+    typeLabel: "Type: ",
+    statusLabel: "Status: ",
+    lastUpdateLabel: "Last Update: ",
+    fileLabel: "File: ",
+    notFoundLabel: "Not Found",
+    tablesLabel: "Tables: ",
+    schemaLabel: "Schema: ",
+    cancelBtn: "Cancel",
+    serverConnectionFailed: "Failed to connect to server.",
+    saveConnectionFailed: "Could not save connection.",
+    deleteConfirm: "Are you sure you want to delete this data source?",
+    reSnapshotConfirm: "This source is already a snapshot! Re-taking snapshot will overwrite existing local tables. Do you want to continue?",
+    snapshotStartLog: "[START] Database snapshot replication initiated.",
+    connectionErrorOccurred: "Connection error occurred.",
+    updateStatusFailed: "Could not update status.",
+    cloningFailed: "Cloning failed.",
+    saveTagsFailed: "Could not save tags.",
+    loadSemanticFailed: "Could not load semantic definitions.",
+    loadSemanticError: "Error loading semantic definitions.",
+    saveSemanticFailed: "Could not save semantic layer definitions.",
+    saveSemanticError: "Error saving semantic layer definitions.",
+    loadedStatus: "✓ Loaded",
+    saveBtn: "Save",
+    scanSchemaPrompt: "The schema has not been scanned yet. Initiate a full snapshot for all tables?",
+    initRemoteConnection: "Initializing remote server connection...",
+    serverConnLostLog: "[ERROR] Connection to server was lost or operation interrupted.",
+    completedStatus: "Completed",
+    snowflakeAccountIdLabel: "Snowflake Account ID",
+    passwordPlaceholderEdit: "•••••••• (Keep blank to preserve)",
+    passwordPlaceholderNew: "••••••••"
   }
 };

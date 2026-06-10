@@ -5,7 +5,10 @@ import Sidebar from './components/Sidebar';
 import ChatConsole from './components/ChatConsole';
 import ResultVisualizer from './components/ResultVisualizer';
 import SourceManager from './components/SourceManager';
-import { Settings, Key, HardDrive, X, Eye, EyeOff } from 'lucide-react';
+import Dashboard from './components/Dashboard';
+import RAGMemoryPanel from './components/RAGMemoryPanel';
+import CommandHelpModal from './components/CommandHelpModal';
+import { Settings, Key, HardDrive, X, Eye, EyeOff, LayoutDashboard, Brain, MessageSquare } from 'lucide-react';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import {
   Dialog, DialogTitle, DialogContent, Alert, TextField, Button, Box,
@@ -20,9 +23,13 @@ export const App: React.FC = () => {
   const splitContainerRef = useRef<HTMLDivElement>(null);
   const isDraggingRef = useRef(false);
 
+  // Active main view tab
+  const [activeTab, setActiveTab] = useState<'chat' | 'dashboard' | 'rag'>('chat');
+
   // Dedicated overlay dialogs
   const [showSettings, setShowSettings] = useState(false);
   const [showSources, setShowSources] = useState(false);
+  const [showCommandHelp, setShowCommandHelp] = useState(false);
 
   // Settings form states
   const [apiKey, setApiKey] = useState(apiConfig.apiKey);
@@ -231,7 +238,7 @@ export const App: React.FC = () => {
         warning: { main: isDark ? '#ffb900' : '#986f0b' },
       },
       typography: {
-        fontFamily: "'Segoe UI Variable', 'Segoe UI', 'Inter', system-ui, sans-serif",
+        fontFamily: "'Plus Jakarta Sans', 'Outfit', 'Inter', system-ui, -apple-system, sans-serif",
         fontSize: 13,
         button: {
           textTransform: 'none',    // Fluent: Sentence case
@@ -322,29 +329,87 @@ export const App: React.FC = () => {
         />
 
         {/* 2. Main Content Viewport */}
-        <main className="flex-1 h-full flex overflow-hidden">
-          <div ref={splitContainerRef} className="w-full h-full flex overflow-hidden">
-            <div
-              className="h-full flex flex-col min-w-[320px] transition-all duration-200 ease-in-out"
-              style={{ flexBasis: visualizerDismissed ? '100%' : `${splitRatio * 100}%` }}
+        <main className="flex-1 h-full flex flex-col overflow-hidden">
+          {/* Tab Bar */}
+          <div
+            className="flex items-center shrink-0 px-4 gap-1"
+            style={{ height: 44, borderBottom: '1px solid var(--color-border)', background: 'var(--color-canvas)' }}
+          >
+            {([
+              { id: 'chat', label: language === 'tr' ? 'Sohbet' : 'Chat', icon: <MessageSquare size={13} /> },
+              { id: 'dashboard', label: language === 'tr' ? 'Dashboard' : 'Dashboard', icon: <LayoutDashboard size={13} /> },
+              { id: 'rag', label: language === 'tr' ? 'RAG Belleği' : 'RAG Memory', icon: <Brain size={13} /> },
+            ] as const).map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className="flex items-center gap-1.5 cursor-pointer transition-all duration-150"
+                style={{
+                  height: 44,
+                  padding: '0 14px',
+                  fontSize: 11.5,
+                  fontFamily: 'var(--font-sans)',
+                  fontWeight: activeTab === tab.id ? 700 : 500,
+                  color: activeTab === tab.id ? 'var(--color-text)' : 'var(--color-muted)',
+                  background: 'none',
+                  border: 'none',
+                  borderBottom: activeTab === tab.id ? '2px solid #6366f1' : '2px solid transparent',
+                  cursor: 'pointer',
+                }}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            ))}
+            <div className="flex-1" />
+            <button
+              onClick={() => setShowCommandHelp(true)}
+              className="flex items-center gap-1.5 cursor-pointer transition-all duration-150 hover:text-indigo-400"
+              style={{
+                height: 28, padding: '0 10px', fontSize: 10.5,
+                fontFamily: 'var(--font-mono)', fontWeight: 600,
+                background: 'rgba(99,102,241,0.08)',
+                border: '1px solid rgba(99,102,241,0.2)',
+                borderRadius: 6, color: '#818cf8', cursor: 'pointer',
+              }}
+              title={language === 'tr' ? 'Komut listesini göster' : 'Show command list'}
             >
-              <ChatConsole />
-            </div>
-            {!visualizerDismissed && (
-              <>
+              ⌨️ {language === 'tr' ? 'Komutlar' : 'Commands'}
+            </button>
+          </div>
+
+          {/* Tab Content */}
+          <div className="flex-1 flex overflow-hidden">
+            {activeTab === 'chat' && (
+              <div ref={splitContainerRef} className="w-full h-full flex overflow-hidden">
                 <div
-                  className="splitter"
-                  role="separator"
-                  aria-orientation="vertical"
-                  onPointerDown={handleSplitterDown}
-                />
-                <div className="flex-grow h-full flex flex-col min-w-[360px]">
-                  <ResultVisualizer />
+                  className="h-full flex flex-col min-w-[320px] transition-all duration-200 ease-in-out"
+                  style={{ flexBasis: visualizerDismissed ? '100%' : `${splitRatio * 100}%` }}
+                >
+                  <ChatConsole />
                 </div>
-              </>
+                {!visualizerDismissed && (
+                  <>
+                    <div
+                      className="splitter"
+                      role="separator"
+                      aria-orientation="vertical"
+                      onPointerDown={handleSplitterDown}
+                    />
+                    <div className="flex-grow h-full flex flex-col min-w-[360px]">
+                      <ResultVisualizer />
+                    </div>
+                  </>
+                )}
+              </div>
             )}
+            {activeTab === 'dashboard' && <Dashboard />}
+            {activeTab === 'rag' && <RAGMemoryPanel />}
           </div>
         </main>
+
+        {/* Command Help Modal */}
+        <CommandHelpModal open={showCommandHelp} onClose={() => setShowCommandHelp(false)} language={language} />
 
         {/* ── 3. Dedicated LLM Settings Modal (Google Material UI Redesigned) ── */}
         <Dialog

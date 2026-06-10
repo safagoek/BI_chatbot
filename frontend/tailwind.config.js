@@ -37,7 +37,7 @@ export default {
       },
       fontFamily: {
         // Fluent-approved type stack
-        sans: ['"Segoe UI Variable"', '"Segoe UI"', '"Inter"', 'system-ui', 'sans-serif'],
+        sans: ['"Plus Jakarta Sans"', '"Outfit"', '"Inter"', 'system-ui', '-apple-system', 'sans-serif'],
         mono: ['"Cascadia Code"', '"IBM Plex Mono"', 'ui-monospace', 'monospace'],
       },
       fontSize: {

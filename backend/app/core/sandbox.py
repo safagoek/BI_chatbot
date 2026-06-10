@@ -196,6 +196,28 @@ def run_isolated():
     
     output = {{"data": None, "visualization": None}}
     
+    # Auto-convert dict/list-of-dict results to tabular format for UI
+    if result_val is not None and not isinstance(result_val, (pd.DataFrame, pd.Series)):
+        try:
+            if isinstance(result_val, list) and len(result_val) > 0 and isinstance(result_val[0], dict):
+                result_val = pd.DataFrame(result_val)
+            elif isinstance(result_val, dict):
+                records_key = None
+                for k, v in result_val.items():
+                    if isinstance(v, list) and len(v) > 0 and isinstance(v[0], dict):
+                        records_key = k
+                        break
+                if records_key is not None:
+                    df_extracted = pd.DataFrame(result_val[records_key])
+                    meta_metrics = {{k: v for k, v in result_val.items() if k != records_key}}
+                    result_val = df_extracted
+                    output["metrics"] = meta_metrics
+                else:
+                    if all(isinstance(v, (int, float, str, bool)) or v is None for v in result_val.values()):
+                        result_val = pd.DataFrame(list(result_val.items()), columns=['Özellik / Metrik', 'Değer'])
+        except Exception:
+            pass
+
     if result_val is not None:
         if isinstance(result_val, pd.DataFrame):
             df_slice = result_val.head(5000)

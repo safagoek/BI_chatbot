@@ -1,7 +1,10 @@
 import os
 import sqlite3
 import json
+import logging
 from typing import List, Dict, Any, Optional
+
+logger = logging.getLogger(__name__)
 
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "metadata.db")
 
@@ -222,6 +225,34 @@ def delete_uploaded_file(file_id: str) -> bool:
             pass
     return True
 
+def _encrypt_source_details(details: Dict[str, Any]) -> Dict[str, Any]:
+    """Şifre alanlarını şifreler, şifrelenmiş kopyayı döndürür."""
+    try:
+        from app.core.crypto import encrypt_password
+        enc = dict(details)
+        for key in ("password", "passwd", "pwd", "secret", "private_key"):
+            if enc.get(key):
+                enc[key] = encrypt_password(enc[key])
+        return enc
+    except Exception as _e:
+        logger.warning(f"Şifre şifrelenemedi, düz metin saklanıyor: {_e}")
+        return details
+
+
+def _decrypt_source_details(details: Dict[str, Any]) -> Dict[str, Any]:
+    """Şifrelenmiş alanları çözer, geriye dönük uyumlu."""
+    try:
+        from app.core.crypto import decrypt_password
+        dec = dict(details)
+        for key in ("password", "passwd", "pwd", "secret", "private_key"):
+            if dec.get(key):
+                dec[key] = decrypt_password(dec[key])
+        return dec
+    except Exception as _e:
+        logger.warning(f"Şifre çözülemedi: {_e}")
+        return details
+
+
 # Operations for Data Sources
 def add_data_source(
     source_id: str,
@@ -234,7 +265,8 @@ def add_data_source(
 ) -> Dict[str, Any]:
     conn = get_db_connection()
     cursor = conn.cursor()
-    details_str = json.dumps(connection_details)
+    encrypted_details = _encrypt_source_details(connection_details)
+    details_str = json.dumps(encrypted_details)
     schema_str = json.dumps(schema)
     labels_str = json.dumps(labels or [])
     try:
@@ -247,7 +279,7 @@ def add_data_source(
             "id": source_id,
             "type": stype,
             "display_name": display_name,
-            "connection_details": connection_details,
+            "connection_details": connection_details,  # Çözülmüş (plain) olarak döndür
             "schema": schema,
             "labels": labels or [],
             "is_active": is_active
@@ -264,11 +296,12 @@ def get_data_sources() -> List[Dict[str, Any]]:
     
     sources = []
     for r in rows:
+        raw_details = json.loads(r["connection_details"]) if r["connection_details"] else {}
         sources.append({
             "id": r["id"],
             "type": r["type"],
             "display_name": r["display_name"],
-            "connection_details": json.loads(r["connection_details"]) if r["connection_details"] else {},
+            "connection_details": _decrypt_source_details(raw_details),
             "schema": json.loads(r["schema_cache"]) if r["schema_cache"] else {},
             "last_schema_update": r["last_schema_update"],
             "labels": json.loads(r["labels_json"]) if r["labels_json"] else [],
@@ -284,11 +317,12 @@ def get_data_source_by_id(source_id: str) -> Optional[Dict[str, Any]]:
     conn.close()
     if not r:
         return None
+    raw_details = json.loads(r["connection_details"]) if r["connection_details"] else {}
     return {
         "id": r["id"],
         "type": r["type"],
         "display_name": r["display_name"],
-        "connection_details": json.loads(r["connection_details"]) if r["connection_details"] else {},
+        "connection_details": _decrypt_source_details(raw_details),
         "schema": json.loads(r["schema_cache"]) if r["schema_cache"] else {},
         "last_schema_update": r["last_schema_update"],
         "labels": json.loads(r["labels_json"]) if r["labels_json"] else [],
@@ -319,7 +353,8 @@ def update_data_source(
 ) -> bool:
     conn = get_db_connection()
     cursor = conn.cursor()
-    details_str = json.dumps(connection_details)
+    encrypted_details = _encrypt_source_details(connection_details)
+    details_str = json.dumps(encrypted_details)
     schema_str = json.dumps(schema)
     labels_str = json.dumps(labels or [])
     try:

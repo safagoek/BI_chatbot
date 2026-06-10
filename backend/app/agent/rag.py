@@ -5,13 +5,14 @@ Self-RAG Katmanı:
 1. Retrieve  — TF-IDF + Cosine Similarity ile semantik sorgu arama
 2. Validate  — Üretilen kodun şema sütunlarıyla uyumunu kontrol et
 3. Execute   — Sandbox'ta çalıştır
-4. Correct   — Hata varsa LLM'e gönderip düzelt (max 3 deneme)
+4. Correct   — Hata varsa LLM'e gönderip düzelт (max 3 deneme)
 """
 import os
 import re
 import json
 import math
 import logging
+import threading
 from typing import List, Dict, Any, Optional, Tuple, Callable
 
 logger = logging.getLogger(__name__)
@@ -20,9 +21,25 @@ logger = logging.getLogger(__name__)
 # 1. TF-IDF Vektör Hesaplama (scikit-learn olmadan saf Python implementasyonu)
 # --------------------------------------------------------------------------- #
 
+def turkish_lower(text: str) -> str:
+    """Turkish-aware lowercasing to properly map I->ı and İ->i."""
+    mapping = {
+        'I': 'ı',
+        'İ': 'i',
+        'Ş': 'ş',
+        'Ç': 'ç',
+        'Ğ': 'ğ',
+        'Ü': 'ü',
+        'Ö': 'ö'
+    }
+    for upper, lower in mapping.items():
+        text = text.replace(upper, lower)
+    return text.lower()
+
+
 def _tokenize(text: str) -> List[str]:
     """Tokenize Turkish text: lowercase + split on non-alphanum."""
-    text = text.lower()
+    text = turkish_lower(text)
     tokens = re.findall(r'\b\w+\b', text)
     return tokens
 
@@ -110,73 +127,76 @@ _SEED_EXAMPLES = [
 
 
 _memory_cache = None
+_memory_lock = threading.RLock()  # Thread-safe bellek erişimi için re-entrant lock
 
 
 def _load_memory() -> List[Dict[str, Any]]:
     global _memory_cache
-    if _memory_cache is not None:
-        return _memory_cache
+    with _memory_lock:
+        if _memory_cache is not None:
+            return list(_memory_cache)  # Güvenli kopya döndür
         
-    try:
-        from app.database.manager import get_db_connection
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM rag_memory")
-        rows = cursor.fetchall()
-        
-        # Auto-migration from legacy JSON if it exists and DB is empty
-        if not rows:
-            legacy_data = None
-            if os.path.exists(MEMORY_FILE_PATH):
-                try:
-                    with open(MEMORY_FILE_PATH, 'r', encoding='utf-8') as f:
-                        legacy_data = json.load(f)
-                    logger.info("Migrating legacy RAG memory JSON file to SQLite database.")
-                except Exception as ex:
-                    logger.warning(f"Could not load legacy RAG memory JSON: {ex}")
+        try:
+            from app.database.manager import get_db_connection
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM rag_memory")
+            rows = cursor.fetchall()
             
-            # Use legacy data if found, otherwise fall back to seed examples
-            initial_data = legacy_data if legacy_data else _SEED_EXAMPLES
-            
-            # Save legacy data or seed examples to SQLite
+            # Auto-migration from legacy JSON if it exists and DB is empty
+            if not rows:
+                legacy_data = None
+                if os.path.exists(MEMORY_FILE_PATH):
+                    try:
+                        with open(MEMORY_FILE_PATH, 'r', encoding='utf-8') as f:
+                            legacy_data = json.load(f)
+                        logger.info("Migrating legacy RAG memory JSON file to SQLite database.")
+                    except Exception as ex:
+                        logger.warning(f"Could not load legacy RAG memory JSON: {ex}")
+                
+                # Use legacy data if found, otherwise fall back to seed examples
+                initial_data = legacy_data if legacy_data else _SEED_EXAMPLES
+                
+                # Save legacy data or seed examples to SQLite
+                conn.close()
+                _save_memory(initial_data)
+                _memory_cache = list(initial_data)
+                
+                # Try to safely delete the legacy JSON file after successful migration
+                if legacy_data and os.path.exists(MEMORY_FILE_PATH):
+                    try:
+                        os.remove(MEMORY_FILE_PATH)
+                        logger.info("Legacy RAG memory JSON file successfully migrated and deleted.")
+                    except Exception:
+                        pass
+                        
+                return list(_memory_cache)
+    
+            memory = []
+            for r in rows:
+                memory.append({
+                    "question": r["question"],
+                    "intent": r["intent"],
+                    "code": r["code"],
+                    "source_id": r["source_id"],
+                    "feedback": r["feedback"],
+                    "execution_success": bool(r["execution_success"]),
+                    "schema_snapshot": json.loads(r["schema_snapshot"]) if r["schema_snapshot"] else {},
+                    "embedding": json.loads(r["embedding_json"]) if r["embedding_json"] else None
+                })
             conn.close()
-            _save_memory(initial_data)
-            _memory_cache = list(initial_data)
-            
-            # Try to safely delete the legacy JSON file after successful migration
-            if legacy_data and os.path.exists(MEMORY_FILE_PATH):
-                try:
-                    os.remove(MEMORY_FILE_PATH)
-                    logger.info("Legacy RAG memory JSON file successfully migrated and deleted.")
-                except Exception:
-                    pass
-                    
-            return _memory_cache
-
-        memory = []
-        for r in rows:
-            memory.append({
-                "question": r["question"],
-                "intent": r["intent"],
-                "code": r["code"],
-                "source_id": r["source_id"],
-                "feedback": r["feedback"],
-                "execution_success": bool(r["execution_success"]),
-                "schema_snapshot": json.loads(r["schema_snapshot"]) if r["schema_snapshot"] else {},
-                "embedding": json.loads(r["embedding_json"]) if r["embedding_json"] else None
-            })
-        conn.close()
-        _memory_cache = memory
-        return _memory_cache
-    except Exception as e:
-        logger.error(f"Failed to load RAG memory from SQLite: {e}")
-        _memory_cache = list(_SEED_EXAMPLES)
-        return _memory_cache
+            _memory_cache = memory
+            return list(_memory_cache)
+        except Exception as e:
+            logger.error(f"Failed to load RAG memory from SQLite: {e}")
+            _memory_cache = list(_SEED_EXAMPLES)
+            return list(_memory_cache)
 
 
 def _save_memory(data: List[Dict[str, Any]]):
     global _memory_cache
-    _memory_cache = list(data)
+    with _memory_lock:
+        _memory_cache = list(data)
     try:
         from app.database.manager import get_db_connection
         conn = get_db_connection()
@@ -271,12 +291,16 @@ def retrieve_similar(
     if not use_vector:
         query_tf = _compute_tf(_tokenize(question))
     
-    # Keyword groups for analytical intents
-    INTENT_KEYWORDS = {
-        "trend": ["trend", "tarih", "zaman", "ay", "yıl", "gun", "gün", "seri", "line", "çizgi"],
-        "top": ["en çok", "en yüksek", "en büyük", "top", "limit", "en iyi", "en fazla", "en az", "en düşük", "en cok", "en yuksek", "en buyuk", "en dusuk"],
-        "distribution": ["dağılım", "kategori", "grup", "oran", "pasta", "pie", "yüzde", "dagilim", "yuzde"]
-    }
+    # Keyword groups for analytical intents — centralized from intent_keywords.py
+    try:
+        from app.core.intent_keywords import INTENT_KEYWORD_GROUPS
+        _INTENT_KEYWORDS = INTENT_KEYWORD_GROUPS
+    except ImportError:
+        _INTENT_KEYWORDS = {
+            "trend": ["trend", "tarih", "zaman", "ay", "yıl"],
+            "top": ["en çok", "top", "limit"],
+            "distribution": ["dağılım", "kategori", "pasta"],
+        }
     
     # Parse active schema columns
     active_cols = set()
@@ -345,7 +369,7 @@ def retrieve_similar(
                 
         # 2. Multi-Intent Keyword Boost
         item_q_low = item.get("question", "").lower()
-        for intent_grp, keywords in INTENT_KEYWORDS.items():
+        for intent_grp, keywords in _INTENT_KEYWORDS.items():
             q_match = any(kw in q_low for kw in keywords)
             item_match = any(kw in item_q_low for kw in keywords)
             if q_match and item_match:
@@ -353,7 +377,9 @@ def retrieve_similar(
                 break
             
         if score > 0.05:  # minimum threshold
-            scored.append((score, item))
+            item_copy = dict(item)
+            item_copy["score"] = score
+            scored.append((score, item_copy))
             
     if memory_changed:
         _save_memory(memory)
@@ -509,17 +535,28 @@ def perform_pre_execution_critique(code: str, schema: Dict[str, Any], intent: st
                 return False, f"[Şema Eleştirisi] SQL sorgusunda kullanılan '{', '.join(unknown_cols)}' sütunları şemada bulunamadı. Şemadaki geçerli sütunlar: {', '.join(all_known_cols)}"
                 
     else:  # Pandas/File Mode
-        all_known_cols = set(c.lower() for c in schema.keys())
-        # 1. Subscript-style: df['column'] or df["column"]
-        str_literals = re.findall(r"'([^']+)'|\"([^\"]+)\"", code)
-        referenced = set()
-        for g1, g2 in str_literals:
-            val = (g1 or g2).lower()
-            if len(val) > 2 and ' ' not in val and not val.startswith('http') and not val.endswith('.csv') and not val.endswith('.xlsx'):
-                referenced.add(val)
+        all_known_cols = set()
+        for t, cols in schema.items():
+            if isinstance(cols, list):
+                all_known_cols.update(c.lower() for c in cols)
+            elif isinstance(cols, dict):
+                all_known_cols.update(c.lower() for c in cols.keys())
+            else:
+                all_known_cols.add(str(t).lower())
 
-        # 2. Attribute-style: df.column_name  (e.g., df.Churn, df.TotalCharges)
-        # Pattern: word_char+ '.' identifier — exclude known pandas methods & common prefixes
+        referenced = set()
+        df_names = {"df", "data"}
+        for t in schema.keys():
+            df_names.add(t.lower())
+
+        df_pattern = "|".join(re.escape(name) for name in df_names)
+
+        # 1. Subscript-style: df['column'] or satislar['tarih'] on valid df_names
+        subscript_refs = re.findall(rf"\b({df_pattern})\[\s*['\"]([A-Za-z0-9_]+)['\"]\s*\]", code, re.IGNORECASE)
+        for _, ref in subscript_refs:
+            referenced.add(ref.lower())
+
+        # 2. Attribute-style: df.column_name on valid df_names
         _PANDAS_METHODS = {
             "head", "tail", "info", "describe", "shape", "columns", "index", "dtypes",
             "values", "copy", "reset_index", "set_index", "sort_values", "drop",
@@ -531,24 +568,30 @@ def perform_pre_execution_critique(code: str, schema: Dict[str, Any], intent: st
             "str", "dt", "cat", "sparse", "loc", "iloc", "at", "iat",
             "empty", "size", "ndim", "T", "axes",
         }
-        attr_refs = re.findall(r'\bdf\.([A-Za-z_]\w*)', code)
-        for attr in attr_refs:
-            if attr.lower() not in _PANDAS_METHODS:
+        attr_refs = re.findall(rf"\b({df_pattern})\.([A-Za-z_]\w*)", code, re.IGNORECASE)
+        for _, attr in attr_refs:
+            if attr.lower() not in _PANDAS_METHODS and not attr.isdigit():
                 referenced.add(attr.lower())
+
+        # 3. groupby or agg parameters if they match known columns
+        str_literals = re.findall(r"'([^']+)'|\"([^\"]+)\"", code)
+        for g1, g2 in str_literals:
+            val = (g1 or g2).lower()
+            if val in all_known_cols:
+                referenced.add(val)
 
         if all_known_cols:
             unknown_cols = [c for c in referenced if c not in all_known_cols]
-            # Filter out obvious non-column strings
-            unknown_cols = [c for c in unknown_cols if len(c) <= 30 and not any(
-                kw in c for kw in ['select', 'from', 'where', 'group', 'order', 'join', 'http', 'px.', 'df.']
-            )]
-
+            # Exclude table/df names & common names
+            known_tables = [t.lower() for t in schema.keys()]
+            unknown_cols = [c for c in unknown_cols if c not in known_tables and c not in ["satislar", "musteriler", "df", "data", "result"]]
+            
             if unknown_cols:
                 return False, (
                     f"[Şema Eleştirisi] Pandas kodunda kullanılan "
                     f"'{', '.join(unknown_cols)}' sütunları/özellikleri "
                     f"dataframe şemasında yer almıyor. "
-                    f"Şemadaki mevcut sütunlar: {', '.join(schema.keys())}"
+                    f"Şemadaki mevcut sütunlar: {', '.join(all_known_cols)}"
                 )
 
     return True, None
@@ -576,6 +619,10 @@ async def self_correct_loop(
     async def notify(msg: str):
         if ws_callback:
             await ws_callback({"type": "status", "message": msg})
+            
+    async def update_code(code_str: str):
+        if ws_callback:
+            await ws_callback({"type": "code", "language": "sql" if intent == "sql_query" else "python", "code": code_str})
     
     current_code = initial_code
     last_error = None
@@ -592,6 +639,7 @@ async def self_correct_loop(
                         corrected = await llm_correct_fn(question, current_code, f"Şema Doğrulama Hatası:\n{critique_msg}", schema)
                         if corrected and corrected.strip():
                             current_code = corrected.strip()
+                            await update_code(current_code)
                             await notify("Şema eleştirisi doğrultusunda düzeltilmiş kod üretildi. Sandbox'ta çalıştırılıyor...")
                     except Exception as e:
                         logger.error(f"Pre-execution LLM correction failed: {e}")
@@ -614,6 +662,7 @@ async def self_correct_loop(
                 corrected = await llm_correct_fn(question, current_code, str(last_error), schema)
                 if corrected and corrected.strip():
                     current_code = corrected.strip()
+                    await update_code(current_code)
                     await notify(f"Düzeltilmiş kod üretildi, tekrar deneniyor...")
                     continue
             except Exception as e:

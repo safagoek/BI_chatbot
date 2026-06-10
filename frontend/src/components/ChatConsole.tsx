@@ -231,7 +231,7 @@ export const ChatConsole: React.FC = () => {
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         setSelectedCmdIndex(prev => (prev - 1 + filteredCommands.length) % filteredCommands.length);
-      } else if (e.key === 'Enter') {
+      } else if (e.key === 'Enter' || e.key === 'Tab') {
         e.preventDefault();
         if (filteredCommands[selectedCmdIndex]) {
           selectCommand(filteredCommands[selectedCmdIndex].template);
@@ -555,8 +555,8 @@ export const ChatConsole: React.FC = () => {
                   <Layers className="w-5 h-5 text-gh-accent" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-gh-text">Çoklu Kaynak Seçimi ve İlişki Editörü</h3>
-                  <p className="text-[11px] text-gh-muted mt-0.5">Analiz edilecek veri kaynaklarını seçin ve aralarındaki tabloları ilişkilendirin.</p>
+                  <h3 className="text-sm font-semibold text-gh-text">{t.relationEditorTitle}</h3>
+                  <p className="text-[11px] text-gh-muted mt-0.5">{t.relationEditorSubtitle}</p>
                 </div>
               </div>
               <button
@@ -577,20 +577,20 @@ export const ChatConsole: React.FC = () => {
                   {/* Section 1: Source Cards selection */}
                   <div className="space-y-3">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gh-border pb-2">
-                      <span className="text-xs font-semibold text-gh-muted uppercase tracking-wider">1. Analiz Edilecek Kaynaklar</span>
+                      <span className="text-xs font-semibold text-gh-muted uppercase tracking-wider">{t.sourcesToAnalyze}</span>
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => setSelectedSourceIds(allSources.map(s => s.id))}
                           className="text-[10px] text-gh-accent hover:underline bg-transparent border-none cursor-pointer"
                         >
-                          Tümünü Seç
+                          {t.selectAll}
                         </button>
                         <span className="text-gh-border text-xs">|</span>
                         <button
                           onClick={() => setSelectedSourceIds([])}
                           className="text-[10px] text-gh-muted hover:underline bg-transparent border-none cursor-pointer"
                         >
-                          Seçimleri Temizle
+                          {t.clearSelection}
                         </button>
                       </div>
                     </div>
@@ -600,7 +600,7 @@ export const ChatConsole: React.FC = () => {
                       <input
                         value={sourceSearch}
                         onChange={(e) => setSourceSearch(e.target.value)}
-                        placeholder="Veri kaynaklarında ara..."
+                        placeholder={t.searchSourcesPlaceholder}
                         className="input pl-9 text-xs"
                         style={{ paddingTop: 8, paddingBottom: 8 }}
                       />
@@ -630,7 +630,7 @@ export const ChatConsole: React.FC = () => {
                             <div className="flex-1 min-w-0">
                               <div className="text-xs font-semibold text-gh-text truncate">{src.label}</div>
                               <div className="text-[10px] text-gh-muted mt-0.5">
-                                {src.type === 'file' ? 'CSV / Excel Dosyası' : `${src.type.toUpperCase()} Veritabanı`}
+                                {src.type === 'file' ? t.csvExcelFileLabel : `${src.type.toUpperCase()} ${t.databaseLabelSuffix}`}
                               </div>
                             </div>
 
@@ -643,7 +643,7 @@ export const ChatConsole: React.FC = () => {
                       })}
                       {visibleSources.length === 0 && (
                         <div className="col-span-2 text-center py-6 text-xs text-gh-muted">
-                          Arama kriterine uygun veri kaynağı bulunamadı.
+                          {t.noSourceFoundMatching}
                         </div>
                       )}
                     </div>
@@ -652,7 +652,7 @@ export const ChatConsole: React.FC = () => {
                   {/* Section 2: Relationship Builder */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between border-b border-gh-border pb-2">
-                      <span className="text-xs font-semibold text-gh-muted uppercase tracking-wider">2. Kaynaklar Arası İlişkiler (JOIN)</span>
+                      <span className="text-xs font-semibold text-gh-muted uppercase tracking-wider">{t.relationsLabel}</span>
                       <button
                         onClick={() => {
                           if (effectiveSourceIds.length < 1) return;
@@ -690,7 +690,7 @@ export const ChatConsole: React.FC = () => {
                         className="btn btn-primary text-[10px] py-1 px-3 flex items-center gap-1"
                       >
                         <Plus size={11} />
-                        İlişki Ekle
+                        {t.addRelationBtn}
                       </button>
                     </div>
 
@@ -740,7 +740,7 @@ export const ChatConsole: React.FC = () => {
                             <div className="flex items-center justify-between mb-3 border-b border-gh-border/40 pb-1.5">
                               <span className="text-[10px] font-semibold text-gh-accent uppercase tracking-wider flex items-center gap-1.5">
                                 <GitCommit size={12} className="rotate-90" />
-                                İlişki #{idx + 1}
+                                {t.relationIndexLabel.replace('{number}', String(idx + 1))}
                               </span>
                               <button
                                 onClick={() => {
@@ -749,7 +749,7 @@ export const ChatConsole: React.FC = () => {
                                   setJoinRelations(next);
                                 }}
                                 className="p-1.5 rounded-lg text-gh-danger hover:bg-gh-danger/10 transition-colors cursor-pointer border border-transparent"
-                                title="İlişkiyi Kaldır"
+                                title={t.removeRelationTooltip}
                               >
                                 <Trash2 size={12} />
                               </button>
@@ -757,7 +757,7 @@ export const ChatConsole: React.FC = () => {
 
                             <div className="grid grid-cols-1 md:grid-cols-9 gap-3 items-center">
                               <div className="md:col-span-3 space-y-2">
-                                <label className="block text-[10px] font-semibold text-gh-muted">Sol Kaynak / Tablo ve Kolon</label>
+                                <label className="block text-[10px] font-semibold text-gh-muted">{t.leftSourceLabel}</label>
                                 <select
                                   className="input text-xs py-1.5 bg-gh-bg border-gh-border rounded-md text-gh-text"
                                   value={rel.leftSourceId}
@@ -819,7 +819,7 @@ export const ChatConsole: React.FC = () => {
                                         setJoinRelations(next);
                                       }}
                                     >
-                                      <option value="">-- Kolon --</option>
+                                      <option value="">{t.columnDefault}</option>
                                       {leftTableColumns.map(col => <option key={col} value={col}>{col}</option>)}
                                     </select>
                                   </div>
@@ -833,14 +833,14 @@ export const ChatConsole: React.FC = () => {
                                       setJoinRelations(next);
                                     }}
                                   >
-                                    <option value="">-- Kolon Seçin --</option>
+                                    <option value="">{t.columnSelectDefault}</option>
                                     {leftFileColumns.map(col => <option key={col} value={col}>{col}</option>)}
                                   </select>
                                 )}
                               </div>
 
                               <div className="md:col-span-3 text-center flex flex-col items-center justify-center space-y-2">
-                                <span className="text-[10px] font-semibold text-gh-muted">Bağlantı Türü</span>
+                                <span className="text-[10px] font-semibold text-gh-muted">{t.relationTypeLabel}</span>
                                 <div className="w-full flex items-center justify-center gap-1.5">
                                   <div className="h-[1px] bg-gh-border flex-1"></div>
                                   <select
@@ -863,7 +863,7 @@ export const ChatConsole: React.FC = () => {
                               </div>
 
                               <div className="md:col-span-3 space-y-2">
-                                <label className="block text-[10px] font-semibold text-gh-muted">Sağ Kaynak / Tablo ve Kolon</label>
+                                <label className="block text-[10px] font-semibold text-gh-muted">{t.rightSourceLabel}</label>
                                 <select
                                   className="input text-xs py-1.5 bg-gh-bg border-gh-border rounded-md text-gh-text"
                                   value={rel.rightSourceId}
@@ -925,7 +925,7 @@ export const ChatConsole: React.FC = () => {
                                         setJoinRelations(next);
                                       }}
                                     >
-                                      <option value="">-- Kolon --</option>
+                                      <option value="">{t.columnDefault}</option>
                                       {rightTableColumns.map(col => <option key={col} value={col}>{col}</option>)}
                                     </select>
                                   </div>
@@ -939,7 +939,7 @@ export const ChatConsole: React.FC = () => {
                                       setJoinRelations(next);
                                     }}
                                   >
-                                    <option value="">{language === 'tr' ? '-- Kolon Seçin --' : '-- Select Column --'}</option>
+                                    <option value="">{t.columnSelectDefault}</option>
                                     {rightFileColumns.map(col => <option key={col} value={col}>{col}</option>)}
                                   </select>
                                 )}
@@ -952,8 +952,8 @@ export const ChatConsole: React.FC = () => {
                       {joinRelations.length === 0 && (
                         <div className="text-center py-8 rounded-xl border border-dashed border-gh-border bg-gh-surface/35">
                           <GitCommit size={24} className="mx-auto text-gh-faint mb-2" />
-                          <p className="text-xs text-gh-muted font-medium">{language === 'tr' ? 'Tanımlı ilişki bulunmuyor.' : 'No relationships defined.'}</p>
-                          <p className="text-[10px] text-gh-faint mt-1">{language === 'tr' ? 'Birden fazla kaynağı birleştirmek için yukarıdaki butondan ilişki ekleyebilirsiniz.' : 'You can add relationships from the button above to combine multiple sources.'}</p>
+                          <p className="text-xs text-gh-muted font-medium">{t.noRelationDefined}</p>
+                          <p className="text-[10px] text-gh-faint mt-1">{t.noRelationDesc}</p>
                         </div>
                       )}
                     </div>
@@ -970,7 +970,7 @@ export const ChatConsole: React.FC = () => {
                     </span>
                     {selectedCol && (
                       <span className="text-[9px] text-gh-accent font-bold font-mono animate-pulse bg-gh-accent-subtle px-2 py-0.5 rounded border border-gh-accent/20 flex items-center gap-1">
-                        <Link size={10} className="text-gh-accent shrink-0" /> {language === 'tr' ? 'Kolon Seçildi' : 'Column Selected'}: {selectedCol.columnName}
+                        <Link size={10} className="text-gh-accent shrink-0" /> {t.columnSelectedBadge}: {selectedCol.columnName}
                       </span>
                     )}
                   </div>
@@ -1116,8 +1116,8 @@ export const ChatConsole: React.FC = () => {
                           <div className="w-12 h-12 rounded-full border border-dashed border-gh-border flex items-center justify-center mb-3 animate-pulse">
                             <Layers className="w-5 h-5 text-gh-faint" />
                           </div>
-                          <p className="text-xs text-gh-muted font-medium">{language === 'tr' ? 'Görsel Şema Haritası Boş' : 'Visual Schema Map is Empty'}</p>
-                          <p className="text-[10px] text-gh-faint mt-1 max-w-[200px] leading-relaxed">{language === 'tr' ? 'Yukarıdan veri kaynaklarını seçin ve interaktif olarak tabloları ilişkilendirmek için kolonlara tıklayın.' : 'Select data sources from above and click on columns to link tables interactively.'}</p>
+                          <p className="text-xs text-gh-muted font-medium">{t.visualSchemaEmptyTitle}</p>
+                          <p className="text-[10px] text-gh-faint mt-1 max-w-[200px] leading-relaxed">{t.visualSchemaEmptyDesc}</p>
                         </div>
                       ) : (
                         <div className="grid grid-cols-2 gap-4 select-none relative">
@@ -1163,6 +1163,22 @@ export const ChatConsole: React.FC = () => {
                                             (r.rightSourceId === sid && r.rightColumn === colPath)
                                           );
                                           
+                                          const colClass = "flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[10px] font-mono select-none cursor-pointer transition-all border " + (
+                                            isSelected 
+                                              ? 'bg-indigo-500/10 border-indigo-500 text-indigo-400 font-bold shadow-[0_0_8px_rgba(99,102,241,0.25)] animate-pulse'
+                                              : isJoined
+                                                ? 'bg-gh-canvas border-gh-border text-gh-text hover:border-zinc-500'
+                                                : 'bg-transparent border-transparent text-gh-muted hover:bg-gh-surface hover:text-gh-text'
+                                          );
+                                          
+                                          const indicatorClass = "w-2 h-2 rounded-full border transition-all " + (
+                                            isSelected 
+                                              ? 'bg-indigo-500 border-indigo-500 scale-110 shadow-[0_0_6px_#6366f1]'
+                                              : isJoined
+                                                ? 'bg-indigo-500/60 border-indigo-500/30'
+                                                : 'bg-transparent border-gh-border'
+                                          );
+
                                           return (
                                             <div
                                               key={`node-col-${sid}-${tbl}-${col}`}
@@ -1187,24 +1203,10 @@ export const ChatConsole: React.FC = () => {
                                                   }
                                                 }
                                               }}
-                                              className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[10px] font-mono select-none cursor-pointer transition-all border ${
-                                                isSelected 
-                                                  ? 'bg-indigo-500/10 border-indigo-500 text-indigo-400 font-bold shadow-[0_0_8px_rgba(99,102,241,0.25)] animate-pulse'
-                                                  : isJoined
-                                                    ? 'bg-gh-canvas border-gh-border text-gh-text hover:border-zinc-500'
-                                                    : 'bg-transparent border-transparent text-gh-muted hover:bg-gh-surface hover:text-gh-text'
-                                              }`}
+                                              className={colClass}
                                             >
                                               <span className="truncate select-none pointer-events-none" title={col}>{col}</span>
-                                              <div 
-                                                className={`w-2 h-2 rounded-full border transition-all ${
-                                                  isSelected 
-                                                    ? 'bg-indigo-500 border-indigo-500 scale-110 shadow-[0_0_6px_#6366f1]'
-                                                    : isJoined
-                                                      ? 'bg-indigo-500/60 border-indigo-500/30'
-                                                      : 'bg-transparent border-gh-border'
-                                                }`}
-                                              />
+                                              <div className={indicatorClass} />
                                             </div>
                                           );
                                         })}
@@ -1221,8 +1223,8 @@ export const ChatConsole: React.FC = () => {
                     
                     {/* Live indicator Footer */}
                     <div className="border-t border-gh-border/50 pt-2.5 mt-2.5 flex items-center justify-between text-[9px] text-gh-faint font-mono shrink-0 select-none">
-                      <span className="flex items-center gap-1.5"><Zap size={10} className="text-gh-accent shrink-0" /> {language === 'tr' ? 'Kolonları eşlemek için tıklayın' : 'Click on columns to link'}</span>
-                      <span>{joinRelations.length} {language === 'tr' ? 'Toplam Bağlantı' : 'Total Relations'}</span>
+                      <span className="flex items-center gap-1.5"><Zap size={10} className="text-gh-accent shrink-0" /> {t.clickToLinkPrompt}</span>
+                      <span>{joinRelations.length} {t.totalRelationsBadge}</span>
                     </div>
                   </div>
                 </div>
@@ -1243,7 +1245,7 @@ export const ChatConsole: React.FC = () => {
                   }}
                   className="btn btn-primary px-6 py-2 shadow font-semibold"
                 >
-                  {language === 'tr' ? 'Sohbeti Başlat' : 'Start Chat'}
+                  {t.startChatBtn}
                 </button>
               ) : (
                 <button

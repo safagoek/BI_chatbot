@@ -11,6 +11,12 @@ from typing import Dict, Any, List, Tuple, Optional
 from app.core.sandbox import PythonSandbox, SandboxExecutionError
 from app.core.duckdb_engine import execute_duckdb_query
 from app.core.sql_sanitizer import sanitize_and_validate_sql, SQLSanitationError
+from app.core.intent_keywords import (
+    CONCEPTUAL_POSITIVE, CONCEPTUAL_NEGATIVE,
+    PYTHON_ML_KEYWORDS, FORECAST_KEYWORDS, ANOMALY_KEYWORDS,
+    CORRELATION_KEYWORDS, CLUSTERING_KEYWORDS, LISTING_KEYWORDS,
+    INTENT_KEYWORD_GROUPS,
+)
 from app.agent.rag import retrieve_similar, add_to_memory, self_correct_loop
 from app.database.manager import get_data_sources, get_uploaded_files
 from app.database.demo_db import DEMO_DB_PATH
@@ -24,7 +30,7 @@ class SupervisorAgent:
         except Exception:
             db_config = {}
 
-        self.api_key = api_key or db_config.get("apiKey") or os.getenv("DEEPSEEK_API_KE ")
+        self.api_key = api_key or db_config.get("apiKey") or os.getenv("DEEPSEEK_API_KEY")
         self.base_url = base_url or db_config.get("baseUrl") or os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1")
         self.model = model or db_config.get("model") or os.getenv("DEEPSEEK_MODEL", "deepseek-coder")
         self.sandbox = PythonSandbox()
@@ -64,6 +70,7 @@ class SupervisorAgent:
         # Determine intent dynamically (Supports Manual Slash Commands & Heuristics)
         forced_intent = None
         cleaned_question = user_question.strip()
+        is_ml = False
         
         # Exact command mappings for Autocomplete commands
         if cleaned_question.startswith("/graph ") or cleaned_question == "/graph":
@@ -77,6 +84,7 @@ class SupervisorAgent:
         elif cleaned_question.startswith("/ml ") or cleaned_question == "/ml":
             forced_intent = "file_analysis"
             cleaned_question = cleaned_question[3:].strip()
+            is_ml = True
             await send_status("[RouterAgent] Yönlendirme algılandı: FILE_ANALYSIS (Makine Öğrenmesi)")
         elif cleaned_question.startswith("/table ") or cleaned_question == "/table":
             forced_intent = "sql_query"
@@ -97,6 +105,7 @@ class SupervisorAgent:
         elif cleaned_question.startswith("/forecast ") or cleaned_question == "/forecast":
             forced_intent = "file_analysis"
             cleaned_question = cleaned_question[9:].strip()
+            is_ml = True
             await send_status("[RouterAgent] Yönlendirme algılandı: FILE_ANALYSIS (Zaman Serisi Tahmini)")
         elif cleaned_question.startswith("/clean ") or cleaned_question == "/clean":
             forced_intent = "file_analysis"
@@ -154,37 +163,24 @@ class SupervisorAgent:
             user_question = cleaned_question
         else:
             q_low = user_question.lower().strip()
-            # Conceptual question heuristic: queries seeking explanations rather than active data calculations/charts
-            is_conceptual_q = any(kw in q_low for kw in [
-                "tahminleyebiliriz", "tahmin edebiliriz", "neleri", "neler yapabiliriz", "nedir", 
-                "nelerdir", "nasıl çalışır", "nasıl calisir", "ne demektir", "ne işe yarar", 
-                "ne ise yarar", "what is", "how does", "explain", "açıkla", "bilgi ver", 
-                "tanımla", "öğret", "neden olur", "anlamı ne", "kavram", "teori"
-            ]) and not any(kw in q_low for kw in [
-                "göster", "listele", "hesapla", "çiz", "grafik", "tablo", "kaç", "toplam", 
-                "ortalama", "yarat", "oluştur", "sorgula", "top 5", "limit"
-            ])
+            # Conceptual question heuristic — intent_keywords.py'den merkezi listeler
+            is_conceptual_q = (
+                any(kw in q_low for kw in CONCEPTUAL_POSITIVE)
+                and not any(kw in q_low for kw in CONCEPTUAL_NEGATIVE)
+            )
             
             if is_conceptual_q:
                 intent = "conceptual"
                 is_sql = False
                 await send_status("[RouterAgent] Kavramsal/Bilgi sorgusu algılandı: CONCEPTUAL (Kavramsal Açıklama)")
             else:
-                wants_python = any(kw in q_low for kw in [
-                    "python", "pandas", "makine öğrenmesi", "makine ogrenmesi", "machine learning", "ml", 
-                    "tahmin", "tahminleme", "tahminlemesi", "öngörü", "ongoru", "yapay zeka", "yapay zekâ", 
-                    "model", "regresyon", "sınıflandırma", "siniflandirma", "kümeleme", "kumeleme",
-                    "korelasyon", "correlation", "heatmap", "anomali", "anomaly", "aykırı", "outlier",
-                    "satacağım", "satacagim", "satıcam", "saticam", "satacağız", "satacagiz",
-                    "gelecek ay", "gelecek yil", "gelecek yıl", "önümüzdeki ay", "onumuzdeki ay", "önümüzdeki yıl", "onumuzdeki yil",
-                    "gelecek dönem", "gelecek donem", "forecast", "forecasting", "predict", "predictive", "prediction",
-                    "projection", "projeksiyon", "churn", "müşteri kaybı", "musteri kaybi", "clustering"
-                ])
+                wants_python = any(kw in q_low for kw in PYTHON_ML_KEYWORDS)
                 is_file_source = (source_meta["type"] == "file")
                 
-                if wants_python or (is_file_source and any(kw in q_low for kw in ["tahmin", "forecast", "predict", "projeksiyon", "gelecek", "anomali", "aykırı", "outlier", "korelasyon", "correlation"])):
+                if wants_python or (is_file_source and any(kw in q_low for kw in FORECAST_KEYWORDS + ANOMALY_KEYWORDS + CORRELATION_KEYWORDS)):
                     intent = "file_analysis"
                     is_sql = False
+                    is_ml = wants_python or any(kw in q_low for kw in FORECAST_KEYWORDS + ANOMALY_KEYWORDS + CLUSTERING_KEYWORDS)
                     await send_status("[RouterAgent] Sorgu rotası başarıyla belirlendi: FILE_ANALYSIS (Python/Pandas & ML)")
                 else:
                     intent = "sql_query"
@@ -288,7 +284,7 @@ Report:"""
             await send_status("[CoderAgent] Şema ile uyumlu güvenli Pandas ve Görselleştirme kod mantığı hazırlanıyor...")
             if self.api_key:
                 try:
-                    generated_code = await self._generate_pandas_llm(user_question, source_meta, rag_examples, relationships or [])
+                    generated_code = await self._generate_pandas_llm(user_question, source_meta, rag_examples, relationships or [], is_ml=is_ml)
                 except Exception as e:
                     await send_status(f"[CoderAgent] LLM API hatası, yerel zeka motoruna geçiliyor... (Hata: {str(e)})")
                     generated_code = self._generate_fallback_code(user_question, source_meta, is_sql=False)
@@ -321,17 +317,13 @@ Report:"""
 
         # Detect prediction, anomaly, and correlation intents
         q_low = user_question.lower()
-        is_forecast = any(kw in q_low for kw in ["tahmin", "forecast", "predict", "projeksiyon", "gelecek"])
-        is_anomaly = any(kw in q_low for kw in ["anomali", "aykırı", "outlier", "sapma"])
-        is_correlation = any(kw in q_low for kw in ["korelasyon", "ilişki", "heatmap", "correlation"])
-        is_clustering = any(kw in q_low for kw in ["kümeleme", "segmentasyon", "segment", "cluster", "clustering"])
+        is_forecast = any(kw in q_low for kw in FORECAST_KEYWORDS)
+        is_anomaly = any(kw in q_low for kw in ANOMALY_KEYWORDS)
+        is_correlation = any(kw in q_low for kw in CORRELATION_KEYWORDS)
+        is_clustering = any(kw in q_low for kw in CLUSTERING_KEYWORDS)
         
         # Detect listing/sample intent — these should return a table, NOT a chart
-        is_listing = any(kw in q_low for kw in [
-            "göster", "listele", "getir", "örnek", "sample", "random", "rastgele",
-            "ilk", "first", "son", "last", "tüm", "all", "tümünü", "hepsini",
-            "sat\u0131r", "row", "kayıt", "record", "veri göster", "veri getir"
-        ])
+        is_listing = any(kw in q_low for kw in LISTING_KEYWORDS)
 
         # Visualizer agent step
         if is_forecast:
@@ -1184,6 +1176,65 @@ Report:"""
             pass
         return ""
 
+    def _get_data_samples(self, meta: Dict[str, Any]) -> str:
+        """Fetch a small 3-row sample of the tables in markdown format to guide code/SQL structure."""
+        samples = []
+        
+        # 1. Resolve files
+        file_mappings = {}
+        if meta.get("file_mappings"):
+            file_mappings = dict(meta.get("file_mappings"))
+        elif meta.get("type") == "file" and meta.get("file_path"):
+            file_mappings = {meta["alias"]: meta["file_path"]}
+            
+        # 2. Resolve database sources
+        db_sources_list = []
+        if meta.get("db_sources"):
+            db_sources_list = meta.get("db_sources")
+        elif meta.get("type") == "database":
+            db_sources_list = [meta]
+            
+        # Try to read samples from files
+        for name, fpath in file_mappings.items():
+            try:
+                if fpath and os.path.exists(fpath):
+                    if fpath.endswith('.csv'):
+                        df = pd.read_csv(fpath, nrows=3)
+                    else:
+                        df = pd.read_excel(fpath, nrows=3)
+                    samples.append(f"### Table '{name}' Sample (First 3 rows):\n{df.to_markdown(index=False)}")
+            except Exception:
+                pass
+                
+        # Try to read samples from DB sources (if no files loaded yet)
+        if not samples and db_sources_list:
+            from app.database.connectors import execute_safe_sql
+            for db in db_sources_list:
+                db_id = db["id"]
+                db_type = db.get("db_type", "sqlite")
+                schema = db.get("schema", {})
+                for table_name in schema.keys():
+                    if not table_name:
+                        continue
+                    if db_type in ("mysql", "mariadb"):
+                        safe_table = f"`{table_name}`"
+                    else:
+                        safe_table = f"\"{table_name}\""
+                    sql = f"SELECT * FROM {safe_table} LIMIT 3"
+                    try:
+                        res = execute_safe_sql(db_type, db.get("connection_details", {}), sql)
+                        columns = res.get("columns", [])
+                        rows = res.get("rows", [])
+                        if columns and rows:
+                            df = pd.DataFrame(rows, columns=columns)
+                            samples.append(f"### Table '{db_id}__{table_name}' Sample (First 3 rows):\n{df.to_markdown(index=False)}")
+                    except Exception:
+                        pass
+                        
+        if samples:
+            return "#### Actual Data Samples:\n" + "\n\n".join(samples)
+        return ""
+
     async def _generate_sql_llm(self, question: str, meta: Dict[str, Any], examples: List[Dict[str, Any]]) -> str:
         # Build compact schema: {table: [col1, col2, ...]}
         schema = meta.get("schema", {})
@@ -1197,6 +1248,11 @@ Report:"""
                 continue
             schema_lines.append(f"  {tbl}({', '.join(col_names)})")
         schema_str = "\n".join(schema_lines) or json.dumps(schema)
+
+        # Expose a 3-row sample of tables dynamically to help LLM structure queries correctly
+        samples_desc = self._get_data_samples(meta)
+        if samples_desc:
+            schema_str += "\n\n" + samples_desc
 
         db_type = meta.get("db_type", "sqlite")
         dialect = ""
@@ -1221,13 +1277,17 @@ Report:"""
         is_agg = any(kw in q_low for kw in ["toplam", "sum", "ortalama", "avg", "say", "count", "max", "min", "en çok", "en az", "grupla", "group"])
 
         if is_listing and not is_agg:
-            intent_hint = "Not: Bu bir listeleme/örnek sorgusudur. LIMIT kullan (genellikle 5-20 arası), GROUP B  veya aggregation KULLANMA."
+            intent_hint = "Not: Bu bir listeleme/örnek sorgusudur. LIMIT kullan (genellikle 5-20 arası), GROUP BY veya aggregation KULLANMA."
         elif is_agg:
-            intent_hint = "Not: Bu bir analiz/aggregasyon sorgusudur. SUM/COUNT/AVG/MAX/MIN ve GROUP B  kullan."
+            intent_hint = "Not: Bu bir analiz/aggregasyon sorgusudur. SUM/COUNT/AVG/MAX/MIN ve GROUP BY kullan."
         else:
             intent_hint = "Not: Sorguyu amaca uygun yaz; gerekirse LIMIT ekle."
 
-        examples_str = "\n".join([f"S: {e['question']}\nSQL: {e['code']}" for e in examples[:3]]) or " ok"
+        # Dynamically scale RAG examples based on similarity score
+        filtered_examples = [e for e in examples if e.get("score", 1.0) >= 0.25]
+        if not filtered_examples and examples:
+            filtered_examples = [examples[0]]
+        examples_str = "\n".join([f"S: {e['question']}\nSQL: {e['code']}" for e in filtered_examples[:3]]) or "Yok"
 
         prompt = f""" ou are a senior SQL Expert. Write a read-only SQL query based on the following schema.{dialect}
 
@@ -1271,6 +1331,11 @@ SQL:"""
             schema_lines.append(f"  {tbl}({', '.join(col_names)})")
         schema_str = "\n".join(schema_lines) or json.dumps(schema, ensure_ascii=False)
 
+        # Expose a 3-row sample of tables dynamically to help LLM structure queries correctly
+        samples_desc = self._get_data_samples(meta)
+        if samples_desc:
+            schema_str += "\n\n" + samples_desc
+
         # Relationships
         rel_desc = " ok"
         if relationships:
@@ -1285,7 +1350,12 @@ SQL:"""
             rel_desc = "\n".join(rel_lines)
 
         semantic_desc = self._build_semantic_context(meta.get("id") or meta.get("alias"))
-        examples_str = "\n".join([f"S: {e['question']}\nSQL: {e['code']}" for e in examples[:3]]) or " ok"
+
+        # Dynamically scale RAG examples based on similarity score
+        filtered_examples = [e for e in examples if e.get("score", 1.0) >= 0.25]
+        if not filtered_examples and examples:
+            filtered_examples = [examples[0]]
+        examples_str = "\n".join([f"S: {e['question']}\nSQL: {e['code']}" for e in filtered_examples[:3]]) or "Yok"
 
         # Intent-aware hint
         q_low = question.lower()
@@ -1357,16 +1427,27 @@ Analyze the provided invalid DuckDB SQL query, database schemas, and error messa
 Corrected SQL query:"""
         return await self._call_deepseek(prompt)
 
-    async def _generate_pandas_llm(self, question: str, meta: Dict[str, Any], examples: List[Dict[str, Any]], relationships: List[Dict[str, Any]]) -> str:
+    async def _generate_pandas_llm(self, question: str, meta: Dict[str, Any], examples: List[Dict[str, Any]], relationships: List[Dict[str, Any]], is_ml: bool = False) -> str:
         alias = meta["alias"]
-        examples_desc = "\n".join([f"Soru: {e['question']}\nPython Kodu:\n{e['code']}" for e in examples])
+        
+        # Dynamically scale RAG examples based on similarity score
+        filtered_examples = [e for e in examples if e.get("score", 1.0) >= 0.25]
+        if not filtered_examples and examples:
+            filtered_examples = [examples[0]]
+        examples_desc = "\n".join([f"Soru: {e['question']}\nPython Kodu:\n{e['code']}" for e in filtered_examples])
+
         schema_desc = json.dumps(meta["schema"], ensure_ascii=False)
+        # Expose a 3-row sample of tables dynamically to help LLM structure code correctly
+        samples_desc = self._get_data_samples(meta)
+        if samples_desc:
+            schema_desc += "\n\n" + samples_desc
+
         dataset_names = list(meta.get("file_mappings", {alias: meta.get("file_path")}).keys())
         if isinstance(meta.get("schema"), dict):
             for key in meta["schema"].keys():
                 if key not in dataset_names:
                     dataset_names.append(key)
-        rel_desc = " ok"
+        rel_desc = "yok"
         if relationships:
             source_map = meta.get("source_map", {})
             rel_lines = []
@@ -1395,7 +1476,57 @@ Corrected SQL query:"""
                 rel_lines.append(f"- {left_hint} = {right_hint} (join: {r.get('joinType', 'auto')})")
             rel_desc = "\n".join(rel_lines)
         
-        prompt = f""" ou are a world-class Data Scientist and Visualization expert (VisualizerAgent).
+        if is_ml:
+            prompt = f"""You are a world-class Machine Learning Engineer & Data Scientist (PredictiveAnalyticsAgent).
+Write a secure Python script using Pandas, Plotly, and scikit-learn (or numpy/statsmodels) to perform actual predictive modeling, forecasting, clustering, or advanced regression analysis as requested by the user.
+
+### Dataset Details:
+- Active DataFrames: {', '.join(dataset_names)}
+- Columns & Types: {schema_desc}
+- Relationships:
+{rel_desc}
+
+### Examples:
+{examples_desc}
+
+### Rules for Python Generation (ML Mode):
+1. Data Preprocessing & Security:
+   - Handle date columns correctly: convert to datetime (`pd.to_datetime`), sort chronological, and aggregate if doing time series.
+   - Impute missing values safely using median/mean or fillna(0) to prevent fit errors.
+   - Do NOT try to read or write files (e.g. no `pd.read_csv`, `to_csv`). Use preloaded DataFrames directly.
+   - Forbid network access, system commands, print() calls, and imports like `os`, `sys`, `subprocess`.
+
+2. Predictive & ML Modeling:
+   - Time Series/Forecasting: Aggregate data to daily/weekly/monthly level. Create a sequential index (e.g., days since start) for training models like LinearRegression or Ridge. Forecast future steps (e.g. next 30 days), generate future dates, and calculate metrics like R² score or MSE.
+   - Customer Segmentation/Clustering: Clean numerical columns, scale them (e.g. `X_scaled = (X - X.min()) / (X.max() - X.min() + 1e-9)`), fit a KMeans model. Add cluster labels.
+   - Anomaly Detection: Fit an `IsolationForest` or use statistical Z-Score threshold. Tag outlier points.
+
+3. Standardized Output Structure:
+   - Assign the final prediction table/records or segment lists to the variable `result` (a list of dictionaries, a DataFrame, or a dictionary containing a list of records under a key like `'forecast_table'` or `'predictions'`, and metrics under other keys).
+   - Example:
+     ```python
+     result = {{
+         'forecast_table': forecast_df.to_dict(orient='records'),
+         'model_r2': r2_score_value,
+         'mean_squared_error': mse_value
+     }}
+     ```
+   - Always calculate and include performance metrics (like R², Silhouette Score, or Outlier Count) in the `result` dictionary.
+
+4. Premium Plotly Visualization (Assign to `fig`):
+   - Plot historical data points along with fitted regression/forecast lines or cluster groups.
+   - Apply these styling rules:
+     - Dark background: `fig.update_layout(template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")`
+     - Typography: Use "Inter, sans-serif" font. Font color `#8b949e`.
+     - Title: `fig.update_layout(title=dict(text="Descriptive Title", font=dict(family="Inter, sans-serif", size=13, color="#e6edf3")))`
+     - Gridlines: Grid color `#21262d`.
+     - Margins: `fig.update_layout(margin=dict(t=40, r=10, l=40, b=40))`
+     - Color Palette: Actual/Historical: `#58a6ff` (Blue) or `#7c3aed` (Purple). Forecast/Future: `#10b981` (Neon Green). Anomalies: `#ef4444` (Bright Red) with size=10 markers.
+
+User Question: {question}
+Python Code:"""
+        else:
+            prompt = f"""You are a world-class Data Scientist and Visualization expert (VisualizerAgent).
 Write a secure Python script utilizing Pandas and Plotly to analyze the active dataset and produce a stunning dark-theme chart.
 
 ### Dataset Details:
@@ -1418,14 +1549,11 @@ Write a secure Python script utilizing Pandas and Plotly to analyze the active d
 4. Never read files (No `pd.read_csv` or `pd.read_excel`). DataFrames are pre-loaded in context.
 5. If multiple DataFrames, join/merge them using Pandas. Prefer active relationships.
 6. Strictly forbid network access, file writing, print() calls, and imports like os, sys, subprocess.
-7. Output: SADECE/ONL  valid runnable Python code without markdown blocks.
+7. Output: SADECE/ONLY valid runnable Python code without markdown blocks.
 
 User Question: {question}
 Python Code:"""
 
-        return await self._generate_pandas_llm_call(prompt)
-
-    async def _generate_pandas_llm_call(self, prompt: str) -> str:
         return await self._call_deepseek(prompt)
 
     async def _llm_correct_sql(self, question: str, code: str, error: str, schema: Dict[str, Any]) -> str:
@@ -1826,18 +1954,28 @@ Generate a premium, detailed "Forecast Analysis Report" in Turkish (or matching 
                         formatted_total = f"{total:,.2f}" if isinstance(total, float) else f"{total:,}"
                         formatted_avg = f"{avg:,.2f}"
                         summary += f"Toplam **{cols[num_idx]}** değeri: **{formatted_total}** (Ortalama: **{formatted_avg}**).\n\n"
-            except Exception:
-                pass
+            except Exception as _e:
+                logger.debug(f"_generate_agent_summary numeric summary skipped: {_e}")
                 
         if "Durum" in cols:
             try:
                 durum_idx = cols.index("Durum")
                 anom_count = sum(1 for r in rows if r[durum_idx] == "Anomali")
                 summary += f"🚨  apay zekâ analizörümüz veri setinde **{anom_count} adet anomali (aykırı değer)** tespit etti! Aykırılıklar grafikte parlak kırmızı noktalarla işaretlenmiştir.\n\n"
-            except Exception:
-                pass
+            except Exception as _e:
+                logger.debug(f"_generate_agent_summary anomaly count skipped: {_e}")
         elif "Değişken" in cols:
             summary += "🔗 Sayısal sütunlar arasındaki Pearson korelasyon katsayıları hesaplanmıştır. İlişkiler interaktif bir Heatmap grafiği ile görselleştirilmiştir.\n\n"
+
+        metrics = result.get("metrics")
+        if metrics:
+            summary += "\n📈 **Yapay Zeka / Tahminleyici Model Metrikleri:**\n"
+            for k, v in metrics.items():
+                if isinstance(v, float):
+                    summary += f"- **{k}**: {v:.4f}\n"
+                else:
+                    summary += f"- **{k}**: {v}\n"
+            summary += "\n"
 
         if has_viz:
             summary += "✨ Veriyi daha iyi anlamanız için bir **görselleştirme grafiği** oluşturulup panelinize eklendi.\n"

@@ -5,7 +5,7 @@ import FileUpload from './FileUpload';
 import {
   Database, Plus, RefreshCw, ShieldCheck, Trash2, X,
   Server, HardDrive, AlertCircle, Eye, Edit3, Copy, Power, Tag, ChevronDown,
-  Cpu, Play, Save, Search, Layers, Cloud
+  Cpu, Play, Save, Search, Layers, Cloud, Upload
 } from 'lucide-react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button,
@@ -86,6 +86,11 @@ export const SourceManager: React.FC = () => {
   const t = translations[language];
 
   const [showForm, setShowForm] = useState(false);
+  const [localSqliteFiles, setLocalSqliteFiles] = useState<string[]>([]);
+  const [loadingSqliteFiles, setLoadingSqliteFiles] = useState(false);
+  const [showManualPathInput, setShowManualPathInput] = useState(false);
+  const [uploadingSqlite, setUploadingSqlite] = useState(false);
+  const [uploadSqliteError, setUploadSqliteError] = useState<string | null>(null);
   const [editingSourceId, setEditingSourceId] = useState<string | null>(null);
   const [formValues, setFormValues] = useState<ConnectionForm>(DEFAULT_FORM);
   const [detailSourceId, setDetailSourceId] = useState<string | null>(null);
@@ -149,6 +154,38 @@ export const SourceManager: React.FC = () => {
     fetchFiles();
   }, []);
 
+  useEffect(() => {
+    if (showForm && formValues.type === 'sqlite') {
+      const fetchLocalSqliteFiles = async () => {
+        setLoadingSqliteFiles(true);
+        try {
+          const res = await fetch(`${API}/api/sources/local-sqlite-files`);
+          if (res.ok) {
+            const data = await res.json();
+            setLocalSqliteFiles(data);
+            if (!formValues.database_path && data.length > 0) {
+              const defaultDb = data.includes("demo.db") ? "demo.db" : data[0];
+              setFormValues(prev => ({ ...prev, database_path: defaultDb }));
+            }
+          }
+        } catch (err) {
+          console.error("Failed to load local SQLite files", err);
+        } finally {
+          setLoadingSqliteFiles(false);
+        }
+      };
+      fetchLocalSqliteFiles();
+    }
+  }, [showForm, formValues.type]);
+
+  useEffect(() => {
+    if (showForm && formValues.type === 'sqlite' && formValues.database_path) {
+      if (localSqliteFiles.length > 0 && !localSqliteFiles.includes(formValues.database_path)) {
+        setShowManualPathInput(true);
+      }
+    }
+  }, [showForm, formValues.type, localSqliteFiles, formValues.database_path]);
+
   const buildConnectionDetails = () => {
     if (formValues.type === 'sqlite') {
       return { database_path: formValues.database_path };
@@ -189,6 +226,8 @@ export const SourceManager: React.FC = () => {
     setFormValues(DEFAULT_FORM);
     setTestResult(null);
     setSaveError(null);
+    setUploadSqliteError(null);
+    setShowManualPathInput(false);
     setShowForm(true);
   };
 
@@ -214,6 +253,8 @@ export const SourceManager: React.FC = () => {
     });
     setTestResult(null);
     setSaveError(null);
+    setUploadSqliteError(null);
+    setShowManualPathInput(false);
     setShowForm(true);
   };
 
@@ -229,7 +270,7 @@ export const SourceManager: React.FC = () => {
       const data = await res.json();
       setTestResult({ success: data.success, message: data.message });
     } catch {
-      setTestResult({ success: false, message: language === 'tr' ? 'Sunucu ile bağlantı kurulamadı.' : 'Failed to connect to server.' });
+      setTestResult({ success: false, message: t.serverConnectionFailed });
     } finally {
       setTesting(false);
     }
@@ -258,7 +299,7 @@ export const SourceManager: React.FC = () => {
       });
       if (!res.ok) {
         const err = await res.json();
-        setSaveError(err.detail || (language === 'tr' ? 'Bağlantı kaydedilemedi.' : 'Could not save connection.'));
+        setSaveError(err.detail || t.saveConnectionFailed);
         return;
       }
       await fetchSources();
@@ -286,7 +327,7 @@ export const SourceManager: React.FC = () => {
 
   const handleDelete = async (e: React.MouseEvent, sourceId: string) => {
     e.stopPropagation();
-    if (!window.confirm(language === 'tr' ? 'Bu veri kaynağını silmek istediğinizden emin misiniz?' : 'Are you sure you want to delete this data source?')) return;
+    if (!window.confirm(t.deleteConfirm)) return;
     setDeleting(sourceId);
     try {
       const res = await fetch(`${API}/api/sources/${sourceId}`, { method: 'DELETE' });
@@ -303,9 +344,7 @@ export const SourceManager: React.FC = () => {
 
     const tables = Object.keys(src.schema ?? {});
     if (tables.length === 0) {
-      if (window.confirm(language === 'tr' 
-        ? 'Bu kaynağın şeması henüz taranmamış. Tüm tablolar için tam snapshot başlatılsın mı?' 
-        : 'The schema has not been scanned yet. Initiate a full snapshot for all tables?')) {
+      if (window.confirm(t.scanSchemaPrompt)) {
         runSnapshotReplication(src, []);
       }
       return;
@@ -327,13 +366,13 @@ export const SourceManager: React.FC = () => {
     
     const initialProgress = {
       status: 'running' as const,
-      message: language === 'tr' ? 'Uzak sunucu bağlantısı başlatılıyor...' : 'Initializing remote server connection...',
+      message: t.initRemoteConnection,
       discoveredTables: [],
       completedTables: {},
       currentTable: '',
       currentTableIndex: 0,
       currentProgressRows: 0,
-      logs: [language === 'tr' ? '[BAŞLANGIÇ] Veritabanı snapshot kopyalama işlemi başlatıldı.' : '[START] Database snapshot replication initiated.']
+      logs: [t.snapshotStartLog]
     };
     setSnapshotProgress(initialProgress);
 
@@ -431,8 +470,8 @@ export const SourceManager: React.FC = () => {
           return {
             ...prev,
             status: 'failed',
-            message: language === 'tr' ? 'Bağlantı hatası oluştu.' : 'Connection error occurred.',
-            logs: [...prev.logs, `[${timestamp}] [HATA] Sunucu ile bağlantı koptu veya işlem yarıda kaldı.`]
+            message: t.connectionErrorOccurred,
+            logs: [...prev.logs, `[${timestamp}] ${t.serverConnLostLog}`]
           };
         }
         return prev;
@@ -466,11 +505,11 @@ export const SourceManager: React.FC = () => {
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.detail || (language === 'tr' ? 'Durum güncellenemedi.' : 'Could not update status.'));
+        throw new Error(err.detail || t.updateStatusFailed);
       }
       await fetchSources();
     } catch (err: any) {
-      alert(err.message || (language === 'tr' ? 'Durum güncellenemedi.' : 'Could not update status.'));
+      alert(err.message || t.updateStatusFailed);
     } finally {
       setTogglingId(null);
     }
@@ -487,11 +526,11 @@ export const SourceManager: React.FC = () => {
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.detail || (language === 'tr' ? 'Klonlama başarısız.' : 'Cloning failed.'));
+        throw new Error(err.detail || t.cloningFailed);
       }
       await fetchSources();
     } catch (err: any) {
-      alert(err.message || (language === 'tr' ? 'Klonlama başarısız.' : 'Cloning failed.'));
+      alert(err.message || t.cloningFailed);
     } finally {
       setCloningId(null);
     }
@@ -513,12 +552,12 @@ export const SourceManager: React.FC = () => {
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.detail || (language === 'tr' ? 'Etiketler kaydedilemedi.' : 'Could not save tags.'));
+        throw new Error(err.detail || t.saveTagsFailed);
       }
       await fetchSources();
       closeDetails();
     } catch (err: any) {
-      setLabelsError(err.message || (language === 'tr' ? 'Etiketler kaydedilemedi.' : 'Could not save tags.'));
+      setLabelsError(err.message || t.saveTagsFailed);
     } finally {
       setLabelsSaving(false);
     }
@@ -535,7 +574,7 @@ export const SourceManager: React.FC = () => {
 
     try {
       const res = await fetch(`${API}/api/sources/${sourceId}/semantic`);
-      if (!res.ok) throw new Error(language === 'tr' ? 'Semantik tanımlar yüklenemedi.' : 'Could not load semantic definitions.');
+      if (!res.ok) throw new Error(t.loadSemanticFailed);
       const data = await res.json();
 
       const initialMapping: typeof semanticMapping = {};
@@ -556,7 +595,7 @@ export const SourceManager: React.FC = () => {
 
       setSemanticMapping(initialMapping);
     } catch (err: any) {
-      setSemanticError(err.message || (language === 'tr' ? 'Semantik tanımlar yüklenirken hata oluştu.' : 'Error loading semantic definitions.'));
+      setSemanticError(err.message || t.loadSemanticError);
     } finally {
       setSemanticLoading(false);
     }
@@ -590,11 +629,11 @@ export const SourceManager: React.FC = () => {
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.detail || (language === 'tr' ? 'Semantik tanımlar kaydedilemedi.' : 'Could not save semantic layer definitions.'));
+        throw new Error(err.detail || t.saveSemanticFailed);
       }
       setSemanticSourceId(null);
     } catch (err: any) {
-      setSemanticError(err.message || (language === 'tr' ? 'Semantik tanımlar kaydedilirken hata oluştu.' : 'Error saving semantic layer definitions.'));
+      setSemanticError(err.message || t.saveSemanticError);
     } finally {
       setSemanticSaving(false);
     }
@@ -630,7 +669,7 @@ export const SourceManager: React.FC = () => {
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 1 }}>
-          <Tooltip title={language === 'tr' ? 'Listeyi Yenile' : 'Refresh List'}>
+          <Tooltip title={t.refreshListTooltip}>
             <IconButton onClick={() => fetchSources()} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '8px' }}>
               <RefreshCw size={14} />
             </IconButton>
@@ -679,7 +718,7 @@ export const SourceManager: React.FC = () => {
           </Box>
           <Grid container spacing={2.5}>
             <Grid size={{ xs: 12, md: 6 }}>
-              <Box className="panel-inset" sx={{ p: 2.5, borderRadius: '6px', minHeight: 140, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <Box className="panel-inset" sx={{ p: 2.5, borderRadius: '6px', minHeight: 140, display: 'flex', flexDirection: 'column', justify: 'space-between' }}>
                 <Box>
                   <Typography variant="caption" sx={{ fontWeight: 600, color: 'primary.main', textTransform: 'uppercase', tracking: '0.05em', display: 'block', mb: 1 }}>
                     {t.mainSourceLabel}
@@ -690,19 +729,19 @@ export const SourceManager: React.FC = () => {
                 </Box>
                 <Box sx={{ mt: 2 }}>
                   <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', display: 'block', mb: 0.5 }}>
-                    {language === 'tr' ? 'Kullanılabilir Tablolar:' : 'Available Tables:'}
+                    {t.availableTablesLabel}
                   </Typography>
                   <ul className="text-[11px] list-disc list-inside text-gh-text space-y-0.5 font-mono max-h-[80px] overflow-y-auto pr-1">
                     {(() => {
                       const src = sources.find(s => s.id === activeSourceId);
                       if (src && src.schema) {
                         const tbls = Object.keys(src.schema || {});
-                        if (tbls.length === 0) return <li className="text-gh-muted italic">{language === 'tr' ? '(Tablo bulunamadı)' : '(No tables found)'}</li>;
+                        if (tbls.length === 0) return <li className="text-gh-muted italic">{t.noTablesFoundLabel}</li>;
                         return tbls.map(t => <li key={`active-${t}`} style={{ color: '#0078d4' }}>{t}</li>);
                       }
                       const fileItem = files.find(f => f.id === activeSourceId || f.alias === activeSourceId);
                       if (fileItem) return <li key={`active-file-${fileItem.alias}`} style={{ color: '#0078d4' }}>{fileItem.alias}</li>;
-                      return <li className="text-gh-muted italic">{language === 'tr' ? '(Seçim boş veya bulunamadı)' : '(Selection is empty or not found)'}</li>;
+                      return <li className="text-gh-muted italic">{t.emptySelectionLabel}</li>;
                     })()}
                   </ul>
                 </Box>
@@ -710,7 +749,7 @@ export const SourceManager: React.FC = () => {
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
-              <Box className="panel-inset" sx={{ p: 2.5, borderRadius: '6px', minHeight: 140, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <Box className="panel-inset" sx={{ p: 2.5, borderRadius: '6px', minHeight: 140, display: 'flex', flexDirection: 'column', justify: 'space-between' }}>
                 <Box>
                   <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', display: 'block', mb: 0.5 }}>
                     {t.additionalSources} ({selectedSourceIds.length})
@@ -733,7 +772,7 @@ export const SourceManager: React.FC = () => {
                           return (
                             <Box key={`sel-${sid}`} sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', bgcolor: 'rgba(0, 120, 212, 0.02)', p: '4px 8px', borderRadius: '4px', border: '1px solid', borderColor: 'divider', fontSize: 10.5 }}>
                               <span style={{ color: '#0078d4', fontWeight: 600 }}>{sid}</span>
-                              <span style={{ color: 'var(--color-text)' }}>({language === 'tr' ? `${tbls.length} tablo` : `${tbls.length} tables`})</span>
+                              <span style={{ color: 'var(--color-text)' }}>({tbls.length} {tbls.length === 1 ? t.tableSuffix : t.tablesSuffix})</span>
                             </Box>
                           );
                         }
@@ -742,11 +781,11 @@ export const SourceManager: React.FC = () => {
                           return (
                             <Box key={`sel-file-${sid}`} sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', bgcolor: 'rgba(0, 120, 212, 0.02)', p: '4px 8px', borderRadius: '4px', border: '1px solid', borderColor: 'divider', fontSize: 10.5 }}>
                               <span style={{ color: '#0078d4', fontWeight: 600 }}>{fileItem.alias}</span>
-                              <span style={{ color: '#0078d4' }}>{language === 'tr' ? 'Dosya' : 'File'}</span>
+                              <span style={{ color: '#0078d4' }}>{t.fileLabel.replace(':', '').trim()}</span>
                             </Box>
                           );
                         }
-                        return <div key={`sel-miss-${sid}`} style={{ fontStyle: 'italic', opacity: 0.7 }}>{sid} ({language === 'tr' ? 'Bulunamadı' : 'Not Found'})</div>;
+                        return <div key={`sel-miss-${sid}`} style={{ fontStyle: 'italic', opacity: 0.7 }}>{sid} ({t.notFoundLabel})</div>;
                       })}
                     </Box>
                   )}
@@ -783,10 +822,10 @@ export const SourceManager: React.FC = () => {
                       {detailSource.display_name}
                     </Typography>
                     <Box sx={{ mt: 1.5, display: 'flex', flexDirection: 'column', gap: 1, fontSize: 10.5, color: 'text.secondary' }}>
-                      <Box>{language === 'tr' ? 'Tip: ' : 'Type: '}<Chip label={detailSource.type.toUpperCase()} size="small" sx={{ height: 16, fontSize: 8.5, fontWeight: 600, bgcolor: 'rgba(0, 120, 212, 0.1)', color: '#0078d4', border: 0 }} /></Box>
-                      <Box>{language === 'tr' ? 'Durum: ' : 'Status: '}{detailSource.is_active ? <Chip label={t.active} color="success" size="small" sx={{ height: 16, fontSize: 8.5, fontWeight: 600, border: 0 }} /> : <Chip label={t.passive} color="error" size="small" sx={{ height: 16, fontSize: 8.5, fontWeight: 600, border: 0 }} />}</Box>
-                      <Box>{language === 'tr' ? 'Tablolar: ' : 'Tables: '}<span style={{ color: '#0078d4', fontWeight: 600, fontFamily: 'monospace' }}>{Object.keys(detailSource.schema || {}).length}</span></Box>
-                      <Box sx={{ fontSize: 9.5, opacity: 0.8 }}>{language === 'tr' ? 'Son Güncelleme: ' : 'Last Update: '}{detailSource.last_schema_update || '—'}</Box>
+                      <Box>{t.typeLabel}<Chip label={detailSource.type.toUpperCase()} size="small" sx={{ height: 16, fontSize: 8.5, fontWeight: 600, bgcolor: 'rgba(0, 120, 212, 0.1)', color: '#0078d4', border: 0 }} /></Box>
+                      <Box>{t.statusLabel}{detailSource.is_active ? <Chip label={t.active} color="success" size="small" sx={{ height: 16, fontSize: 8.5, fontWeight: 600, border: 0 }} /> : <Chip label={t.passive} color="error" size="small" sx={{ height: 16, fontSize: 8.5, fontWeight: 600, border: 0 }} />}</Box>
+                      <Box>{t.tablesLabel}<span style={{ color: '#0078d4', fontWeight: 600, fontFamily: 'monospace' }}>{Object.keys(detailSource.schema || {}).length}</span></Box>
+                      <Box sx={{ fontSize: 9.5, opacity: 0.8 }}>{t.lastUpdateLabel}{detailSource.last_schema_update || '—'}</Box>
                     </Box>
                   </Box>
                 </Grid>
@@ -798,7 +837,7 @@ export const SourceManager: React.FC = () => {
                     </Typography>
                     {detailSource.type === 'sqlite' ? (
                       <Typography variant="caption" sx={{ fontFamily: 'monospace', display: 'block', wordBreak: 'break-all' }}>
-                        {language === 'tr' ? 'Dosya: ' : 'File: '}<span style={{ color: '#0078d4' }}>{detailDetails.database_path || '—'}</span>
+                        {t.fileLabel}<span style={{ color: '#0078d4' }}>{detailDetails.database_path || '—'}</span>
                       </Typography>
                     ) : detailSource.type === 'snowflake' ? (
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, fontFamily: 'monospace', fontSize: 10.5, color: 'text.secondary' }}>
@@ -811,16 +850,16 @@ export const SourceManager: React.FC = () => {
                     ) : detailSource.type === 'bigquery' ? (
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, fontFamily: 'monospace', fontSize: 10.5, color: 'text.secondary' }}>
                         <div>Project ID: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.project_id || '—'}</span></div>
-                        <div>JSON Key: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.credentials_json ? '✓ Yüklendi (Loaded)' : '—'}</span></div>
+                        <div>JSON Key: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.credentials_json ? t.loadedStatus : '—'}</span></div>
                       </Box>
                     ) : (
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, fontFamily: 'monospace', fontSize: 10.5, color: 'text.secondary' }}>
                         <div>Host: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.host || '—'}</span></div>
                         <div>Port: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.port || '—'}</span></div>
                         <div>DB: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.database || '—'}</span></div>
-                        <div>Şema: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.schema || '—'}</span></div>
+                        <div>{t.schemaLabel}<span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.schema || '—'}</span></div>
                         <div>User: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.user || '—'}</span></div>
-                        <div>{language === 'tr' ? 'Şifre' : 'Password'}: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.password ? '••••••••' : '—'}</span></div>
+                        <div>{t.dbPasswordLabel}: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.password ? '••••••••' : '—'}</span></div>
                       </Box>
                     )}
                   </Box>
@@ -839,7 +878,7 @@ export const SourceManager: React.FC = () => {
                     size="small"
                     sx={{ bgcolor: '#0078d4', '&:hover': { bgcolor: '#106ebe' }, color: '#ffffff', px: 2, height: 24, fontSize: 10, fontWeight: 600 }}
                   >
-                    {language === 'tr' ? 'Kaydet' : 'Save'}
+                    {t.saveBtn}
                   </Button>
                 </Box>
                 <TextField
@@ -963,7 +1002,7 @@ export const SourceManager: React.FC = () => {
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
           <Button onClick={() => setSemanticSourceId(null)} variant="outlined" sx={{ borderColor: 'divider', color: 'text.primary' }}>
-            {language === 'tr' ? 'İptal' : 'Cancel'}
+            {t.cancelBtn}
           </Button>
           <Button
             type="primary"
@@ -992,7 +1031,7 @@ export const SourceManager: React.FC = () => {
             </Box>
             <Box>
               <Typography variant="subtitle2" sx={{ fontWeight: 'extrabold', fontSize: 13, m: 0 }}>
-                {language === 'tr' ? 'Seçmeli Tablo Snapshot Kopyalaması' : 'Selective Table Snapshot Replication'}
+                {t.tableReplicationTitle}
               </Typography>
               <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.2 }}>
                 {tableSelectionSource?.display_name}
@@ -1006,16 +1045,14 @@ export const SourceManager: React.FC = () => {
 
         <DialogContent sx={{ p: 2.5, maxHeight: '60vh', display: 'flex', flexDirection: 'column', gap: 2 }}>
           <Typography variant="caption" sx={{ color: 'text.secondary', lineHeight: 1.4 }}>
-            {language === 'tr' 
-              ? 'Lokal SQLite yedeğine aktarmak istediğiniz tabloları seçin. Yalnızca seçilen tablolar kopyalanacak, böylece kopyalama işlemi hızlanacak ve disk alanı tasarrufu sağlanacaktır.' 
-              : 'Select the tables you want to replicate into the local SQLite backup. Only selected tables will be copied, which speeds up copying and saves disk space.'}
+            {t.tableReplicationSubtitle}
           </Typography>
 
           {/* Search Table */}
           <TextField
             fullWidth
             size="small"
-            placeholder={language === 'tr' ? 'Tablo ara...' : 'Search tables...'}
+            placeholder={t.searchTablesPlaceholder}
             value={tableSearchQuery}
             onChange={(e) => setTableSearchQuery(e.target.value)}
             slotProps={{
@@ -1040,7 +1077,7 @@ export const SourceManager: React.FC = () => {
               }}
               sx={{ borderRadius: '6px', fontSize: 10.5, py: 0.5, px: 1.5, borderColor: 'divider', color: 'text.primary', textTransform: 'none' }}
             >
-              {language === 'tr' ? 'Tümünü Seç' : 'Select All'}
+              {t.selectAll}
             </Button>
             <Button
               size="small"
@@ -1054,7 +1091,7 @@ export const SourceManager: React.FC = () => {
               }}
               sx={{ borderRadius: '6px', fontSize: 10.5, py: 0.5, px: 1.5, borderColor: 'divider', color: 'text.primary', textTransform: 'none' }}
             >
-              {language === 'tr' ? 'Tümünü Temizle' : 'Clear All'}
+              {t.clearAllBtn}
             </Button>
           </Box>
 
@@ -1095,14 +1132,14 @@ export const SourceManager: React.FC = () => {
                     }
                   />
                   <Typography variant="caption" sx={{ color: 'text.secondary', fontFamily: 'monospace', fontSize: 9 }}>
-                    {(cols as any[]).length} {language === 'tr' ? 'kolon' : 'cols'}
+                    {(cols as any[]).length} {t.dbColumnSuffix}
                   </Typography>
                 </Box>
               ))}
 
             {Object.keys(tableSelectionSource?.schema ?? {}).filter(t => t.toLowerCase().includes(tableSearchQuery.toLowerCase())).length === 0 && (
               <Typography variant="caption" sx={{ color: 'text.secondary', fontStyle: 'italic', display: 'block', textAlign: 'center', py: 4 }}>
-                {language === 'tr' ? 'Tablo bulunamadı.' : 'No tables found.'}
+                {t.noTablesFoundLabel}
               </Typography>
             )}
           </Box>
@@ -1120,7 +1157,7 @@ export const SourceManager: React.FC = () => {
             onClick={() => {
               const chosen = Object.keys(selectedTables).filter(k => selectedTables[k]);
               if (chosen.length === 0) {
-                alert(language === 'tr' ? 'Lütfen en az bir tablo seçin.' : 'Please select at least one table.');
+                alert(t.selectAtLeastOneTableAlert);
                 return;
               }
               setTableSelectionOpen(false);
@@ -1130,7 +1167,7 @@ export const SourceManager: React.FC = () => {
             disabled={Object.keys(selectedTables).filter(k => selectedTables[k]).length === 0}
             sx={{ borderRadius: '8px', fontSize: 11, fontWeight: 600, px: 2.5, bgcolor: '#0078d4', '&:hover': { bgcolor: '#106ebe' }, color: '#ffffff', textTransform: 'none' }}
           >
-            {language === 'tr' ? 'Snapshot Kopyalamasını Başlat' : 'Start Snapshot Replication'}
+            {t.startReplicationBtn}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1149,10 +1186,10 @@ export const SourceManager: React.FC = () => {
             </Box>
             <Box>
               <Typography variant="subtitle2" sx={{ fontWeight: 'extrabold', fontSize: 13, m: 0 }}>
-                {language === 'tr' ? 'Veri Tabanı Snapshot Kopyalama Paneli' : 'Database Snapshot Replication Panel'}
+                {t.snapshotPanelTitle}
               </Typography>
               <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.2 }}>
-                {snapshotSource?.display_name} → {language === 'tr' ? 'Yerel Çevrimdışı Depo' : 'Local Offline Store'}
+                {snapshotSource?.display_name} → {t.localOfflineStoreLabel}
               </Typography>
             </Box>
           </Box>
@@ -1166,12 +1203,10 @@ export const SourceManager: React.FC = () => {
           {/* 1. Educational Guided Info Card */}
           <Alert severity="info" icon={<ShieldCheck size={20} />} sx={{ borderRadius: '8px', bgcolor: 'rgba(0, 120, 212, 0.03)', border: '1px solid rgba(0, 120, 212, 0.15)', '& .MuiAlert-message': { width: '100%' } }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: 11, mb: 0.5, color: '#0078d4', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-              {language === 'tr' ? '💡 Snapshot Teknolojisi Nasıl Çalışır?' : '💡 How does Snapshot Technology Work?'}
+              {t.howSnapshotWorksTitle}
             </Typography>
             <Typography variant="caption" sx={{ display: 'block', lineHeight: 1.5, color: 'text.secondary' }}>
-              {language === 'tr' 
-                ? 'Bu panel, canlı veritabanınızdaki şemayı tarayarak tüm tabloları ve verileri tablo tablo keşfeder. Veriler, sunucu RAM tüketimini sıfıra yakın tutmak amacıyla 5000\'er satırlık paketler halinde çekilip yerel diskteki yüksek performanslı SQLite veritabanına aktarılır. Aynı zamanda, yapay zekanın analitik DuckDB birleştirmelerini ve sorgularını milisaniyeler seviyesinde koşturabilmesi için tüm birincil/yabancı anahtarlara (ID, Key, Tarih vb.) otomatik olarak akıllı indeksler tanımlanır.' 
-                : 'This panel scans the schema in your live database and discovers all tables and data table-by-table. To keep server RAM usage near zero, rows are fetched in chunks of 5000 and streamed into a high-performance local SQLite database. Simultaneously, smart database indexes are automatically created on primary/foreign keys and date columns (IDs, Keys, Dates) to accelerate downstream multi-source DuckDB joins and AI analytical queries.'}
+              {t.howSnapshotWorksDesc}
             </Typography>
           </Alert>
 
@@ -1180,11 +1215,11 @@ export const SourceManager: React.FC = () => {
             <Box sx={{ px: 2.5, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'action.hover', display: 'flex', alignItems: 'center', justify: 'space-between' }}>
               <Typography variant="caption" sx={{ fontWeight: 700, textTransform: 'uppercase', tracking: '0.03em', display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Database size={13} style={{ color: '#0078d4' }} />
-                {language === 'tr' ? 'Keşfedilen Tablolar ve Kopyalama Durumu' : 'Discovered Tables & Replication Status'}
+                {t.discoveredTablesReplicationStatus}
               </Typography>
               {snapshotProgress.discoveredTables.length > 0 && (
                 <Chip 
-                  label={`${snapshotProgress.discoveredTables.length} ${language === 'tr' ? 'Tablo' : 'Tables'}`} 
+                  label={`${snapshotProgress.discoveredTables.length} ${snapshotProgress.discoveredTables.length === 1 ? t.tableSuffix : t.tablesSuffix}`} 
                   size="small" 
                   sx={{ height: 18, fontSize: 8.5, fontWeight: 700, bgcolor: 'rgba(0, 120, 212, 0.1)', color: '#0078d4' }} 
                 />
@@ -1196,43 +1231,43 @@ export const SourceManager: React.FC = () => {
                 <Box sx={{ py: 3, textAlign: 'center', color: 'text.secondary' }}>
                   <CircularProgress size={18} sx={{ mb: 1 }} />
                   <Typography variant="caption" sx={{ display: 'block', fontStyle: 'italic' }}>
-                    {language === 'tr' ? 'Tablolar taranıyor ve analiz ediliyor...' : 'Scanning and analyzing tables...'}
+                    {t.scanningAnalyzingTables}
                   </Typography>
                 </Box>
               ) : (
                 <Grid container spacing={1.5}>
-                  {snapshotProgress.discoveredTables.map((t) => {
-                    const statusInfo = snapshotProgress.completedTables[t] || { rows: 0, indexes: 0, status: 'pending' };
+                  {snapshotProgress.discoveredTables.map((tName) => {
+                    const statusInfo = snapshotProgress.completedTables[tName] || { rows: 0, indexes: 0, status: 'pending' };
                     let statusBg = 'rgba(255, 255, 255, 0.02)';
                     let statusBorder = 'divider';
                     let statusColor = 'text.secondary';
-                    let statusText = language === 'tr' ? 'Bekliyor' : 'Pending';
+                    let statusText = t.pendingStatus;
                     let statusIcon = <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: 'text.disabled' }} />;
 
                     if (statusInfo.status === 'running') {
                       statusBg = 'rgba(0, 120, 212, 0.03)';
                       statusBorder = '#0078d4';
                       statusColor = '#0078d4';
-                      statusText = language === 'tr' ? `Aktarılıyor (${statusInfo.rows} satır)` : `Copying (${statusInfo.rows} rows)`;
+                      statusText = t.copyingRowsStatus.replace('{rows}', String(statusInfo.rows));
                       statusIcon = <CircularProgress size={8} color="inherit" />;
                     } else if (statusInfo.status === 'completed') {
                       statusBg = 'rgba(46, 125, 50, 0.03)';
                       statusBorder = 'rgba(46, 125, 50, 0.25)';
                       statusColor = 'success.main';
-                      statusText = language === 'tr' ? `Tamamlandı (${statusInfo.rows} satır, ${statusInfo.indexes} indeks)` : `Success (${statusInfo.rows} rows, ${statusInfo.indexes} idx)`;
+                      statusText = t.successRowsIdxStatus.replace('{rows}', String(statusInfo.rows)).replace('{indexes}', String(statusInfo.indexes));
                       statusIcon = <ShieldCheck size={10} style={{ color: 'var(--color-success)' }} />;
                     } else if (statusInfo.status === 'failed') {
                       statusBg = 'rgba(211, 47, 47, 0.03)';
                       statusBorder = 'rgba(211, 47, 47, 0.25)';
                       statusColor = 'error.main';
-                      statusText = language === 'tr' ? 'Hata' : 'Failed';
+                      statusText = t.failedStatus;
                       statusIcon = <AlertCircle size={10} style={{ color: 'var(--color-error)' }} />;
                     }
 
                     return (
-                      <Grid size={{ xs: 12, sm: 6 }} key={`snapshot-tab-${t}`}>
+                      <Grid size={{ xs: 12, sm: 6 }} key={`snapshot-tab-${tName}`}>
                         <Box sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', p: '6px 12px', border: '1px solid', borderColor: statusBorder, bgcolor: statusBg, borderRadius: '6px', fontSize: 10.5 }}>
-                          <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{t}</span>
+                          <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{tName}</span>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: statusColor, fontWeight: 700, fontSize: 9.5 }}>
                             {statusIcon}
                             <span>{statusText}</span>
@@ -1251,19 +1286,19 @@ export const SourceManager: React.FC = () => {
             <Box className="panel-inset" sx={{ p: 2, borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
               <Box sx={{ display: 'flex', justify: 'space-between', alignItems: 'center', fontSize: 11, fontWeight: 600 }}>
                 <span>
-                  {language === 'tr' ? 'Toplam Kopyalama İlerlemesi' : 'Overall Replication Progress'}
+                  {t.overallReplicationProgress}
                 </span>
                 <span style={{ color: '#0078d4' }}>
                   {snapshotProgress.status === 'completed' 
-                    ? (language === 'tr' ? 'Tamamlandı' : 'Completed')
-                    : `${snapshotProgress.currentTableIndex + 1} / ${snapshotProgress.discoveredTables.length} ${language === 'tr' ? 'Tablo' : 'Tables'}`}
+                    ? t.completedStatus
+                    : `${snapshotProgress.currentTableIndex + 1} / ${snapshotProgress.discoveredTables.length} ${snapshotProgress.discoveredTables.length === 1 ? t.tableSuffix : t.tablesSuffix}`}
                 </span>
               </Box>
 
               {/* Progress bar */}
               <Box sx={{ height: 6, width: '100%', bgcolor: 'divider', borderRadius: '3px', overflow: 'hidden' }}>
                 <Box 
-                  sx={{ 
+                   sx={{ 
                     height: '100%', 
                     bgcolor: snapshotProgress.status === 'completed' ? 'success.main' : '#0078d4', 
                     borderRadius: '3px', 
@@ -1278,7 +1313,7 @@ export const SourceManager: React.FC = () => {
           {/* 4. Live log outputs console */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.8 }}>
             <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.03em' }}>
-              {language === 'tr' ? 'Anlık İşlem Kaydı (Terminal)' : 'Live Operation Logs (Console)'}
+              {t.liveOperationLogsConsole}
             </Typography>
             <Box 
               sx={{ 
@@ -1308,7 +1343,7 @@ export const SourceManager: React.FC = () => {
         <DialogActions sx={{ px: 3, pb: 2.5, borderTop: '1px solid', borderColor: 'divider', gap: 1 }}>
           {snapshotProgress.status !== 'running' && (
             <Button onClick={() => setSnapshotDialogOpen(false)} variant="contained" sx={{ bgcolor: '#0078d4', '&:hover': { bgcolor: '#106ebe' }, color: '#ffffff', fontWeight: 600 }}>
-              {language === 'tr' ? 'Kapat' : 'Close'}
+              {t.closeBtn}
             </Button>
           )}
           {snapshotProgress.status === 'running' && (
@@ -1393,32 +1428,32 @@ export const SourceManager: React.FC = () => {
 
                     {/* Actions Toolbar */}
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }} onClick={(e) => e.stopPropagation()}>
-                      <Tooltip title={language === 'tr' ? 'Detayları ve Etiketleri Gör' : 'View Details & Tags'}>
+                      <Tooltip title={t.viewDetailsTooltip}>
                         <IconButton size="small" onClick={(e) => openDetails(e, src.id)}>
                           <Eye size={13.5} />
                         </IconButton>
                       </Tooltip>
 
-                      <Tooltip title={language === 'tr' ? 'Semantik Katman Tanımları' : 'Semantic Layer Mappings'}>
+                      <Tooltip title={t.semanticLayerTooltip}>
                         <IconButton size="small" onClick={(e) => openSemanticModal(e, src.id)}>
                           <Tag size={13.5} />
                         </IconButton>
                       </Tooltip>
 
-                      <Tooltip title={language === 'tr' ? 'Bağlantıyı Klonla' : 'Clone Connection'}>
+                      <Tooltip title={t.cloneConnectionTooltip}>
                         <IconButton size="small" onClick={(e) => handleClone(e, src.id)} disabled={cloningId === src.id}>
                           {cloningId === src.id ? <CircularProgress size={13.5} /> : <Copy size={13.5} />}
                         </IconButton>
                       </Tooltip>
 
-                      <Tooltip title={isActive ? (language === 'tr' ? 'Pasif Yap' : 'Make Passive') : (language === 'tr' ? 'Aktif Yap' : 'Make Active')}>
+                      <Tooltip title={isActive ? t.toggleStatusActiveTooltip : t.toggleStatusPassiveTooltip}>
                         <IconButton size="small" onClick={(e) => handleToggleStatus(e, src.id, isActive)} disabled={togglingId === src.id}>
                           {togglingId === src.id ? <CircularProgress size={13.5} /> : <Power size={13.5} style={{ color: isActive ? 'inherit' : '#0078d4' }} />}
                         </IconButton>
                       </Tooltip>
 
                       {src.id !== 'demo_sqlite' && (
-                        <Tooltip title={language === 'tr' ? 'Bağlantıyı Düzenle' : 'Edit Connection'}>
+                        <Tooltip title={t.editConnectionTooltip}>
                           <IconButton size="small" onClick={(e) => handleStartEdit(e, src)}>
                             <Edit3 size={13.5} />
                           </IconButton>
@@ -1426,21 +1461,21 @@ export const SourceManager: React.FC = () => {
                       )}
 
                       {src.type !== 'sqlite' && !src.connection_details?.is_snapshot && (
-                        <Tooltip title={language === 'tr' ? 'Snapshot Al (Yerel Yedeğe Dönüştür)' : 'Take Snapshot (Convert to Local Backup)'}>
+                        <Tooltip title={t.takeSnapshotTooltip}>
                           <IconButton size="small" onClick={(e) => handleStartSnapshotFlow(e, src.id)} disabled={snapshotting === src.id}>
                             {snapshotting === src.id ? <CircularProgress size={13.5} /> : <HardDrive size={13.5} />}
                           </IconButton>
                         </Tooltip>
                       )}
 
-                      <Tooltip title={language === 'tr' ? 'Şemayı Yenile ve Keşfet' : 'Refresh & Auto-Scan Schema'}>
+                      <Tooltip title={t.refreshSchemaTooltip}>
                         <IconButton size="small" onClick={(e) => handleRefreshSchema(e, src.id)} disabled={refreshing === src.id}>
                           {refreshing === src.id ? <CircularProgress size={13.5} /> : <RefreshCw size={13.5} />}
                         </IconButton>
                       </Tooltip>
 
                       {src.id !== 'demo_sqlite' && (
-                        <Tooltip title={language === 'tr' ? 'Veri Tabanını Sil' : 'Delete Database'}>
+                        <Tooltip title={t.deleteDatabaseTooltip}>
                           <IconButton size="small" color="error" onClick={(e) => handleDelete(e, src.id)} disabled={deleting === src.id}>
                             {deleting === src.id ? <CircularProgress size={13.5} color="inherit" /> : <Trash2 size={13.5} />}
                           </IconButton>
@@ -1453,7 +1488,7 @@ export const SourceManager: React.FC = () => {
                           onClick={() => setActiveSourceId(src.id)}
                           sx={{ fontSize: 9.5, fontWeight: 600, border: '1px solid', borderColor: 'divider', color: 'text.secondary', borderRadius: '6px', py: 0.3 }}
                         >
-                          {language === 'tr' ? 'Seç' : 'Select'}
+                          {t.selectSourceBtn}
                         </Button>
                       )}
                     </Box>
@@ -1485,7 +1520,7 @@ export const SourceManager: React.FC = () => {
                               <Box className="panel-inset" sx={{ p: 1.5, borderRadius: '8px', bgcolor: 'rgba(0, 120, 212, 0.02)', border: '1px solid', borderColor: 'divider' }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', borderBottom: '1px solid', borderColor: 'divider', pb: 0.5, mb: 1 }}>
                                   <span style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 10.5 }}>{tbl}</span>
-                                  <span style={{ fontSize: 9, color: '#9aa6bf', fontFamily: 'monospace' }}>{(cols as string[]).length} {language === 'tr' ? 'sütun' : 'columns'}</span>
+                                  <span style={{ fontSize: 9, color: '#9aa6bf', fontFamily: 'monospace' }}>{(cols as string[]).length} {t.dbColumnSuffix}</span>
                                 </Box>
                                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                                   {(cols as string[]).map(col => (
@@ -1517,7 +1552,7 @@ export const SourceManager: React.FC = () => {
                 <Box sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', borderBottom: '1px solid', borderColor: 'divider', pb: 1.5 }}>
                   <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.primary', textTransform: 'uppercase', tracking: '0.05em', display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Database className="w-3.5 h-3.5 text-gh-accent" />
-                    {editingSourceId ? (language === 'tr' ? 'Bağlantıyı Düzenle' : 'Edit Connection') : t.addBtn}
+                    {editingSourceId ? t.editConnectionTooltip : t.addBtn}
                   </Typography>
                   <IconButton onClick={() => { setShowForm(false); setEditingSourceId(null); }} size="small">
                     <X size={15} />
@@ -1528,7 +1563,7 @@ export const SourceManager: React.FC = () => {
                 {!editingSourceId && (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
-                      {language === 'tr' ? 'Veritabanı Tipi' : 'Database Type'}
+                      {t.dbTypeLabel}
                     </Typography>
                     <ToggleButtonGroup
                       value={formValues.type}
@@ -1570,34 +1605,156 @@ export const SourceManager: React.FC = () => {
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
-                      {language === 'tr' ? 'Bağlantı Görüntüleme İsmi' : 'Display Connection Name'}
+                      {t.displayConnectionNameLabel}
                     </Typography>
                     <TextField
                       fullWidth
                       value={formValues.display_name}
                       onChange={e => setFormValues(p => ({ ...p, display_name: e.target.value }))}
-                      placeholder={language === 'tr' ? 'Örn: PostgreSQL Canlı' : 'E.g. Live PostgreSQL'}
+                      placeholder={t.displayConnectionNamePlaceholder}
                       sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
                     />
                   </Box>
 
                   {formValues.type === 'sqlite' ? (
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                      <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
-                        {t.sqlitePathLabel}
-                      </Typography>
-                      <TextField
-                        fullWidth
-                        value={formValues.database_path}
-                        onChange={e => setFormValues(p => ({ ...p, database_path: e.target.value }))}
-                        placeholder={t.sqlitePathPlaceholder}
-                        slotProps={{
-                          input: {
-                            startAdornment: <HardDrive size={13.5} style={{ marginRight: 6, color: '#0078d4' }} />
-                          }
-                        }}
-                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
-                      />
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                        <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em' }}>
+                          {t.sqlitePathLabel}
+                        </Typography>
+                        {localSqliteFiles.length > 0 && (
+                          <Button
+                            variant="text"
+                            size="small"
+                            onClick={() => setShowManualPathInput(!showManualPathInput)}
+                            sx={{ fontSize: 9, p: 0, minWidth: 'auto', textTransform: 'none', color: '#0078d4' }}
+                          >
+                            {showManualPathInput 
+                              ? (language === 'tr' ? 'Listeden Seç' : 'Select from List')
+                              : (language === 'tr' ? 'Manuel Yol Gir' : 'Enter Manually')}
+                          </Button>
+                        )}
+                      </Box>
+                      {loadingSqliteFiles ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 1 }}>
+                          <CircularProgress size={16} />
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                            {language === 'tr' ? 'SQLite dosyaları listeleniyor...' : 'Listing SQLite files...'}
+                          </Typography>
+                        </Box>
+                      ) : (showManualPathInput || localSqliteFiles.length === 0) ? (
+                        <TextField
+                          fullWidth
+                          value={formValues.database_path}
+                          onChange={e => setFormValues(p => ({ ...p, database_path: e.target.value }))}
+                          placeholder={t.sqlitePathPlaceholder}
+                          slotProps={{
+                            input: {
+                              startAdornment: <HardDrive size={13.5} style={{ marginRight: 6, color: '#0078d4' }} />
+                            }
+                          }}
+                          sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+                        />
+                      ) : (
+                        <TextField
+                          select
+                          fullWidth
+                          value={formValues.database_path}
+                          onChange={e => setFormValues(p => ({ ...p, database_path: e.target.value }))}
+                          slotProps={{
+                            input: {
+                              startAdornment: <HardDrive size={13.5} style={{ marginRight: 6, color: '#0078d4' }} />
+                            },
+                            select: {
+                              native: true
+                            }
+                          }}
+                          sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+                        >
+                          {!formValues.database_path && (
+                            <option value="">{language === 'tr' ? '-- Bir dosya seçin --' : '-- Select a file --'}</option>
+                          )}
+                          {localSqliteFiles.map((f) => (
+                            <option key={f} value={f}>
+                              {f}
+                            </option>
+                          ))}
+                        </TextField>
+                      )}
+
+                      {/* SQLite File Picker (File Manager) Upload */}
+                      <Box sx={{ mt: 1.5 }}>
+                        <input
+                          type="file"
+                          accept=".db,.sqlite,.sqlite3"
+                          style={{ display: 'none' }}
+                          id="sqlite-file-picker-input"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            
+                            const formData = new FormData();
+                            formData.append('file', file);
+                            
+                            setUploadingSqlite(true);
+                            setUploadSqliteError(null);
+                            try {
+                              const res = await fetch(`${API}/api/sources/upload-sqlite`, {
+                                method: 'POST',
+                                body: formData
+                              });
+                              if (res.ok) {
+                                const data = await res.json();
+                                setFormValues(prev => ({ ...prev, database_path: data.database_path }));
+                                setLocalSqliteFiles(prev => {
+                                  if (prev.includes(data.database_path)) return prev;
+                                  return [...prev, data.database_path].sort();
+                                });
+                                setShowManualPathInput(false);
+                              } else {
+                                const err = await res.json();
+                                setUploadSqliteError(err.detail || (language === 'tr' ? 'Dosya yüklenemedi.' : 'Failed to upload file.'));
+                              }
+                            } catch (err: any) {
+                              setUploadSqliteError(err.message || (language === 'tr' ? 'Bağlantı hatası.' : 'Connection error.'));
+                            } finally {
+                              setUploadingSqlite(false);
+                              e.target.value = '';
+                            }
+                          }}
+                        />
+                        <label htmlFor="sqlite-file-picker-input">
+                          <Button
+                            variant="outlined"
+                            component="span"
+                            fullWidth
+                            disabled={uploadingSqlite}
+                            startIcon={uploadingSqlite ? <CircularProgress size={14} color="inherit" /> : <Upload size={14} />}
+                            sx={{
+                              borderStyle: 'dashed',
+                              borderRadius: '8px',
+                              borderColor: 'divider',
+                              textTransform: 'none',
+                              fontSize: 10.5,
+                              py: 0.8,
+                              color: 'text.secondary',
+                              '&:hover': {
+                                borderColor: '#0078d4',
+                                bgcolor: 'rgba(0, 120, 212, 0.04)'
+                              }
+                            }}
+                          >
+                            {uploadingSqlite 
+                              ? (language === 'tr' ? 'Dosya yükleniyor...' : 'Uploading file...') 
+                              : (language === 'tr' ? 'Bilgisayardan SQLite Dosyası Seç (.db, .sqlite)' : 'Select SQLite File from Computer (.db, .sqlite)')}
+                          </Button>
+                        </label>
+                        {uploadSqliteError && (
+                          <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5, fontSize: 9.5 }}>
+                            {uploadSqliteError}
+                          </Typography>
+                        )}
+                      </Box>
                     </Box>
                   ) : formValues.type === 'snowflake' ? (
                     <>
@@ -1605,7 +1762,7 @@ export const SourceManager: React.FC = () => {
                         <Grid size={12}>
                           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                             <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
-                              Snowflake {language === 'tr' ? 'Hesap ID' : 'Account ID'}
+                              {t.snowflakeAccountIdLabel}
                             </Typography>
                             <TextField
                               fullWidth
@@ -1622,7 +1779,7 @@ export const SourceManager: React.FC = () => {
                         <Grid size={6}>
                           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                             <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
-                              {language === 'tr' ? 'Veritabanı' : 'Database'}
+                              {t.databaseNameLabel}
                             </Typography>
                             <TextField
                               fullWidth
@@ -1636,7 +1793,7 @@ export const SourceManager: React.FC = () => {
                         <Grid size={6}>
                           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                             <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
-                              {language === 'tr' ? 'Şema' : 'Schema'}
+                              {t.schemaNameLabel}
                             </Typography>
                             <TextField
                               fullWidth
@@ -1670,7 +1827,7 @@ export const SourceManager: React.FC = () => {
                         <Grid size={6}>
                           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                             <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
-                              {language === 'tr' ? 'Kullanıcı' : 'Username'}
+                              {t.dbUserLabel}
                             </Typography>
                             <TextField
                               fullWidth
@@ -1684,14 +1841,14 @@ export const SourceManager: React.FC = () => {
                         <Grid size={6}>
                           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                             <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
-                              {language === 'tr' ? 'Şifre' : 'Password'}
+                              {t.dbPasswordLabel}
                             </Typography>
                             <TextField
                               fullWidth
                               type="password"
                               value={formValues.password}
                               onChange={e => setFormValues(p => ({ ...p, password: e.target.value }))}
-                              placeholder={editingSourceId ? (language === 'tr' ? "•••••••• (Boşsa değişmez)" : "•••••••• (Keep blank to preserve)") : "••••••••"}
+                              placeholder={editingSourceId ? t.passwordPlaceholderEdit : t.passwordPlaceholderNew}
                               sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
                             />
                           </Box>
@@ -1704,7 +1861,7 @@ export const SourceManager: React.FC = () => {
                         <Grid size={12}>
                           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                             <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
-                              Google Cloud Project ID
+                              {t.googleCloudProjectIdLabel}
                             </Typography>
                             <TextField
                               fullWidth
@@ -1721,7 +1878,7 @@ export const SourceManager: React.FC = () => {
                         <Grid size={12}>
                           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                             <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
-                              {language === 'tr' ? 'Servis Hesabı Anahtarı (JSON)' : 'Service Account Key (JSON)'}
+                              {t.serviceAccountKeyJsonLabel}
                             </Typography>
                             <TextField
                               fullWidth
@@ -1830,7 +1987,7 @@ export const SourceManager: React.FC = () => {
                               type="password"
                               value={formValues.password}
                               onChange={e => setFormValues(p => ({ ...p, password: e.target.value }))}
-                              placeholder={editingSourceId ? (language === 'tr' ? "•••••••• (Boşsa değişmez)" : "•••••••• (Keep blank to preserve)") : "••••••••"}
+                              placeholder={editingSourceId ? t.passwordPlaceholderEdit : t.passwordPlaceholderNew}
                               sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
                             />
                           </Box>
@@ -1862,7 +2019,7 @@ export const SourceManager: React.FC = () => {
                     startIcon={!testing && <Play size={14} />}
                     sx={{ width: '100%', borderRadius: '8px', borderColor: 'divider', color: 'text.primary', fontWeight: 600, fontSize: 11, py: 1 }}
                   >
-                    {testing ? <CircularProgress size={14} color="inherit" /> : (language === 'tr' ? 'Bağlantıyı Test Et' : 'Test Connection')}
+                    {testing ? <CircularProgress size={14} color="inherit" /> : t.testConnectionBtn}
                   </Button>
                   <Button
                     onClick={handleSave}
@@ -1875,7 +2032,7 @@ export const SourceManager: React.FC = () => {
                       '&:hover': { bgcolor: testResult?.success ? 'success.dark' : 'action.disabledBackground' }
                     }}
                   >
-                    {saving ? <CircularProgress size={14} color="inherit" /> : (editingSourceId ? (language === 'tr' ? 'Değişiklikleri Güncelle' : 'Update Connection Details') : (language === 'tr' ? 'Bağlantıyı Kaydet & Şemayı Çıkar' : 'Save Connection & Extract Schema'))}
+                    {saving ? <CircularProgress size={14} color="inherit" /> : (editingSourceId ? t.updateConnectionBtn : t.saveConnectionBtnLong)}
                   </Button>
                 </Box>
               </CardContent>

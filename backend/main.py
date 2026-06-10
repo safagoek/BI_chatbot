@@ -25,7 +25,7 @@ from app.agent.supervisor import SupervisorAgent
 from app.core.logger import logger
 
 # Initialize FastAPI
-app = FastAPI()
+app = FastAPI(title="DeepBI Analytics Studio API", version="2.0.0")
 from app.core.config import settings
 
 # Configure CORS
@@ -36,6 +36,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register modular routers (Faz 2 refactoring)
+from app.routers.sessions import router as sessions_router
+from app.routers.sources import router as sources_router
+from app.routers.files import router as files_router
+from app.routers.settings_router import router as settings_router
+from app.routers.analytics import router as analytics_router
+from app.routers.rag_router import router as rag_router
+
+app.include_router(sessions_router)
+app.include_router(sources_router)
+app.include_router(files_router)
+app.include_router(settings_router)
+app.include_router(analytics_router)
+app.include_router(rag_router)
 
 # Ensure upload directory exists (relative to backend folder)
 UPLOAD_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), settings.upload_dir))
@@ -1010,14 +1025,22 @@ async def websocket_chat(websocket: WebSocket):
                     status_history.append(data.get("message"))
                 await websocket.send_json(data)
                 
-            # Process query
-            result = await agent.process_query(
-                user_question=user_text,
-                active_source_id=active_source_id,
-                source_ids=source_ids,
-                relationships=relationships,
-                ws_callback=ws_callback
-            )
+            # Process query — 120 saniye hard timeout
+            try:
+                import asyncio as _asyncio
+                async with _asyncio.timeout(120):
+                    result = await agent.process_query(
+                        user_question=user_text,
+                        active_source_id=active_source_id,
+                        source_ids=source_ids,
+                        relationships=relationships,
+                        ws_callback=ws_callback
+                    )
+            except _asyncio.TimeoutError:
+                logger.warning(f"WebSocket query timed out after 120s for session: {session_id}")
+                await websocket.send_json({"type": "error", "message": "Sorgu zaman aşımına uğradı (120s). Lütfen sorgunuzu basitleştirin veya daha küçük bir veri kümesi seçin."})
+                await websocket.send_json({"type": "done", "final_response": "⚠️ Sorgu zaman aşımına uğradı (120 saniye). Lütfen tekrar deneyin."})
+                continue
             
             agent_msg_id = payload.get("agent_msg_id") or f"agent-{int(time.time() * 1000)}"
             
