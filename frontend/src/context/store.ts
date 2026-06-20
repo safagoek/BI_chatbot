@@ -211,10 +211,10 @@ export const useBIStore = create<BIStore>((set, get) => ({
     }
     set((state) => {
       const updatedSessions = state.sessions.map(s => {
-        if (s.id === activeSessionId) return { ...s, activeSourceId: id };
+        if (s.id === activeSessionId) return { ...s, activeSourceId: id, selectedSourceIds: [id] };
         return s;
       });
-      return { activeSourceId: id, sessions: updatedSessions };
+      return { activeSourceId: id, selectedSourceIds: [id], sessions: updatedSessions };
     });
   },
 

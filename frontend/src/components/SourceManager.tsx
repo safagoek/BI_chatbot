@@ -164,7 +164,7 @@ export const SourceManager: React.FC = () => {
             const data = await res.json();
             setLocalSqliteFiles(data);
             if (!formValues.database_path && data.length > 0) {
-              const defaultDb = data.includes("demo.db") ? "demo.db" : data[0];
+              const defaultDb = data[0];
               setFormValues(prev => ({ ...prev, database_path: defaultDb }));
             }
           }
@@ -1452,13 +1452,11 @@ export const SourceManager: React.FC = () => {
                         </IconButton>
                       </Tooltip>
 
-                      {src.id !== 'demo_sqlite' && (
-                        <Tooltip title={t.editConnectionTooltip}>
-                          <IconButton size="small" onClick={(e) => handleStartEdit(e, src)}>
-                            <Edit3 size={13.5} />
-                          </IconButton>
-                        </Tooltip>
-                      )}
+                      <Tooltip title={t.editConnectionTooltip}>
+                        <IconButton size="small" onClick={(e) => handleStartEdit(e, src)}>
+                          <Edit3 size={13.5} />
+                        </IconButton>
+                      </Tooltip>
 
                       {src.type !== 'sqlite' && !src.connection_details?.is_snapshot && (
                         <Tooltip title={t.takeSnapshotTooltip}>
@@ -1474,13 +1472,11 @@ export const SourceManager: React.FC = () => {
                         </IconButton>
                       </Tooltip>
 
-                      {src.id !== 'demo_sqlite' && (
-                        <Tooltip title={t.deleteDatabaseTooltip}>
-                          <IconButton size="small" color="error" onClick={(e) => handleDelete(e, src.id)} disabled={deleting === src.id}>
-                            {deleting === src.id ? <CircularProgress size={13.5} color="inherit" /> : <Trash2 size={13.5} />}
-                          </IconButton>
-                        </Tooltip>
-                      )}
+                      <Tooltip title={t.deleteDatabaseTooltip}>
+                        <IconButton size="small" color="error" onClick={(e) => handleDelete(e, src.id)} disabled={deleting === src.id}>
+                          {deleting === src.id ? <CircularProgress size={13.5} color="inherit" /> : <Trash2 size={13.5} />}
+                        </IconButton>
+                      </Tooltip>
 
                       {!isSelected && (
                         <Button

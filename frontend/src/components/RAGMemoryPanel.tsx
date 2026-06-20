@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useBIStore } from '../context/store';
+import { useBIStore, BACKEND_BASE } from '../context/store';
 import { Trash2, RefreshCw, ThumbsUp, ThumbsDown, Minus } from 'lucide-react';
 
 interface RAGEntry {
@@ -27,7 +27,7 @@ const RAGMemoryPanel: React.FC = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/rag/memory');
+      const res = await fetch(`${BACKEND_BASE}/api/rag/memory`);
       if (!res.ok) throw new Error();
       setEntries(await res.json());
     } catch {
@@ -45,7 +45,7 @@ const RAGMemoryPanel: React.FC = () => {
     const key = b64(question);
     setDeletingKey(question);
     try {
-      await fetch(`/api/rag/memory/${key}`, { method: 'DELETE' });
+      await fetch(`${BACKEND_BASE}/api/rag/memory/${key}`, { method: 'DELETE' });
       setEntries((prev) => prev.filter((e) => e.question !== question));
     } catch { /* silent */ } finally {
       setDeletingKey(null);
@@ -56,7 +56,7 @@ const RAGMemoryPanel: React.FC = () => {
     if (!window.confirm(language === 'tr' ? 'Tüm RAG belleği silinecek. Emin misiniz?' : 'All RAG memory will be deleted. Are you sure?')) return;
     setClearing(true);
     try {
-      await fetch('/api/rag/memory', { method: 'DELETE' });
+      await fetch(`${BACKEND_BASE}/api/rag/memory`, { method: 'DELETE' });
       setEntries([]);
     } catch { /* silent */ } finally {
       setClearing(false);

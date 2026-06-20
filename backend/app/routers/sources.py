@@ -77,9 +77,6 @@ def list_local_sqlite_files():
             if os.path.basename(filepath) == "metadata.db":
                 continue
             found_files.append(rel_path)
-            
-    if "demo.db" not in found_files and os.path.exists(os.path.join(backend_dir, "demo.db")):
-        found_files.append("demo.db")
         
     return sorted(list(set(found_files)))
 
@@ -161,9 +158,6 @@ def update_source(source_id: str, source: DBSourceUpdate):
     if not target:
         raise HTTPException(status_code=404, detail="SOURCE_NOT_FOUND")
 
-    if source_id == "demo_sqlite":
-        raise HTTPException(status_code=403, detail="DEMO_SOURCE_READONLY")
-
     try:
         schema = discover_schema(target["type"], source.connection_details)
     except Exception as _e:
@@ -195,8 +189,6 @@ def update_source(source_id: str, source: DBSourceUpdate):
 
 @router.put("/{source_id}/status")
 def update_source_status_endpoint(source_id: str, payload: DBSourceStatusUpdate):
-    if source_id == "demo_sqlite" and not payload.is_active:
-        raise HTTPException(status_code=403, detail="DEMO_SOURCE_READONLY")
     success = update_source_status(source_id, payload.is_active)
     if not success:
         raise HTTPException(status_code=404, detail="SOURCE_NOT_FOUND")
@@ -272,8 +264,6 @@ def refresh_schema(source_id: str):
 
 @router.delete("/{source_id}")
 def delete_source(source_id: str):
-    if source_id == "demo_sqlite":
-        raise HTTPException(status_code=403, detail="DEMO_SOURCE_READONLY")
     import sqlite3 as sq
     from app.database.manager import DB_PATH
     conn = sq.connect(DB_PATH)

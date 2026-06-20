@@ -74,56 +74,7 @@ MEMORY_FILE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "query_memory.json"
 )
 
-_SEED_EXAMPLES = [
-    {
-        "question": "Ürün bazında toplam satış cirosu nedir?",
-        "intent": "file_analysis",
-        "code": "result = df.groupby('urun_adi')['ciro'].sum().reset_index()\nfig = px.bar(result, x='urun_adi', y='ciro', title='Ürün Bazında Ciro')",
-        "source_id": "satislar",
-        "feedback": "positive",
-        "execution_success": True
-    },
-    {
-        "question": "Şehirlere göre müşteri sayısı dağılımı",
-        "intent": "sql_query",
-        "code": "SELECT sehir, COUNT(*) as musteri_sayisi FROM musteriler GROUP BY sehir ORDER BY musteri_sayisi DESC",
-        "source_id": "demo_sqlite",
-        "feedback": "positive",
-        "execution_success": True
-    },
-    {
-        "question": "Aylık toplam ciro trendi çizgi grafik",
-        "intent": "file_analysis",
-        "code": "result = df.groupby('Ay')['Gerçekleşen'].sum().reset_index()\nfig = px.line(result, x='Ay', y='Gerçekleşen', title='Aylık Ciro Trendi', markers=True)",
-        "source_id": "hedefler",
-        "feedback": "positive",
-        "execution_success": True
-    },
-    {
-        "question": "En çok satan 5 ürün hangisi?",
-        "intent": "sql_query",
-        "code": "SELECT urun_adi, SUM(adet) as toplam_adet, ROUND(SUM(ciro), 2) as toplam_ciro FROM satislar GROUP BY urun_adi ORDER BY toplam_adet DESC LIMIT 5",
-        "source_id": "demo_sqlite",
-        "feedback": "positive",
-        "execution_success": True
-    },
-    {
-        "question": "Kategori bazında toplam satış karşılaştırması pasta grafik",
-        "intent": "file_analysis",
-        "code": "result = df.groupby('kategori')['ciro'].sum().reset_index()\nfig = px.pie(result, names='kategori', values='ciro', title='Kategori Dağılımı')",
-        "source_id": "satislar",
-        "feedback": "positive",
-        "execution_success": True
-    },
-    {
-        "question": "Hedef ve gerçekleşen satış farkını aylara göre göster",
-        "intent": "file_analysis",
-        "code": "df['Fark'] = df['Gerçekleşen'] - df['Hedef Ciro']\nresult = df[['Ay', 'Hedef Ciro', 'Gerçekleşen', 'Fark']]\nfig = px.bar(result, x='Ay', y=['Gerçekleşen', 'Hedef Ciro'], barmode='group', title='Hedef vs Gerçekleşen')",
-        "source_id": "hedefler",
-        "feedback": "positive",
-        "execution_success": True
-    }
-]
+_SEED_EXAMPLES: List[Dict[str, Any]] = []  # No hardcoded seeds — fully dynamic, schema-driven
 
 
 _memory_cache = None
@@ -154,13 +105,16 @@ def _load_memory() -> List[Dict[str, Any]]:
                     except Exception as ex:
                         logger.warning(f"Could not load legacy RAG memory JSON: {ex}")
                 
-                # Use legacy data if found, otherwise fall back to seed examples
-                initial_data = legacy_data if legacy_data else _SEED_EXAMPLES
+                # Use legacy data if found, otherwise start with empty memory (no hardcoded seeds)
+                initial_data = legacy_data if legacy_data else []
                 
-                # Save legacy data or seed examples to SQLite
-                conn.close()
-                _save_memory(initial_data)
-                _memory_cache = list(initial_data)
+                if initial_data:
+                    conn.close()
+                    _save_memory(initial_data)
+                    _memory_cache = list(initial_data)
+                else:
+                    conn.close()
+                    _memory_cache = []
                 
                 # Try to safely delete the legacy JSON file after successful migration
                 if legacy_data and os.path.exists(MEMORY_FILE_PATH):
@@ -385,7 +339,48 @@ def retrieve_similar(
         _save_memory(memory)
         
     scored.sort(key=lambda x: x[0], reverse=True)
-    return [item for _, item in scored[:top_k]]
+
+    # ── Schema Compatibility Filter ──────────────────────────────────────────
+    # Discard RAG examples whose code references columns NOT in the active schema.
+    # This prevents demo/old-dataset contamination when a new dataset is loaded.
+    results = []
+    for _, item in scored[:top_k * 2]:  # fetch 2x to have fallback after filtering
+        if not active_cols:
+            results.append(item)
+            continue
+        code = item.get("code", "")
+        # Extract column names from the code (SQL or Python)
+        code_cols = set()
+        # Match SQL column references: SELECT col1, col2 or GROUP BY col
+        for match in re.finditer(r'\b([a-zA-Z_ğüşöçİĞÜŞÖÇ][a-zA-Z0-9_ğüşöçİĞÜŞÖÇ]*)\b', code):
+            col = match.group(1).lower()
+            # Skip SQL keywords and common names
+            if col in {'select', 'from', 'where', 'group', 'by', 'order', 'limit',
+                        'and', 'or', 'as', 'on', 'join', 'left', 'right', 'inner',
+                        'count', 'sum', 'avg', 'min', 'max', 'round', 'cast', 'null',
+                        'desc', 'asc', 'having', 'union', 'all', 'distinct', 'not',
+                        'in', 'is', 'like', 'between', 'case', 'when', 'then', 'else',
+                        'end', 'coalesce', 'true', 'false', 'df', 'result', 'fig',
+                        'px', 'pd', 'np', 'plt', 'go', 'import', 'def', 'return',
+                        'print', 'for', 'if', 'else', 'elif', 'with', 'as', 'in',
+                        'not', 'and', 'or', 'is', 'lambda', 'try', 'except', 'pass',
+                        'none', 'true', 'false', 'self', 'class', 'yield', 'raise',
+                        'from', 'import', 'global', 'nonlocal', 'assert', 'del',
+                        'break', 'continue', 'finally', 'while'}:
+                continue
+            code_cols.add(col)
+        # If at least 30% of code columns match active schema, keep the example
+        if code_cols:
+            overlap = code_cols & active_cols
+            match_ratio = len(overlap) / len(code_cols) if code_cols else 0
+            if match_ratio >= 0.3 or len(overlap) >= 2:
+                results.append(item)
+        else:
+            results.append(item)  # can't determine, keep it
+        if len(results) >= top_k:
+            break
+
+    return results[:top_k]
 
 
 def add_to_memory(

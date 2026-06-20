@@ -19,9 +19,9 @@ from app.database.manager import (
     get_llm_config, update_llm_config
 )
 
-from app.database.demo_db import init_demo_db
 from app.database.connectors import test_connection, discover_schema
 from app.agent.supervisor import SupervisorAgent
+from app.agent.graph_supervisor import GraphSupervisorAgent
 from app.core.logger import logger
 
 # Initialize FastAPI
@@ -56,12 +56,11 @@ app.include_router(rag_router)
 UPLOAD_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), settings.upload_dir))
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# Initialize metadata DB and demo DB (idempotent)
+# Initialize metadata DB (idempotent)
 try:
     init_metadata_db()
-    init_demo_db()
 except Exception as _e:
-    logger.warning(f"metadata/demo DB init failed: {str(_e)}")
+    logger.warning(f"metadata DB init failed: {str(_e)}")
 class DBSourceStatusUpdate(BaseModel):
     is_active: bool
 
@@ -263,7 +262,10 @@ async def execute_edited_code(session_id: str, message_id: str, req: CodeExecute
     try:
         from app.database.manager import get_db_connection
         
-        agent = SupervisorAgent()
+        if os.getenv("USE_LANGGRAPH", "true").lower() == "true":
+            agent = GraphSupervisorAgent()
+        else:
+            agent = SupervisorAgent()
         resolved = agent._resolve_sources(req.active_source_id, req.source_ids or [], bool(req.source_ids))
         source_meta = resolved.get("meta")
         if not source_meta:
@@ -657,9 +659,6 @@ def update_source(source_id: str, source: DBSourceUpdate):
     if not target:
         raise HTTPException(status_code=404, detail="Kaynak bulunamadı.")
     
-    if source_id == "demo_sqlite":
-        raise HTTPException(status_code=403, detail="Demo veritabanı güncellenemez.")
-    
     # Try discovering the schema with the updated details
     try:
         schema = discover_schema(target["type"], source.connection_details)
@@ -689,8 +688,6 @@ def update_source(source_id: str, source: DBSourceUpdate):
 
 @app.put("/api/sources/{source_id}/status")
 def update_source_status_endpoint(source_id: str, payload: DBSourceStatusUpdate):
-    if source_id == "demo_sqlite" and not payload.is_active:
-        raise HTTPException(status_code=403, detail="Demo veri tabanı pasif yapılamaz.")
     success = update_source_status(source_id, payload.is_active)
     if not success:
         raise HTTPException(status_code=404, detail="Kaynak bulunamadı.")
@@ -773,9 +770,7 @@ def refresh_schema(source_id: str):
 
 @app.delete("/api/sources/{source_id}")
 def delete_source(source_id: str):
-    """Deletes a data source (cannot delete built-in demo)."""
-    if source_id == "demo_sqlite":
-        raise HTTPException(status_code=403, detail="Demo veri tabanı silinemez.")
+    """Deletes a data source."""
     import sqlite3 as sq
     from app.database.manager import DB_PATH
     conn = sq.connect(DB_PATH)
@@ -1016,7 +1011,10 @@ async def websocket_chat(websocket: WebSocket):
             )
             
             # Setup supervisor agent with client configs if provided
-            agent = SupervisorAgent(api_key=api_key, base_url=base_url, model=model)
+            if os.getenv("USE_LANGGRAPH", "true").lower() == "true":
+                agent = GraphSupervisorAgent(api_key=api_key, base_url=base_url, model=model)
+            else:
+                agent = SupervisorAgent(api_key=api_key, base_url=base_url, model=model)
             
             # Define WebSocket callback for sending steps and tracking status history
             status_history = ["Bağlantı kuruluyor..."]

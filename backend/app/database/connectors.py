@@ -15,7 +15,9 @@ class ConnectorError(Exception):
 
 
 def _get_sqlite_conn(details: Dict[str, Any]):
-    db_path = details.get("database_path", "demo.db")
+    if "database_path" not in details or not details["database_path"]:
+        raise ConnectorError("SQLite bağlantısı için database_path gerekli")
+    db_path = details["database_path"]
     # Relative path → resolve from backend root
     if not os.path.isabs(db_path):
         db_path = os.path.join(
@@ -424,4 +426,83 @@ def execute_safe_sql(db_type: str, connection_details: Dict[str, Any], sql: str)
     finally:
         if dtype != "bigquery":
             conn.close()
+
+def discover_relationships(db_type: str, connection_details: Dict[str, Any]) -> List[Dict[str, str]]:
+    """
+    Extracts Foreign Key relationships from the database.
+    Returns: [{"source_table": "...", "source_column": "...", "target_table": "...", "target_column": "..."}, ...]
+    """
+    conn, dtype = get_connection(db_type, connection_details)
+    relationships = []
+    
+    try:
+        cursor = conn.cursor()
+        
+        if dtype == "sqlite":
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            tables = [row[0] for row in cursor.fetchall()]
+            for tbl in tables:
+                cursor.execute(f"PRAGMA foreign_key_list(`{tbl}`)")
+                for row in cursor.fetchall():
+                    relationships.append({
+                        "source_table": tbl,
+                        "source_column": row["from"],
+                        "target_table": row["table"],
+                        "target_column": row["to"]
+                    })
+                    
+        elif dtype == "postgresql":
+            cursor.execute("""
+                SELECT
+                    tc.table_name AS source_table,
+                    kcu.column_name AS source_column,
+                    ccu.table_name AS target_table,
+                    ccu.column_name AS target_column
+                FROM information_schema.table_constraints AS tc
+                JOIN information_schema.key_column_usage AS kcu
+                  ON tc.constraint_name = kcu.constraint_name
+                  AND tc.table_schema = kcu.table_schema
+                JOIN information_schema.constraint_column_usage AS ccu
+                  ON ccu.constraint_name = tc.constraint_name
+                  AND ccu.table_schema = tc.table_schema
+                WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_schema='public';
+            """)
+            for row in cursor.fetchall():
+                relationships.append({
+                    "source_table": row[0],
+                    "source_column": row[1],
+                    "target_table": row[2],
+                    "target_column": row[3]
+                })
+                
+        elif dtype == "mysql":
+            cursor.execute("SELECT DATABASE()")
+            row = cursor.fetchone()
+            db_name = row["DATABASE()"] if isinstance(row, dict) else row[0]
+            
+            cursor.execute("""
+                SELECT 
+                    TABLE_NAME as source_table,
+                    COLUMN_NAME as source_column,
+                    REFERENCED_TABLE_NAME as target_table,
+                    REFERENCED_COLUMN_NAME as target_column
+                FROM information_schema.KEY_COLUMN_USAGE
+                WHERE REFERENCED_TABLE_SCHEMA = %s;
+            """, (db_name,))
+            for r in cursor.fetchall():
+                relationships.append({
+                    "source_table": r["source_table"] if isinstance(r, dict) else r[0],
+                    "source_column": r["source_column"] if isinstance(r, dict) else r[1],
+                    "target_table": r["target_table"] if isinstance(r, dict) else r[2],
+                    "target_column": r["target_column"] if isinstance(r, dict) else r[3]
+                })
+        
+        return relationships
+    except Exception:
+        # Silently fail for unsupported types or permission errors
+        return []
+    finally:
+        if dtype != "bigquery":
+            conn.close()
+
 

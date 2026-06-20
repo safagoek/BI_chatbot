@@ -238,183 +238,40 @@ def execute_duckdb_query(sql_query: str, file_mappings: Dict[str, str], is_forec
         # 6. Automate premium dark mode Plotly visualization
         visualization = None
         try:
-            import plotly.express as px
-            import plotly.graph_objects as go
+            from app.core.visualizer import (
+                build_forecast_chart,
+                build_anomaly_chart,
+                build_correlation_heatmap,
+                build_clustering_chart,
+                build_auto_chart,
+            )
+
             df_plot = pd.DataFrame(serialized_rows, columns=columns)
             for col in df_plot.columns:
                 try:
                     df_plot[col] = pd.to_numeric(df_plot[col])
                 except Exception:
                     pass
-            fig = None
-            
+
             if is_forecast and "Tip" in df_plot.columns:
-                # Premium Time Series Forecast Chart
-                num_cols = df_plot.select_dtypes(include=['number']).columns
-                str_cols = df_plot.select_dtypes(include=['object', 'string']).columns
-                
+                num_cols = df_plot.select_dtypes(include=["number"]).columns
+                str_cols = df_plot.select_dtypes(include=["object", "string"]).columns
                 time_col = str_cols[0] if len(str_cols) > 0 else columns[0]
                 val_col = num_cols[0] if len(num_cols) > 0 else columns[1]
-                
-                fig = px.line(
-                    df_plot,
-                    x=time_col,
-                    y=val_col,
-                    color="Tip",
-                    line_dash="Tip",
-                    title=f"Yapay Zekâ Tahmin ve Projeksiyon Modeli (Ridge ML)",
-                    color_discrete_map={"Gerçek": "#7c3aed", "Tahmin": "#a78bfa"}
-                )
-                
-                # Filter prediction points to draw 95% Confidence Interval band
-                df_pred = df_plot[df_plot["Tip"] == "Tahmin"]
-                if len(df_pred) > 0 and "Lower_CI" in df_plot.columns:
-                    x_ci = list(df_pred[time_col]) + list(df_pred[time_col])[::-1]
-                    y_ci = list(df_pred["Upper_CI"]) + list(df_pred["Lower_CI"])[::-1]
-                    
-                    fig.add_trace(
-                        go.Scatter(
-                            x=x_ci,
-                            y=y_ci,
-                            fill='toself',
-                            fillcolor='rgba(124, 58, 237, 0.12)', # Electric purple gaze
-                            line=dict(color='rgba(255,255,255,0)'),
-                            hoverinfo="skip",
-                            showlegend=True,
-                            name="95% Güven Aralığı"
-                        )
-                    )
+                visualization = build_forecast_chart(df_plot, time_col, val_col)
             elif is_anomaly and "Durum" in df_plot.columns:
-                # Premium Anomaly Detection Chart
-                num_cols = df_plot.select_dtypes(include=['number']).columns
-                str_cols = df_plot.select_dtypes(include=['object', 'string']).columns
-                
+                num_cols = df_plot.select_dtypes(include=["number"]).columns
                 if len(num_cols) > 0:
-                    val_col = num_cols[0]
-                    x_col = str_cols[0] if len(str_cols) > 0 else columns[0]
-                    
-                    is_trend = any("tarih" in col.lower() or "date" in col.lower() or "ay" in col.lower() for col in str_cols)
-                    
-                    if is_trend:
-                        fig = px.line(df_plot, x=x_col, y=val_col, title=f"Zaman Serisi Otomatik Anomali Tespiti ({val_col})")
-                        fig.update_traces(line=dict(color="#2f81f7", width=2))
-                    else:
-                        fig = px.bar(df_plot, x=x_col, y=val_col, title=f"Kategori Bazlı Anomali Tespiti ({val_col})")
-                        fig.update_traces(marker_color="#2f81f7")
-                        
-                    # Filter and superimpose outliers as bright red markers (#f85149)
-                    df_outliers = df_plot[df_plot['Durum'] == 'Anomali']
-                    if not df_outliers.empty:
-                        fig.add_trace(
-                            go.Scatter(
-                                x=df_outliers[x_col],
-                                y=df_outliers[val_col],
-                                mode='markers',
-                                marker=dict(color='#f85149', size=11, symbol='circle', line=dict(color='#ffffff', width=1)),
-                                name='Anomali',
-                                hovertemplate=f"{x_col}: %{{x}}<br>{val_col}: %{{y}}<br>Durum: Anomali"
-                            )
-                        )
+                    visualization = build_anomaly_chart(df_plot, num_cols[0])
             elif is_correlation and "Değişken" in df_plot.columns:
-                # Premium Correlation Heatmap
-                corr_only = df_plot.drop(columns=['Değişken'])
-                y_labels = df_plot['Değişken'].tolist()
-                x_labels = corr_only.columns.tolist()
-                z_values = corr_only.values.tolist()
-                
-                fig = px.imshow(
-                    z_values,
-                    x=x_labels,
-                    y=y_labels,
-                    text_auto=".2f",
-                    aspect="auto",
-                    color_continuous_scale="RdBu",
-                    zmin=-1,
-                    zmax=1,
-                    title="Değişkenler Arası Pearson Korelasyon Matrisi (İlişki Analizi)"
-                )
+                visualization = build_correlation_heatmap(df_plot)
             elif is_clustering and "Küme" in df_plot.columns:
-                num_cols = df_plot.select_dtypes(include=['number']).columns.tolist()
-                num_cols = [c for c in num_cols if not any(id_kw in c.lower() for id_kw in ["id", "key", "index", "kod", "no", "pca"])]
-                
-                n_clusters = df_plot["Küme"].nunique()
-                title_text = f"Yapay Zekâ K-Means Veri Kümeleme Analizi ({n_clusters} Farklı Segment)"
-                
-                if 'PCA1' in df_plot.columns and 'PCA2' in df_plot.columns:
-                    fig = px.scatter(
-                        df_plot,
-                        x='PCA1',
-                        y='PCA2',
-                        color='Küme',
-                        hover_data=[c for c in columns if c not in ['PCA1', 'PCA2', 'Küme']],
-                        title=title_text + " (Çok Boyutlu PCA Projeksiyonu)"
-                    )
-                elif len(num_cols) >= 2:
-                    fig = px.scatter(
-                        df_plot,
-                        x=num_cols[0],
-                        y=num_cols[1],
-                        color='Küme',
-                        hover_data=[c for c in columns if c != 'Küme'],
-                        title=title_text
-                    )
-                else:
-                    str_cols = df_plot.select_dtypes(include=['object', 'string']).columns.tolist()
-                    x_col = str_cols[0] if len(str_cols) > 0 else columns[0]
-                    y_col = num_cols[0] if len(num_cols) > 0 else columns[-1]
-                    fig = px.scatter(
-                        df_plot,
-                        x=x_col,
-                        y=y_col,
-                        color='Küme',
-                        hover_data=[c for c in columns if c != 'Küme'],
-                        title=title_text
-                    )
+                visualization = build_clustering_chart(df_plot)
             elif len(columns) >= 2 and not is_listing:
-                # Suppress chart for LIMIT-only / SELECT * / raw listing queries
-                sql_low_check = sql_query.lower()
-                is_listing_query = (
-                    ("limit" in sql_low_check and not any(kw in sql_low_check for kw in ["group by", "sum(", "count(", "avg(", "max(", "min("]))
-                    or "random()" in sql_low_check or "rand()" in sql_low_check
-                    or sql_low_check.replace(" ", "").startswith("select*")
-                )
-                if not is_listing_query and len(serialized_rows) > 3:
-                    # Deduce quantitative vs qualitative columns
-                    num_cols = df_plot.select_dtypes(include=['number']).columns
-                    str_cols = df_plot.select_dtypes(include=['object', 'string']).columns
-                    
-                    if len(num_cols) > 0 and len(str_cols) > 0:
-                        x_col = str_cols[0]
-                        y_col = num_cols[0]
-                        
-                        # Detect date/trend
-                        is_trend = any("tarih" in col.lower() or "date" in col.lower() or "ay" in col.lower() for col in str_cols)
-                        
-                        if is_trend:
-                            fig = px.line(df_plot.head(100), x=x_col, y=y_col, title=f"Zaman Serisi Trendi: {y_col}", markers=True)
-                        else:
-                            fig = px.bar(df_plot.head(15), x=x_col, y=y_col, title=f"{x_col} Bazında {y_col} Analizi")
-                        
-            # Apply elegant dark UI layout styles matching the web dashboard theme
-            if fig is not None:
-                fig.update_layout(
-                    template="plotly_dark",
-                    paper_bgcolor="rgba(0,0,0,0)",
-                    plot_bgcolor="rgba(0,0,0,0)",
-                    margin=dict(t=40, r=10, l=40, b=40),
-                    title=dict(
-                        text=fig.layout.title.text,
-                        font=dict(family="Inter, sans-serif", size=13, color="#e6edf3")
-                    ),
-                    font=dict(family="Inter, sans-serif", color="#8b949e")
-                )
-                fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor="#21262d")
-                fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor="#21262d")
-                
-                visualization = json.loads(fig.to_json())
+                visualization = build_auto_chart(df_plot, columns, sql_query)
         except Exception:
             pass  # fail visualization creation gracefully
-            
+
         return {
             "success": True,
             "data": data,

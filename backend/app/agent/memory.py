@@ -6,29 +6,8 @@ MEMORY_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__fil
 
 def load_memory() -> List[Dict[str, Any]]:
     if not os.path.exists(MEMORY_FILE):
-        # Seed with initial common analytics examples
-        default_seeds = [
-            {
-                "question": "Ürün bazında toplam satış cirosu nedir?",
-                "intent": "file_analysis",
-                "code": "result = df.groupby('urun_adi')['ciro'].sum().reset_index()\nfig = px.bar(result, x='urun_adi', y='ciro', title='Ürün Bazında Toplam Ciro', labels={'urun_adi': 'Ürün Adı', 'ciro': 'Ciro (TL)'})",
-                "source_id": "satislar"
-            },
-            {
-                "question": "Şehirlere göre müşteri sayıları",
-                "intent": "sql_query",
-                "code": "SELECT sehir, COUNT(*) as musteri_sayisi FROM musteriler GROUP BY sehir ORDER BY musteri_sayisi DESC",
-                "source_id": "demo_sqlite"
-            },
-            {
-                "question": "Aylık ciro trendi",
-                "intent": "file_analysis",
-                "code": "result = df.groupby('Ay')['Gerçekleşen'].sum().reset_index()\nfig = px.line(result, x='Ay', y='Gerçekleşen', title='Aylık Ciro Trendi')",
-                "source_id": "hedefler"
-            }
-        ]
-        save_memory(default_seeds)
-        return default_seeds
+        # No hardcoded seeds — fully dynamic, schema-driven
+        return []
         
     try:
         with open(MEMORY_FILE, 'r', encoding='utf-8') as f:

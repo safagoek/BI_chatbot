@@ -18,7 +18,7 @@ graph TD
     
     User[User Prompt] -->|Ask question| Supervisor[SupervisorAgent]
     Supervisor -->|Check DB type| Route{db_type == sqlite?}
-    Route -->|Yes| LocalSQLite[(demo.db SQLite)]
+    Route -->|Yes| LocalSQLite[(Local SQLite DB)]
     Route -->|No| Connectors
     Connectors -->|execute_safe_sql| SAPHANA
 ```

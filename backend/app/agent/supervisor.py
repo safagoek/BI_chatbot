@@ -19,7 +19,6 @@ from app.core.intent_keywords import (
 )
 from app.agent.rag import retrieve_similar, add_to_memory, self_correct_loop
 from app.database.manager import get_data_sources, get_uploaded_files
-from app.database.demo_db import DEMO_DB_PATH
 from app.core.logger import logger
 
 class SupervisorAgent:
@@ -191,7 +190,7 @@ class SupervisorAgent:
         if intent == "conceptual":
             await send_status("[ConceptualAgent] Konsept ve analitik açıklama raporu hazırlanıyor...")
             schema_str = json.dumps(source_meta.get("schema", {}), ensure_ascii=False)
-            prompt = f""" ou are a senior Business Intelligence and Data Science consultant. Answer the user's conceptual, theoretical, or informational question.
+            prompt = f"""You are a senior Business Intelligence and Data Science consultant. Answer the user's conceptual, theoretical, or informational question.
 Format your answer professionally, focusing purely on data analytics and data science perspectives.
 If the question is related to the dataset schema, connect it directly to the active dataset columns with concrete examples.
 
@@ -228,7 +227,7 @@ Answer:"""
         if intent == "report":
             await send_status("[ReportAgent] Yönetici özeti ve genel analitik şema raporu derleniyor...")
             schema_str = json.dumps(source_meta.get("schema", {}), ensure_ascii=False)
-            prompt = f""" ou are an elite enterprise Data Architect and BI Analyst. Compile a comprehensive Executive Summary and Analytical Roadmap Report about the active database source.
+            prompt = f"""You are an elite enterprise Data Architect and BI Analyst. Compile a comprehensive Executive Summary and Analytical Roadmap Report about the active database source.
 
 Active Source Schema:
 {schema_str}
@@ -385,55 +384,9 @@ Report:"""
                                 "rows": serialized_rows,
                                 "row_count": len(serialized_rows)
                             }
-                            
-                            # Premium Time Series Forecast Chart
-                            import plotly.express as px
-                            import plotly.graph_objects as go
-                            
-                            fig = px.line(
-                                df_forecast,
-                                x=time_col,
-                                y=val_col,
-                                color="Tip",
-                                line_dash="Tip",
-                                title=f" apay Zekâ Tahmin ve Projeksiyon Modeli (Ridge ML)",
-                                color_discrete_map={"Gerçek": "#7c3aed", "Tahmin": "#a78bfa"}
-                            )
-                            
-                            # Filter prediction points to draw 95% Confidence Interval band
-                            df_pred = df_forecast[df_forecast["Tip"] == "Tahmin"]
-                            if len(df_pred) > 0 and "Lower_CI" in df_forecast.columns:
-                                x_ci = list(df_pred[time_col]) + list(df_pred[time_col])[::-1]
-                                y_ci = list(df_pred["Upper_CI"]) + list(df_pred["Lower_CI"])[::-1]
-                                
-                                fig.add_trace(
-                                    go.Scatter(
-                                        x=x_ci,
-                                        y=y_ci,
-                                        fill='toself',
-                                        fillcolor='rgba(124, 58, 237, 0.12)', # Electric purple gaze
-                                        line=dict(color='rgba(255,255,255,0)'),
-                                        hoverinfo="skip",
-                                        showlegend=True,
-                                        name="95% Güven Aralığı"
-                                    )
-                                )
-                                
-                            fig.update_layout(
-                                template="plotly_dark",
-                                paper_bgcolor="rgba(0,0,0,0)",
-                                plot_bgcolor="rgba(0,0,0,0)",
-                                margin=dict(t=40, r=10, l=40, b=40),
-                                title=dict(
-                                    text=fig.layout.title.text,
-                                    font=dict(family="Inter, sans-serif", size=13, color="#e6edf3")
-                                ),
-                                font=dict(family="Inter, sans-serif", color="#8b949e")
-                            )
-                            fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor="#21262d")
-                            fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor="#21262d")
-                            
-                            result_data["visualization"] = json.loads(fig.to_json())
+
+                            from app.core.visualizer import build_forecast_chart
+                            result_data["visualization"] = build_forecast_chart(df_forecast, time_col, val_col)
                     except Exception:
                         pass
                 # If is_anomaly is requested, execute anomaly detection
@@ -463,50 +416,9 @@ Report:"""
                                 "rows": serialized_rows,
                                 "row_count": len(serialized_rows)
                             }
-                            
-                            # Premium Outlier chart
-                            import plotly.express as px
-                            import plotly.graph_objects as go
-                            
-                            str_cols = df_anom.select_dtypes(include=['object', 'string']).columns
-                            x_col = str_cols[0] if len(str_cols) > 0 else columns[0]
-                            is_trend = any("tarih" in col.lower() or "date" in col.lower() or "ay" in col.lower() for col in str_cols)
-                            
-                            if is_trend:
-                                fig = px.line(df_anom, x=x_col, y=val_col, title=f"Zaman Serisi Otomatik Anomali Tespiti ({val_col})")
-                                fig.update_traces(line=dict(color="#2f81f7", width=2))
-                            else:
-                                fig = px.bar(df_anom, x=x_col, y=val_col, title=f"Kategori Bazlı Anomali Tespiti ({val_col})")
-                                fig.update_traces(marker_color="#2f81f7")
-                                
-                            df_outliers = df_anom[df_anom['Durum'] == 'Anomali']
-                            if not df_outliers.empty:
-                                fig.add_trace(
-                                    go.Scatter(
-                                        x=df_outliers[x_col],
-                                        y=df_outliers[val_col],
-                                        mode='markers',
-                                        marker=dict(color='#f85149', size=11, symbol='circle', line=dict(color='#ffffff', width=1)),
-                                        name='Anomali',
-                                        hovertemplate=f"{x_col}: %{{x}}<br>{val_col}: %{{y}}<br>Durum: Anomali"
-                                    )
-                                )
-                                
-                            fig.update_layout(
-                                template="plotly_dark",
-                                paper_bgcolor="rgba(0,0,0,0)",
-                                plot_bgcolor="rgba(0,0,0,0)",
-                                margin=dict(t=40, r=10, l=40, b=40),
-                                title=dict(
-                                    text=fig.layout.title.text,
-                                    font=dict(family="Inter, sans-serif", size=13, color="#e6edf3")
-                                ),
-                                font=dict(family="Inter, sans-serif", color="#8b949e")
-                            )
-                            fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor="#21262d")
-                            fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor="#21262d")
-                            
-                            result_data["visualization"] = json.loads(fig.to_json())
+
+                            from app.core.visualizer import build_anomaly_chart
+                            result_data["visualization"] = build_anomaly_chart(df_anom, val_col)
                     except Exception:
                         pass
                 # If is_correlation is requested, compute Pearson correlation matrix
@@ -533,40 +445,9 @@ Report:"""
                                 "rows": serialized_rows,
                                 "row_count": len(serialized_rows)
                             }
-                            
-                            import plotly.express as px
-                            corr_only = df_corr.drop(columns=['Değişken'])
-                            y_labels = df_corr['Değişken'].tolist()
-                            x_labels = corr_only.columns.tolist()
-                            z_values = corr_only.values.tolist()
-                            
-                            fig = px.imshow(
-                                z_values,
-                                x=x_labels,
-                                y=y_labels,
-                                text_auto=".2f",
-                                aspect="auto",
-                                color_continuous_scale="RdBu",
-                                zmin=-1,
-                                zmax=1,
-                                title="Değişkenler Arası Pearson Korelasyon Matrisi (İlişki Analizi)"
-                            )
-                            
-                            fig.update_layout(
-                                template="plotly_dark",
-                                paper_bgcolor="rgba(0,0,0,0)",
-                                plot_bgcolor="rgba(0,0,0,0)",
-                                margin=dict(t=40, r=10, l=40, b=40),
-                                title=dict(
-                                    text=fig.layout.title.text,
-                                    font=dict(family="Inter, sans-serif", size=13, color="#e6edf3")
-                                ),
-                                font=dict(family="Inter, sans-serif", color="#8b949e")
-                            )
-                            fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor="#21262d")
-                            fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor="#21262d")
-                            
-                            result_data["visualization"] = json.loads(fig.to_json())
+
+                            from app.core.visualizer import build_correlation_heatmap
+                            result_data["visualization"] = build_correlation_heatmap(df_corr)
                     except Exception:
                         pass
                 # If is_clustering is requested, run KMeans clustering
@@ -596,59 +477,9 @@ Report:"""
                             "rows": serialized_rows,
                             "row_count": len(serialized_rows)
                         }
-                        
-                        import plotly.express as px
-                        num_cols = df_clustered.select_dtypes(include=['number']).columns.tolist()
-                        num_cols = [c for c in num_cols if not any(id_kw in c.lower() for id_kw in ["id", "key", "index", "kod", "no", "pca"])]
-                        
-                        title_text = f" apay Zekâ K-Means Müşteri/Veri Kümeleme Analizi ({n_clusters} Farklı Segment)"
-                        
-                        if 'PCA1' in df_clustered.columns and 'PCA2' in df_clustered.columns:
-                            fig = px.scatter(
-                                df_clustered,
-                                x='PCA1',
-                                y='PCA2',
-                                color='Küme',
-                                hover_data=[c for c in columns if c not in ['PCA1', 'PCA2', 'Küme']],
-                                title=title_text + " (Çok Boyutlu PCA Projeksiyonu)"
-                            )
-                        elif len(num_cols) >= 2:
-                             fig = px.scatter(
-                                 df_clustered,
-                                 x=num_cols[0],
-                                 y=num_cols[1],
-                                 color='Küme',
-                                 hover_data=[c for c in columns if c != 'Küme'],
-                                 title=title_text
-                             )
-                        else:
-                             str_cols = df_clustered.select_dtypes(include=['object', 'string']).columns.tolist()
-                             x_col = str_cols[0] if len(str_cols) > 0 else columns[0]
-                             y_col = num_cols[0] if len(num_cols) > 0 else columns[-1]
-                             fig = px.scatter(
-                                 df_clustered,
-                                 x=x_col,
-                                 y=y_col,
-                                 color='Küme',
-                                 hover_data=[c for c in columns if c != 'Küme'],
-                                 title=title_text
-                             )
-                            
-                        fig.update_layout(
-                            template="plotly_dark",
-                            paper_bgcolor="rgba(0,0,0,0)",
-                            plot_bgcolor="rgba(0,0,0,0)",
-                            margin=dict(t=40, r=10, l=40, b=40),
-                            title=dict(
-                                text=fig.layout.title.text,
-                                font=dict(family="Inter, sans-serif", size=13, color="#e6edf3")
-                            ),
-                            font=dict(family="Inter, sans-serif", color="#8b949e")
-                        )
-                        fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor="#21262d")
-                        fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor="#21262d")
-                        
-                        result_data["visualization"] = json.loads(fig.to_json())
+
+                        from app.core.visualizer import build_clustering_chart
+                        result_data["visualization"] = build_clustering_chart(df_clustered)
                     except Exception:
                         pass
                 return True, result_data
@@ -952,9 +783,11 @@ Report:"""
         sources = get_data_sources()
         for s in sources:
             if s["id"] == source_id:
-                db_path = DEMO_DB_PATH
+                db_path = None
                 if s["connection_details"] and "database_path" in s["connection_details"]:
-                    db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), s["connection_details"]["database_path"])
+                    resolved = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), s["connection_details"]["database_path"])
+                    if os.path.exists(resolved):
+                        db_path = resolved
                 return {
                     "id": s["id"],
                     "alias": s["id"],
@@ -991,12 +824,14 @@ Report:"""
                 continue
             db_match = next((s for s in all_dbs if s["id"] == sid), None)
             if db_match:
-                db_path = DEMO_DB_PATH
+                db_path = None
                 if db_match["connection_details"] and "database_path" in db_match["connection_details"]:
-                    db_path = os.path.join(
+                    resolved = os.path.join(
                         os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
                         db_match["connection_details"]["database_path"]
                     )
+                    if os.path.exists(resolved):
+                        db_path = resolved
                 db_items.append({
                     "id": db_match["id"],
                     "alias": db_match["id"],
@@ -1289,7 +1124,7 @@ Report:"""
             filtered_examples = [examples[0]]
         examples_str = "\n".join([f"S: {e['question']}\nSQL: {e['code']}" for e in filtered_examples[:3]]) or "Yok"
 
-        prompt = f""" ou are a senior SQL Expert. Write a read-only SQL query based on the following schema.{dialect}
+        prompt = f"""You are a senior SQL Expert. Write a read-only SQL query based on the following schema.{dialect}
 
 ## Schema
 {schema_str}
@@ -1302,9 +1137,11 @@ Report:"""
 1. Use SELECT or WITH only. DML/DDL (UPDATE/DELETE/INSERT/DROP/ALTER) is strictly forbidden.
 2. Never add semicolons or wrap output in code blocks (e.g. ```sql). Return raw query string.
 3. {intent_hint}
-4. Superlatives Rule: Always order by the metric (ORDER B  DESC for "highest", "most", "largest", "maximum"; ORDER B  ASC for "lowest", "least", "smallest", "minimum") before using LIMIT.
-5. Limit Rule: If the question implies a singular item (e.g., "highest revenue product"), always use LIMIT 1. For lists or plurals, use the specified limit or a reasonable default (e.g., 5 or 10). Never use LIMIT without ORDER B !
-6. Output: SADECE/ONL  runnable executable SQL. No explanations.
+4. Superlatives Rule: Always order by the metric (ORDER BY DESC for "highest", "most", "largest", "maximum"; ORDER BY ASC for "lowest", "least", "smallest", "minimum") before using LIMIT.
+5. Limit Rule: If the question implies a singular item (e.g., "highest revenue product"), always use LIMIT 1. For lists or plurals, use the specified limit or a reasonable default (e.g., 5 or 10). Never use LIMIT without ORDER BY!
+6. CRITICAL RULE: The ONLY valid table names are the ones listed in the Schema section above (e.g., {', '.join(schema.keys())[:50]}...). DO NOT use the database connection name or context name as a table name!
+7. CRITICAL: Examples above are for STYLE REFERENCE ONLY. Use ONLY column names from the Schema section. NEVER copy column names from examples if they don't exist in the Schema.
+8. Output: SADECE/ONLY runnable executable SQL. No explanations.
 
 Question: {question}
 SQL:"""
@@ -1371,7 +1208,7 @@ SQL:"""
         else:
             intent_hint = "Uygun bir SELECT sorgusu yaz; ihtiyaç duyulursa LIMIT ekle."
 
-        prompt = f""" ou are a senior DuckDB SQL Expert. Write a read-only DuckDB SQL query based on the following tables and schema.
+        prompt = f"""You are a senior DuckDB SQL Expert. Write a read-only DuckDB SQL query based on the following tables and schema.
 
 ## Tables
 {chr(10).join(f'  - {n}' for n in dataset_names)}
@@ -1390,10 +1227,10 @@ SQL:"""
 1. Use SELECT or WITH only. DML/DDL (UPDATE/DELETE/INSERT/DROP) is strictly forbidden.
 2. Never add semicolons or wrap output in code blocks (e.g. ```sql). Return raw query string.
 3. Intent: {intent_hint}
-4. Superlatives Rule: Always order by the metric (ORDER B  DESC for "highest", "most", "largest", "maximum"; ORDER B  ASC for "lowest", "least", "smallest", "minimum") before using LIMIT.
-5. Limit Rule: If the question implies a singular item (e.g., "highest revenue product"), always use LIMIT 1. For lists or plurals, use the specified limit or a reasonable default (e.g., 5 or 10). Never use LIMIT without ORDER B !
-6. Ensure exact table and column names from the schema are used.
-7. Output: SADECE/ONL  runnable executable DuckDB SQL. No explanations.
+4. Superlatives Rule: Always order by the metric (ORDER BY DESC for "highest", "most", "largest", "maximum"; ORDER BY ASC for "lowest", "least", "smallest", "minimum") before using LIMIT.
+5. Limit Rule: If the question implies a singular item (e.g., "highest revenue product"), always use LIMIT 1. For lists or plurals, use the specified limit or a reasonable default (e.g., 5 or 10). Never use LIMIT without ORDER BY!
+6. CRITICAL: Use ONLY table and column names from the Schema section above. Examples are for STYLE REFERENCE ONLY — never copy column names from examples.
+7. Output: SADECE/ONLY runnable executable DuckDB SQL. No explanations.
 
 Question: {question}
 SQL:"""
@@ -1403,7 +1240,7 @@ SQL:"""
 
     async def _llm_correct_duckdb(self, question: str, code: str, error: str, schema: Dict[str, Any]) -> str:
         schema_desc = json.dumps(schema, indent=2)
-        prompt = f""" ou are an elite enterprise DuckDB SQL Error Correction expert.
+        prompt = f"""You are an elite enterprise DuckDB SQL Error Correction expert.
 Analyze the provided invalid DuckDB SQL query, database schemas, and error message, and return the corrected SQL query.
 
 ### Database Table Schemas:
@@ -1436,17 +1273,26 @@ Corrected SQL query:"""
             filtered_examples = [examples[0]]
         examples_desc = "\n".join([f"Soru: {e['question']}\nPython Kodu:\n{e['code']}" for e in filtered_examples])
 
-        schema_desc = json.dumps(meta["schema"], ensure_ascii=False)
+        # Dinamik olarak schema'daki tablo isimlerini Sandbox DF isimleriyle eşleştir
+        schema_dict = {}
+        if meta.get("type") == "database":
+            for k, v in meta.get("schema", {}).items():
+                schema_dict[f"{meta['id']}__{k}"] = v
+            dataset_names = list(schema_dict.keys())
+        else:
+            schema_dict = meta.get("schema", {})
+            if meta.get("type") == "duckdb" or meta.get("file_mappings"):
+                dataset_names = list(meta.get("file_mappings", {}).keys())
+            else:
+                dataset_names = [alias]
+
+        schema_desc = json.dumps(schema_dict, ensure_ascii=False)
+        
         # Expose a 3-row sample of tables dynamically to help LLM structure code correctly
         samples_desc = self._get_data_samples(meta)
         if samples_desc:
             schema_desc += "\n\n" + samples_desc
 
-        dataset_names = list(meta.get("file_mappings", {alias: meta.get("file_path")}).keys())
-        if isinstance(meta.get("schema"), dict):
-            for key in meta["schema"].keys():
-                if key not in dataset_names:
-                    dataset_names.append(key)
         rel_desc = "yok"
         if relationships:
             source_map = meta.get("source_map", {})
@@ -1490,10 +1336,12 @@ Write a secure Python script using Pandas, Plotly, and scikit-learn (or numpy/st
 {examples_desc}
 
 ### Rules for Python Generation (ML Mode):
+0. **CRITICAL — SCHEMA FIRST:** Examples above are for STYLE REFERENCE ONLY. Use ONLY column names from the "Columns & Types" section. NEVER copy column names from examples if they don't exist in the active schema.
 1. Data Preprocessing & Security:
    - Handle date columns correctly: convert to datetime (`pd.to_datetime`), sort chronological, and aggregate if doing time series.
    - Impute missing values safely using median/mean or fillna(0) to prevent fit errors.
-   - Do NOT try to read or write files (e.g. no `pd.read_csv`, `to_csv`). Use preloaded DataFrames directly.
+   - **CRITICAL RULE:** The variable(s) {dataset_names} ALREADY EXIST in the global environment as pandas DataFrames containing the real data! DO NOT mock, recreate, or initialize them. NEVER write `pd.DataFrame(columns=...)`. Start your code directly by referencing `{dataset_names[0]}` or `df = {dataset_names[0]}.copy()`.
+   - Do NOT try to read or write files (e.g. no `pd.read_csv`, `to_csv`). Use the preloaded DataFrames directly.
    - Forbid network access, system commands, print() calls, and imports like `os`, `sys`, `subprocess`.
 
 2. Predictive & ML Modeling:
@@ -1539,6 +1387,7 @@ Write a secure Python script utilizing Pandas and Plotly to analyze the active d
 {examples_desc}
 
 ### Rules for Python Generation (VisualizerAgent):
+0. **CRITICAL — SCHEMA FIRST:** Examples above are for STYLE REFERENCE ONLY. Use ONLY column names from the "Columns & Types" section. NEVER copy column names from examples if they don't exist in the active schema.
 1. Assign the final DataFrame, Series, or summary to the variable `result` (e.g., `result = df.groupby(...)`).
 2. If visualization is requested, assign a Plotly Figure object to the variable `fig` (e.g., `fig = px.bar(...)`).
 3. Apply this mandatory premium dark styling to the Plotly figure:
@@ -1546,7 +1395,7 @@ Write a secure Python script utilizing Pandas and Plotly to analyze the active d
    - Font & Title: `fig.update_layout(title=dict(text="Chart Title", font=dict(family="Inter, sans-serif", size=13, color="#e6edf3")), font=dict(family="Inter, sans-serif", color="#8b949e"))`
    - Gridlines: `fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor="#21262d")` and `fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor="#21262d")`
    - Margins: `fig.update_layout(margin=dict(t=40, r=10, l=40, b=40))`
-4. Never read files (No `pd.read_csv` or `pd.read_excel`). DataFrames are pre-loaded in context.
+4. **CRITICAL RULE:** The variable(s) {dataset_names} ALREADY EXIST in the global environment! DO NOT mock, recreate, or initialize them. NEVER write `pd.DataFrame(columns=...)`. Start your code directly by referencing `{dataset_names[0]}`. Never read files (No `pd.read_csv`).
 5. If multiple DataFrames, join/merge them using Pandas. Prefer active relationships.
 6. Strictly forbid network access, file writing, print() calls, and imports like os, sys, subprocess.
 7. Output: SADECE/ONLY valid runnable Python code without markdown blocks.
@@ -1558,7 +1407,7 @@ Python Code:"""
 
     async def _llm_correct_sql(self, question: str, code: str, error: str, schema: Dict[str, Any]) -> str:
         schema_desc = json.dumps(schema, indent=2)
-        prompt = f""" ou are an elite enterprise SQL Error Correction expert.
+        prompt = f"""You are an elite enterprise SQL Error Correction expert.
 Analyze the provided SQL query, database schemas, and error message, and return the corrected SQL query.
 
 ### Database Schema:
@@ -1584,7 +1433,7 @@ Corrected SQL query:"""
 
     async def _llm_correct_python(self, question: str, code: str, error: str, schema: Dict[str, Any]) -> str:
         schema_desc = json.dumps(schema, indent=2)
-        prompt = f""" ou are an elite Python Data Science Debugging expert.
+        prompt = f"""You are an elite Python Data Science Debugging expert.
 Analyze the erroneous Pandas/Plotly code, DataFrame schema, and sandbox error message, and return the corrected Python code.
 
 ### DataFrame Structure:
@@ -1617,7 +1466,7 @@ Corrected Python Code:"""
         data = {
             "model": self.model,
             "messages": [
-                {"role": "system", "content": " ou are a specialized code generation assistant. Output ONL  valid, runnable code without explanations or markdown formatting."},
+                {"role": "system", "content": "You are a specialized code generation assistant. Output ONLY valid, runnable code without explanations or markdown formatting."},
                 {"role": "user", "content": prompt}
             ],
             "temperature": 0.1
@@ -1652,7 +1501,7 @@ Corrected Python Code:"""
         data = {
             "model": self.model,
             "messages": [
-                {"role": "system", "content": " ou are a senior Business Intelligence Analyst and Data Science expert. Write a premium executive summary report interpreting the forecasting results (trends, growth rates, confidence intervals) and providing 3 actionable business recommendations. Output rich markdown in Turkish (or matching the user question's language)."},
+                {"role": "system", "content": "You are a senior Business Intelligence Analyst and Data Science expert. Write a premium executive summary report interpreting the forecasting results (trends, growth rates, confidence intervals) and providing 3 actionable business recommendations. Output rich markdown in Turkish (or matching the user question's language)."},
                 {"role": "user", "content": prompt}
             ],
             "temperature": 0.5
@@ -1737,7 +1586,12 @@ Generate a premium, detailed "Forecast Analysis Report" in Turkish (or matching 
         alias = meta["alias"]
         schema = meta["schema"]
         if isinstance(schema, dict) and schema:
-            if all(isinstance(v, dict) for v in schema.values()):
+            # Check if it's a multi-table database schema (values are lists of columns)
+            if meta.get("type") == "database" or all(isinstance(v, list) for v in schema.values()):
+                first_table = list(schema.keys())[0]
+                alias = first_table
+                schema = schema[first_table]
+            elif all(isinstance(v, dict) for v in schema.values()):
                 first_alias = list(schema.keys())[0]
                 alias = first_alias
                 schema = schema[first_alias]
@@ -1778,18 +1632,18 @@ Generate a premium, detailed "Forecast Analysis Report" in Turkish (or matching 
                 c_num = col_list[1]
                 
             if ("şehir" in q or "sehir" in q or "şehirler" in q or "sehirler" in q) and c_text:
-                return f"SELECT {c_text}, COUNT(*) as kayit_sayisi FROM {table_name} GROUP B  {c_text} ORDER B  kayit_sayisi DESC"
-            elif ("en çok" in q or "en cok" in q or "popüler" in q or "top" in q or "satan" in q or "yüksek" in q or "yuksek" in q) and c_text and c_num:
+                return f"SELECT {c_text}, COUNT(*) as kayit_sayisi FROM {table_name} GROUP BY {c_text} ORDER BY kayit_sayisi DESC"
+            elif ("en çok" in q or "en cok" in q or "popüler" in q or "populer" in q or "top" in q or "satan" in q or "yüksek" in q or "yuksek" in q) and c_text and c_num:
                 limit = 5
                 limit_match = re.search(r'\b(\d+)\b', q)
                 if limit_match:
                     limit = int(limit_match.group(1))
-                return f"SELECT {c_text}, SUM({c_num}) as toplam_deger FROM {table_name} GROUP B  {c_text} ORDER B  toplam_deger DESC LIMIT {limit}"
+                return f"SELECT {c_text}, SUM({c_num}) as toplam_deger FROM {table_name} GROUP BY {c_text} ORDER BY toplam_deger DESC LIMIT {limit}"
             elif ("kategori" in q or "grup" in q or "sınıf" in q or "sinif" in q) and c_text and c_num:
-                return f"SELECT {c_text}, COUNT(*) as kayit_sayisi, SUM({c_num}) as toplam_deger FROM {table_name} GROUP B  {c_text} ORDER B  toplam_deger DESC"
+                return f"SELECT {c_text}, COUNT(*) as kayit_sayisi, SUM({c_num}) as toplam_deger FROM {table_name} GROUP BY {c_text} ORDER BY toplam_deger DESC"
             elif ("trend" in q or "tarih" in q or "zaman" in q or "aylık" in q or "aylik" in q or "yıllık" in q or "yillik" in q) and c_text and c_num:
                 c_date = find_col_sql(["tarih", "date", "ay", "yil", "yıl", "month", "year", "time"]) or c_text
-                return f"SELECT {c_date}, SUM({c_num}) as toplam_deger FROM {table_name} GROUP B  {c_date} ORDER B  {c_date} ASC"
+                return f"SELECT {c_date}, SUM({c_num}) as toplam_deger FROM {table_name} GROUP BY {c_date} ORDER BY {c_date} ASC"
             
             # Default fallback listing query dynamically targeting active schema table and columns
             return f"SELECT {cols_str} FROM {table_name} LIMIT 50"
@@ -1814,7 +1668,7 @@ Generate a premium, detailed "Forecast Analysis Report" in Turkish (or matching 
             if "ürün" in q or "urun" in q or "top" in q or "en çok" in q:
                 code = f"result = {alias}.groupby('{c_prod}')['{c_rev}'].sum().reset_index().sort_values(by='{c_rev}', ascending=False)\n"
                 code += f"result = result.head(10)\n"
-                code += f"fig = px.bar(result, x='{c_prod}', y='{c_rev}', title='Ürün Bazında Toplam Değer (En  üksek 10)', labels={{'{c_prod}': 'Ürün', '{c_rev}': 'Toplam Değer'}})\n"
+                code += f"fig = px.bar(result, x='{c_prod}', y='{c_rev}', title='Ürün Bazında Toplam Değer (En Yüksek 10)', labels={{'{c_prod}': 'Ürün', '{c_rev}': 'Toplam Değer'}})\n"
                 return code
             elif "kategori" in q or "grup" in q or "dağılım" in q or "dagilim" in q:
                 group_col = c_cat if c_cat else c_prod

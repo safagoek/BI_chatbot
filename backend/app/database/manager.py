@@ -125,6 +125,18 @@ def init_metadata_db():
     )
     """)
 
+    # Create semantic cache table for caching LLM responses
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS semantic_cache (
+        question TEXT PRIMARY KEY,
+        intent TEXT NOT NULL,
+        code TEXT NOT NULL,
+        source_id TEXT NOT NULL,
+        embedding_json TEXT,  -- Vector array JSON string
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
     # Create settings table for calculation engine / LLM configuration
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS settings (

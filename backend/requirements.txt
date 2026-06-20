@@ -23,3 +23,8 @@ websockets>=12.0
 # pymssql>=2.2.0
 # google-cloud-bigquery>=3.0.0
 # google-auth>=2.0.0
+
+# Yapay Zeka & Ajan Mimarisi (Agentic Updates)
+langgraph>=0.0.25
+langchain-core>=0.1.0
+networkx>=3.0
