@@ -173,3 +173,55 @@ class TestIntentKeywords:
         # "göster" CONCEPTUAL_NEGATIVE'de, dolayısıyla False bekliyoruz
         # (veya positive'de hiç match yok)
         assert not is_conceptual
+
+
+class TestPythonSandbox:
+    """PythonSandbox AST güvenlik kontrolleri testleri."""
+
+    def test_single_underscore_allowed(self):
+        """Standart python döngü değişkeni '_' izin verilmeli."""
+        from app.core.sandbox import PythonSandbox
+        sandbox = PythonSandbox()
+        code = "for _, row in df.iterrows():\n    pass"
+        err = sandbox._check_code_safety(code)
+        assert err is None
+
+    def test_dunder_attribute_blocked(self):
+        """__class__ veya dunder erişimleri engellenmeli."""
+        from app.core.sandbox import PythonSandbox
+        sandbox = PythonSandbox()
+        code = "x = df.__class__.__mro__"
+        err = sandbox._check_code_safety(code)
+        assert err is not None
+        assert "yasaktır" in err
+
+    def test_forbidden_builtins_blocked(self):
+        """eval, exec, open vb. fonksiyonlar engellenmeli."""
+        from app.core.sandbox import PythonSandbox
+        sandbox = PythonSandbox()
+        for dangerous in ["eval('1+1')", "exec('a=1')", "open('test.txt')"]:
+            err = sandbox._check_code_safety(dangerous)
+            assert err is not None
+
+    def test_module_attribute_escape_blocked(self):
+        """pd.io.common.os gibi güvenilir nesne üzerinden modül kaçışı engellenmeli."""
+        from app.core.sandbox import PythonSandbox
+        sandbox = PythonSandbox()
+        for escape in [
+            "pd.io.common.os.system('echo hi')",
+            "os.system('echo hi')",
+            "sys.exit(0)",
+            "x = pd.io.common.subprocess",
+        ]:
+            err = sandbox._check_code_safety(escape)
+            assert err is not None, f"Kaçış engellenmedi: {escape}"
+
+    def test_dangerous_builtins_stripped_from_runner(self):
+        """Runner kodu tehlikeli builtin'leri içermemeli."""
+        from app.core.sandbox import PythonSandbox
+        sandbox = PythonSandbox()
+        runner = sandbox._generate_runner_code("result = 1", {})
+        assert '"__import__"' in runner and '"open"' in runner  # _removed kümesinde
+        assert "exec(user_code, exec_globals, locs)" in runner
+        assert "exec(user_code, globals()" not in runner
+

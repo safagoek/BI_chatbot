@@ -2,16 +2,18 @@
 app/routers/analytics.py
 Dashboard ve analitik özet istatistikleri endpoint'leri.
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
 from app.core.logger import logger
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 
 
 @router.get("/summary")
-def get_analytics_summary():
+def get_analytics_summary(response: Response):
     """Tüm oturumlar genelinde sorgu istatistiklerini döndürür."""
     try:
+        # Dashboard verisi saniyeler içinde değişmez — tarayıcıya kısa TTL ver
+        response.headers["Cache-Control"] = "private, max-age=60"
         import sqlite3
         from app.database.manager import DB_PATH
         conn = sqlite3.connect(DB_PATH)
@@ -76,11 +78,11 @@ def get_analytics_summary():
         }
     except Exception as e:
         logger.error(f"analytics summary error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="INTERNAL_ERROR")
 
 
 @router.get("/sources")
-def get_source_analytics():
+def get_source_analytics(response: Response):
     """Kaynak bazlı kullanım istatistikleri — hangi veri kaynakları en çok kullanılıyor."""
     try:
         import sqlite3
@@ -116,4 +118,4 @@ def get_source_analytics():
         return result
     except Exception as e:
         logger.error(f"source analytics error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="INTERNAL_ERROR")

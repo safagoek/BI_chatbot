@@ -2,12 +2,16 @@
 app/database/connectors.py
 
 Çok sürücülü veritabanı bağlantı ve şema keşif katmanı.
-Desteklenen sürücüler: sqlite, postgresql, mysql
+Desteklenen sürücüler: sqlite, postgresql, mysql, mssql, sap_s4hana, snowflake, bigquery
 """
 import os
 import json
+import logging
 import sqlite3
 from typing import Dict, Any, List, Optional, Tuple
+
+logger = logging.getLogger(__name__)
+from app.core import breaker
 
 
 class ConnectorError(Exception):
@@ -43,10 +47,13 @@ def _get_postgresql_conn(details: Dict[str, Any]):
     password = details.get("password", "")
     
     try:
+        query_timeout = int(details.get("query_timeout", 30))
         conn = psycopg2.connect(
             host=host, port=port, database=database,
             user=user, password=password,
-            connect_timeout=5
+            connect_timeout=5,
+            # Sorgu seviyesi timeout — yavaş sorgu thread'i süresiz meşgul etmesin
+            options=f"-c statement_timeout={query_timeout * 1000}"
         )
         return conn, "postgresql"
     except Exception as e:
@@ -70,6 +77,7 @@ def _get_mysql_conn(details: Dict[str, Any]):
             host=host, port=port, database=database,
             user=user, password=password,
             connect_timeout=5,
+            read_timeout=int(details.get("query_timeout", 30)),
             cursorclass=pymysql.cursors.DictCursor
         )
         return conn, "mysql"
@@ -82,22 +90,44 @@ def _get_sap_s4hana_conn(details: Dict[str, Any]):
         from hdbcli import dbapi
     except ImportError:
         raise ConnectorError("hdbcli kurulu değil. 'pip install hdbcli' çalıştırın.")
-    
+
     host = details.get("host", "localhost")
-    port = int(details.get("port", 30015))
+    try:
+        port = int(details.get("port", 30015))
+    except (TypeError, ValueError):
+        raise ConnectorError(f"HANA portu sayısal olmalı, gelen değer: {details.get('port')!r} "
+                             "(örnek: 30015 tek-container, 30041 tenant DB)")
     user = details.get("user", "")
     password = details.get("password", "")
-    
+    schema = (details.get("schema") or "").strip()
+
+    # TLS/dağıtım ayarları: varsayılanlar hdbcli'ye bırakılır; kullanıcı
+    # connection_details üzerinden geçirebilir (örn. self-signed sertifika için).
+    connect_kwargs: Dict[str, Any] = dict(
+        address=host, port=port, user=user, password=password,
+        statementTimeout=int(details.get("query_timeout", 30)) * 1000,
+    )
+    for opt in ("encrypt", "sslValidateCertificate", "communicationTimeout", "packetSize", "connectTimeout"):
+        if opt in details and details[opt] not in (None, ""):
+            connect_kwargs[opt] = details[opt]
+
     try:
-        conn = dbapi.connect(
-            address=host,
-            port=port,
-            user=user,
-            password=password
-        )
-        return conn, "sap_s4hana"
+        conn = dbapi.connect(**connect_kwargs)
     except Exception as e:
         raise ConnectorError(f"SAP S/4HANA (HANA) bağlantısı başarısız: {str(e)}")
+
+    # Şema verilmişse oturumda CURRENT_SCHEMA olarak ayarla — aksi halde
+    # nitelenmemiş tablo sorguları kullanıcının default şemasında aranır.
+    if schema:
+        try:
+            cur = conn.cursor()
+            cur.execute('SET SCHEMA "{}"'.format(schema.replace('"', '""')))
+            cur.close()
+        except Exception as e:
+            conn.close()
+            raise ConnectorError(f"HANA şeması ayarlanamadı ('{schema}'): {str(e)}")
+
+    return conn, "sap_s4hana"
 
 def _get_snowflake_conn(details: Dict[str, Any]):
     try:
@@ -145,7 +175,8 @@ def _get_mssql_conn(details: Dict[str, Any]):
             database=database,
             user=user,
             password=password,
-            timeout=5
+            login_timeout=5,
+            timeout=int(details.get("query_timeout", 30))
         )
         return conn, "mssql"
     except Exception as e:
@@ -180,6 +211,25 @@ def _get_bigquery_conn(details: Dict[str, Any]):
 
 def get_connection(db_type: str, connection_details: Dict[str, Any]):
     """Returns a (connection, db_type) tuple based on db_type."""
+    open_, remaining = breaker.is_open(db_type, connection_details)
+    if open_:
+        raise ConnectorError(
+            f"{db_type} bağlantısı devre kesici tarafından geçici olarak bloklandı "
+            f"(art arda hatalar). {remaining} sn sonra tekrar denenecek."
+        )
+    try:
+        conn, dtype = _get_connection_impl(db_type, connection_details)
+    except ConnectorError:
+        breaker.record_failure(db_type, connection_details)
+        raise
+    except Exception:
+        breaker.record_failure(db_type, connection_details)
+        raise
+    breaker.record_success(db_type, connection_details)
+    return conn, dtype
+
+
+def _get_connection_impl(db_type: str, connection_details: Dict[str, Any]):
     t = db_type.lower()
     if t == "sqlite":
         return _get_sqlite_conn(connection_details)
@@ -199,36 +249,62 @@ def get_connection(db_type: str, connection_details: Dict[str, Any]):
         raise ConnectorError(f"Desteklenmeyen veritabanı tipi: {db_type}")
 
 
-def test_connection(db_type: str, connection_details: Dict[str, Any]) -> Tuple[bool, str]:
-    """Tests connectivity and returns (success, message)."""
+def check_connection(db_type: str, connection_details: Dict[str, Any]) -> Tuple[bool, str]:
+    """Tests connectivity and returns (success, message). ASCII-safe mesaj (Windows konsol uyumlu)."""
+    conn = None
     try:
-        conn, _ = get_connection(db_type, connection_details)
-        
+        conn, dtype = get_connection(db_type, connection_details)
+
         # Run a ping query
-        if db_type == "sqlite":
+        if dtype == "sqlite":
             cursor = conn.cursor()
             cursor.execute("SELECT sqlite_version()")
-            version = cursor.fetchone()[0]
-            conn.close()
-            return True, f"✅ SQLite bağlantısı başarılı. Sürüm: {version}"
-        elif db_type in ("sap_s4hana", "hana", "s4hana"):
+            row = cursor.fetchone()
+            # sqlite3.Row veya tuple olabilir
+            version = row[0] if row else "?"
+            return True, f"[OK] SQLite baglantisi basarili. Surum: {version}"
+        elif dtype in ("sap_s4hana", "hana", "s4hana"):
             cursor = conn.cursor()
             cursor.execute("SELECT 1 FROM DUMMY")
-            conn.close()
-            return True, "✅ SAP S/4HANA (HANA) bağlantısı başarılı."
-        elif db_type in ("bigquery", "google_bigquery"):
+            cursor.close()
+            # Aktif şema bilgisini kullanıcıya göster
+            schema = (connection_details.get("schema") or "").strip()
+            schema_msg = f". Schema: {schema}" if schema else ""
+            return True, f"[OK] SAP S/4HANA (HANA) baglantisi basarili{schema_msg}."
+        elif dtype in ("bigquery", "google_bigquery"):
             # List datasets to verify credentials/connection
             list(conn.list_datasets(max_results=1))
-            return True, "✅ Google BigQuery bağlantısı başarılı."
+            return True, "[OK] Google BigQuery baglantisi basarili."
         else:
             cursor = conn.cursor()
             cursor.execute("SELECT 1 AS ping")
             conn.close()
-            return True, f"✅ {db_type.upper()} bağlantısı başarılı."
+            conn = None
+            return True, f"[OK] {db_type.upper()} baglantisi basarili."
     except ConnectorError as e:
-        return False, f"❌ {str(e)}"
+        return False, f"[FAIL] {str(e)}"
     except Exception as e:
-        return False, f"❌ Beklenmeyen bağlantı hatası: {str(e)}"
+        return False, f"[FAIL] Beklenmeyen baglanti hatasi: {str(e)}"
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+
+def check_connection_unicode(db_type: str, connection_details: Dict[str, Any]) -> Tuple[bool, str]:
+    """check_connection wrapper — Unicode emoji'li mesaj döner (API/frontend için)."""
+    success, msg = check_connection(db_type, connection_details)
+    prefix = "\u2705" if success else "\u274c"
+    # [OK] / [FAIL] prefix'ini emoji ile değiştir
+    msg = msg.replace("[OK]", f"{prefix}").replace("[FAIL]", f"{prefix}")
+    return success, msg
+
+
+# Geriye dönük uyumluluk alias'ları
+test_connection = check_connection
+test_connection_unicode = check_connection_unicode
 
 
 def discover_schema(db_type: str, connection_details: Dict[str, Any]) -> Dict[str, List[str]]:
@@ -259,7 +335,7 @@ def discover_schema(db_type: str, connection_details: Dict[str, Any]) -> Dict[st
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
             tables = [row[0] for row in cursor.fetchall()]
             for tbl in tables:
-                cursor.execute(f"PRAGMA table_info(`{tbl}`)")
+                cursor.execute(f"PRAGMA table_info(`{tbl.replace('`', '``')}`)")
                 cols = [row[1] for row in cursor.fetchall()]
                 schema[tbl] = cols
                 
@@ -307,29 +383,54 @@ def discover_schema(db_type: str, connection_details: Dict[str, Any]) -> Dict[st
                 schema[tbl] = cols
         
         elif dtype == "sap_s4hana":
-            schema_name = connection_details.get("schema", "").strip()
+            # SAP S/4HANA şemaları (örn. SAPHANADB) on binlerce tablo içerebilir.
+            # Keşif bu yüzden filtreli ve TOPLU sorguyla yapılır; aksi halde
+            # tablo başına ayrı sorgu dakikalar sürer ve şema kullanılamaz olur.
+            schema_name = (connection_details.get("schema") or "").strip()
             if not schema_name:
                 cursor.execute("SELECT CURRENT_SCHEMA FROM DUMMY")
                 row = cursor.fetchone()
                 schema_name = row[0] if row else "SYSTEM"
-            
-            cursor.execute("""
-                SELECT TABLE_NAME 
-                FROM SYS.TABLES 
-                WHERE SCHEMA_NAME = ? 
+
+            max_tables = int(connection_details.get("max_tables", 500) or 500)
+            # table_filter: virgülle ayrılmış LIKE desenleri (örn. "KNA%,VBAK%,MARA%")
+            filters = [f.strip() for f in str(connection_details.get("table_filter") or "").split(",") if f.strip()]
+
+            where = "SCHEMA_NAME = ? AND IS_USER_TYPE = 'USER'"
+            params: List[Any] = [schema_name]
+            # SAP namespace tablolarını (/1BF/, /SAPAPO/ ...) ve sistem objelerini dışla
+            exclude = [
+                "TABLE_NAME NOT LIKE '/%'",
+                "TABLE_NAME NOT LIKE 'SAP_%'",
+                "TABLE_NAME NOT LIKE '~%'",
+            ]
+            if filters:
+                ors = " OR ".join(["TABLE_NAME LIKE ?" for _ in filters])
+                exclude.append(f"({ors})")
+                params.extend(filters)
+            where += " AND " + " AND ".join(exclude)
+
+            cursor.execute(f"""
+                SELECT TABLE_NAME
+                FROM SYS.TABLES
+                WHERE {where}
                 ORDER BY TABLE_NAME
-            """, (schema_name,))
+                LIMIT {max_tables}
+            """, params)
             tables = [row[0] for row in cursor.fetchall()]
-            
-            for tbl in tables:
-                cursor.execute("""
-                    SELECT COLUMN_NAME 
-                    FROM SYS.TABLE_COLUMNS 
-                    WHERE SCHEMA_NAME = ? AND TABLE_NAME = ?
-                    ORDER BY POSITION
-                """, (schema_name, tbl))
-                cols = [row[0] for row in cursor.fetchall()]
-                schema[tbl] = cols
+
+            if tables:
+                # Kolonları TEK sorguda çek (tablo başına sorgu yok)
+                col_params: List[Any] = [schema_name]
+                placeholders = ", ".join(["?" for _ in tables])
+                cursor.execute(f"""
+                    SELECT TABLE_NAME, COLUMN_NAME, POSITION
+                    FROM SYS.TABLE_COLUMNS
+                    WHERE SCHEMA_NAME = ? AND TABLE_NAME IN ({placeholders})
+                    ORDER BY TABLE_NAME, POSITION
+                """, col_params + tables)
+                for row in cursor.fetchall():
+                    schema.setdefault(row[0], []).append(row[1])
 
         elif dtype == "snowflake":
             current_schema = connection_details.get("schema", "").strip().upper()
@@ -345,20 +446,24 @@ def discover_schema(db_type: str, connection_details: Dict[str, Any]) -> Dict[st
                         current_schema = db_res[1]
             
             if current_database and current_schema:
+                # information_schema bir veritabanı adıyla nitelenir; identifier'lar
+                # çift tırnakla kaçırılarak interpolation injection'ı engellenir.
+                def _q_ident(name: str) -> str:
+                    return '"' + name.replace('"', '""') + '"'
                 cursor.execute(f"""
-                    SELECT table_name 
-                    FROM {current_database}.information_schema.tables 
-                    WHERE table_schema = '{current_schema}' AND table_type = 'BASE TABLE'
+                    SELECT table_name
+                    FROM {_q_ident(current_database)}.information_schema.tables
+                    WHERE table_schema = %s AND table_type = 'BASE TABLE'
                     ORDER BY table_name
-                """)
+                """, (current_schema,))
                 tables = [row[0] for row in cursor.fetchall()]
                 for tbl in tables:
                     cursor.execute(f"""
-                        SELECT column_name 
-                        FROM {current_database}.information_schema.columns 
-                        WHERE table_schema = '{current_schema}' AND table_name = '{tbl}'
+                        SELECT column_name
+                        FROM {_q_ident(current_database)}.information_schema.columns
+                        WHERE table_schema = %s AND table_name = %s
                         ORDER BY ordinal_position
-                    """)
+                    """, (current_schema, tbl))
                     cols = [row[0] for row in cursor.fetchall()]
                     schema[tbl] = cols
 
@@ -371,6 +476,7 @@ def discover_schema(db_type: str, connection_details: Dict[str, Any]) -> Dict[st
             """)
             tables = [row[0] for row in cursor.fetchall()]
             for tbl in tables:
+                # pymssql uses %s for ALL parameter types (string substitution)
                 cursor.execute("""
                     SELECT column_name 
                     FROM information_schema.columns 
@@ -381,9 +487,13 @@ def discover_schema(db_type: str, connection_details: Dict[str, Any]) -> Dict[st
                 schema[tbl] = cols
                 
         return schema
-        
+
     finally:
-        if dtype != "bigquery":
+        if dtype not in ("bigquery",):
+            try:
+                cursor.close()
+            except Exception:
+                pass
             conn.close()
 
 
@@ -403,7 +513,15 @@ def execute_safe_sql(db_type: str, connection_details: Dict[str, Any], sql: str)
             cursor = conn.cursor()
             cursor.execute(sql)
             columns = [desc[0] for desc in cursor.description]
-            rows = [list(r) for r in cursor.fetchall()]
+            rows_raw = cursor.fetchall()
+            if dtype == "sap_s4hana":
+                # hdbcli LOB kolonları locator nesnesi olarak döndürebilir;
+                # aşağı akış (pandas/DuckDB) string bekler.
+                def _hana_val(v: Any) -> Any:
+                    return v.read() if hasattr(v, "read") and callable(v.read) else v
+                rows = [[_hana_val(v) for v in r] for r in rows_raw]
+            else:
+                rows = [list(r) for r in rows_raw]
         elif dtype == "mysql":
             cursor = conn.cursor()
             cursor.execute(sql)
@@ -432,17 +550,19 @@ def discover_relationships(db_type: str, connection_details: Dict[str, Any]) -> 
     Extracts Foreign Key relationships from the database.
     Returns: [{"source_table": "...", "source_column": "...", "target_table": "...", "target_column": "..."}, ...]
     """
-    conn, dtype = get_connection(db_type, connection_details)
     relationships = []
-    
+    conn = None
+    dtype = None
+
     try:
+        conn, dtype = get_connection(db_type, connection_details)
         cursor = conn.cursor()
         
         if dtype == "sqlite":
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
             tables = [row[0] for row in cursor.fetchall()]
             for tbl in tables:
-                cursor.execute(f"PRAGMA foreign_key_list(`{tbl}`)")
+                cursor.execute(f"PRAGMA foreign_key_list(`{tbl.replace('`', '``')}`)")
                 for row in cursor.fetchall():
                     relationships.append({
                         "source_table": tbl,
@@ -497,12 +617,124 @@ def discover_relationships(db_type: str, connection_details: Dict[str, Any]) -> 
                     "target_column": r["target_column"] if isinstance(r, dict) else r[3]
                 })
         
+        elif dtype == "sap_s4hana":
+            # HANA katalog görünümü üzerinden FK ilişkileri
+            schema_name = (connection_details.get("schema") or "").strip()
+            if not schema_name:
+                cursor.execute("SELECT CURRENT_SCHEMA FROM DUMMY")
+                row = cursor.fetchone()
+                schema_name = row[0] if row else "SYSTEM"
+            cursor.execute("""
+                SELECT TABLE_NAME, COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
+                FROM REFERENTIAL_CONSTRAINTS
+                WHERE SCHEMA_NAME = ? AND REFERENCED_TABLE_NAME IS NOT NULL
+                ORDER BY TABLE_NAME
+            """, (schema_name,))
+            for row in cursor.fetchall():
+                relationships.append({
+                    "source_table": row[0],
+                    "source_column": row[1],
+                    "target_table": row[2],
+                    "target_column": row[3]
+                })
+
         return relationships
-    except Exception:
-        # Silently fail for unsupported types or permission errors
+    except (ConnectorError, Exception) as e:
+        logger.warning("İlişki keşfi başarısız (db_type=%s): %s", db_type, e)
         return []
     finally:
-        if dtype != "bigquery":
+        if conn is not None and dtype not in ("bigquery",):
+            try:
+                cursor.close()
+            except Exception:
+                pass
             conn.close()
 
 
+
+
+def discover_cds_views(connection_details: Dict[str, Any], max_views: int = 300) -> Dict[str, List[str]]:
+    """
+    SAP S/4HANA released CDS view keşfi (VDM: I_*/C_* view'ları).
+
+    SAP, S/4HANA analitiği için ham tablolar yerine yayınlanmış (released) CDS
+    view'larını önerir. Bu fonksiyon:
+      1. RELEASED_OBJECTS katalog görünümü varsa onu kullanır (en doğru kaynak),
+      2. yoksa SYS.VIEWS üzerinden geçerli I_/C_ önekli view'ları alır,
+      3. kolonları SYS.VIEW_COLUMNS'dan toplu çeker.
+
+    connection_details ek anahtarları:
+      - schema:      hedef S/4 şeması (boşsa CURRENT_SCHEMA)
+      - max_views:   üst sınır (varsayılan 300)
+    Döndürülen şema, discover_schema sonucuyla birleştirilip ajan hattına verilir.
+    """
+    max_views = int(connection_details.get("max_views", max_views))
+    conn, dtype = get_connection("sap_s4hana", connection_details)
+    if dtype != "sap_s4hana":
+        return {}
+    schema_out: Dict[str, List[str]] = {}
+    try:
+        cursor = conn.cursor()
+        schema_name = (connection_details.get("schema") or "").strip()
+        if not schema_name:
+            cursor.execute("SELECT CURRENT_SCHEMA FROM DUMMY")
+            row = cursor.fetchone()
+            schema_name = row[0] if row else "SYSTEM"
+
+        view_names: List[str] = []
+        # 1) Released katalog denemesi (her sistemde yok — sessizce düş)
+        try:
+            cursor.execute(
+                """
+                SELECT DISTINCT v.VIEW_NAME
+                FROM SYS.VIEWS v
+                JOIN RELEASED_OBJECTS r ON r.OBJECT_NAME = v.VIEW_NAME
+                WHERE v.SCHEMA_NAME = ? AND v.IS_VALID = 'TRUE'
+                ORDER BY v.VIEW_NAME
+                LIMIT ?
+                """,
+                (schema_name, int(max_views)),
+            )
+            view_names = [row[0] for row in cursor.fetchall()]
+        except Exception:
+            view_names = []
+
+        # 2) Fallback / tamamlayıcı: I_ ve C_ önekli geçerli view'lar
+        cursor.execute(
+            """
+            SELECT VIEW_NAME
+            FROM SYS.VIEWS
+            WHERE SCHEMA_NAME = ? AND IS_VALID = 'TRUE'
+              AND (VIEW_NAME LIKE 'I\\_%' ESCAPE '\\' OR VIEW_NAME LIKE 'C\\_%' ESCAPE '\\')
+              AND VIEW_NAME NOT LIKE '%\\_P' ESCAPE '\\'
+            ORDER BY VIEW_NAME
+            LIMIT ?
+            """,
+            (schema_name, int(max_views)),
+        )
+        for row in cursor.fetchall():
+            if row[0] not in view_names:
+                view_names.append(row[0])
+        view_names = view_names[: int(max_views)]
+
+        if not view_names:
+            return {}
+
+        placeholders = ", ".join(["?" for _ in view_names])
+        cursor.execute(
+            f"""
+            SELECT VIEW_NAME, COLUMN_NAME, POSITION
+            FROM SYS.VIEW_COLUMNS
+            WHERE SCHEMA_NAME = ? AND VIEW_NAME IN ({placeholders})
+            ORDER BY VIEW_NAME, POSITION
+            """,
+            [schema_name] + view_names,
+        )
+        for row in cursor.fetchall():
+            schema_out.setdefault(row[0], []).append(row[1])
+        return schema_out
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass

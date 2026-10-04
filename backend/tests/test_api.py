@@ -22,8 +22,20 @@ def setup_module(module):
     """Test öncesi test veritabanı kaynağını ve fixture'ı hazırlar."""
     import sqlite3
     import json
-    from app.database.manager import DB_PATH
-    
+    from app.database.manager import DB_PATH, get_user_by_username, update_user
+    from app.core.auth import hash_password
+
+    # Test admin oturumu: admin kullanıcısını bilinen şifreyle hazırla ve token al
+    test_password = "test-admin-pass-123"
+    if not get_user_by_username("admin"):
+        from app.database.manager import create_user
+        create_user("admin", hash_password(test_password), "Test Admin", "admin")
+    else:
+        update_user(get_user_by_username("admin")["id"], password_hash=hash_password(test_password))
+    login_res = client.post("/api/auth/login", json={"username": "admin", "password": test_password})
+    assert login_res.status_code == 200, f"Admin login failed: {login_res.text}"
+    client.headers.update({"Authorization": f"Bearer {login_res.json()['token']}"})
+
     # Test için benzersiz bir kaynak ID'si oluştur
     test_source_id = f"test_sqlite_{uuid.uuid4().hex[:8]}"
     
@@ -292,22 +304,37 @@ class TestAPIEndpoints:
     # ==========================================
     def test_settings_endpoints(self):
         """LLM ayarları get/update."""
-        # A. Get settings
+        # A. Get settings — API anahtarı maskelenmiş dönmeli
         res_get = client.get("/api/settings")
         assert res_get.status_code == 200
         config = res_get.json()
         assert "baseUrl" in config
         assert "model" in config
+        if config.get("apiKeyMasked"):
+            # Maskeli anahtar asla gerçek bir anahtar içermemeli
+            assert "sk-" not in config["apiKey"]
 
-        # B. Save settings
+        # B. Save settings — yeni anahtar ile kaydet
         save_payload = {
-            "apiKey": config.get("apiKey", "test_key"),
+            "apiKey": "sk-test_dummy_key_1234567890",
             "baseUrl": "https://api.deepseek.com/v1",
             "model": "deepseek-coder-v2"
         }
         res_save = client.put("/api/settings", json=save_payload)
         assert res_save.status_code == 200
         assert res_save.json() == {"success": True}
+
+        # C. Maskeli anahtar geri PUT edilirse mevcut anahtar korunmalı
+        from app.database.manager import get_stored_api_key
+        res_get2 = client.get("/api/settings")
+        masked_key = res_get2.json()["apiKey"]
+        res_keep = client.put("/api/settings", json={
+            "apiKey": masked_key,
+            "baseUrl": "https://api.deepseek.com/v1",
+            "model": "deepseek-coder-v2"
+        })
+        assert res_keep.status_code == 200
+        assert "sk-test_dummy_key" in get_stored_api_key()
 
     # ==========================================
     # 5. ANALYTICS API TESTS

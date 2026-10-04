@@ -7,6 +7,7 @@ Tehlikeli komutlar: INSERT, UPDATE, DELETE, DROP, ALTER, CREATE, COPY,
 ATTACH, DETACH, EXPORT, IMPORT, CALL, PRAGMA (DuckDB-specific).
 """
 import re
+from typing import Optional
 import sqlglot
 from sqlglot import exp
 

@@ -1,111 +1,91 @@
 @echo off
-setlocal enabledelayedexpansion
+setlocal EnableDelayedExpansion
+title DeepBI - Dev Setup
+cd /d "%~dp0"
 
-echo ===================================================
-echo   DeepBI Agent Development Environment Setup
-echo ===================================================
+echo.
+echo   DeepBI Analytics Studio - Dev Setup
+echo   ====================================
 echo.
 
-:: 1. Check Python
-echo [+] Python kontrol ediliyor...
+:: ─── 1. Python kontrolu ───
+echo [1/5] Python kontrol ediliyor...
 where python >nul 2>nul
-if %errorlevel% neq 0 (
-    echo [ERROR] Python bulunamadi! Lutfen Python yukleyin ve PATH'e ekleyin.
-    goto error
+if !errorlevel! neq 0 (
+    echo [HATA] Python bulunamadi. https://www.python.org adresinden kurun ve PATH'e ekleyin.
+    goto :fail
 )
-python --version
+for /f "tokens=*" %%v in ('python --version 2^>^&1') do echo        %%v
 
-:: 2. Check Node.js / npm
+:: ─── 2. Node.js / npm kontrolu ───
 echo.
-echo [+] Node.js / npm kontrol ediliyor...
+echo [2/5] Node.js / npm kontrol ediliyor...
 where npm >nul 2>nul
-if %errorlevel% neq 0 (
-    echo [ERROR] Node.js veya npm bulunamadi! Lutfen Node.js yukleyin.
-    goto error
+if !errorlevel! neq 0 (
+    echo [HATA] npm bulunamadi. https://nodejs.org adresinden Node.js kurun.
+    goto :fail
 )
-call npm -v
+for /f "tokens=*" %%v in ('npm -v') do echo        npm v%%v
 
-:: 3. Setup Backend
+:: ─── 3. Backend kurulumu ───
 echo.
-echo ===================================================
-echo   Backend Kurulumu Basliyor...
-echo ===================================================
-cd backend
-
-:: Create virtual environment if not exists
-if not exist venv (
-    echo [+] Python Sanal Ortami (venv) olusturuluyor...
-    python -m venv venv
-    if %errorlevel% neq 0 (
-        echo [ERROR] Sanal ortam olusturulamadi!
-        cd ..
-        goto error
+echo [3/5] Backend kurulumu...
+if not exist "backend\venv\Scripts\python.exe" (
+    echo        Sanal ortam olusturuluyor: backend\venv
+    python -m venv backend\venv
+    if !errorlevel! neq 0 (
+        echo [HATA] venv olusturulamadi.
+        goto :fail
     )
 ) else (
-    echo [+] Python Sanal Ortami (venv) zaten mevcut.
+    echo        venv zaten mevcut, atlandi.
+)
+echo        Python paketleri yukleniyor (pip install -r requirements.txt)...
+backend\venv\Scripts\python.exe -m pip install --upgrade pip --quiet
+backend\venv\Scripts\python.exe -m pip install -r backend\requirements.txt
+if !errorlevel! neq 0 (
+    echo [HATA] pip install basarisiz. Ciktiyi yukaridan kontrol edin.
+    goto :fail
 )
 
-:: Install requirements
-echo [+] Python paketleri (pip) yukleniyor...
-call venv\Scripts\activate.bat
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
-if %errorlevel% neq 0 (
-    echo [ERROR] Python paketleri yuklenirken hata olustu!
-    cd ..
-    goto error
-)
-call deactivate
-echo [SUCCESS] Backend bagimliliklari basariyla yuklendi.
-
-:: Copy .env.example if .env does not exist
-if not exist .env (
-    echo [+] .env dosyasi olusturuluyor (.env.example kopyalaniyor)...
-    copy .env.example .env
+if not exist "backend\.env" (
+    echo        .env olusturuluyor (.env.example kopyalaniyor)...
+    copy "backend\.env.example" "backend\.env" >nul
 ) else (
-    echo [+] .env dosyasi zaten mevcut.
+    echo        .env zaten mevcut, atlandi.
 )
 
-cd ..
-
-:: 4. Setup Frontend
+:: ─── 4. Frontend kurulumu ───
 echo.
-echo ===================================================
-echo   Frontend Kurulumu Basliyor...
-echo ===================================================
-cd frontend
-
-echo [+] Node.js paketleri (npm install) yukleniyor...
+echo [4/5] Frontend kurulumu...
+echo        npm install calistiriliyor...
+pushd frontend
 call npm install
-if %errorlevel% neq 0 (
-    echo [ERROR] npm paketleri yuklenirken hata olustu!
-    cd ..
-    goto error
+if !errorlevel! neq 0 (
+    echo [HATA] npm install basarisiz. Ciktiyi yukaridan kontrol edin.
+    popd
+    goto :fail
 )
-echo [SUCCESS] Frontend bagimliliklari basariyla yuklendi.
+popd
 
-cd ..
-
+:: ─── 5. Ozet ───
 echo.
-echo ===================================================
-echo   Kurulum Tamamlandi!
-echo ===================================================
+echo [5/5] Kurulum tamamlandi!
 echo.
-echo Gelistirme ortamini baslatmak icin 'rundev.bat' calistirabilirsiniz.
+echo   Baslatmak icin : rundev.bat
+echo   Backend health : http://127.0.0.1:8000/api/health
+echo   Frontend       : http://localhost:5173
 echo.
-set /p choice="Simdi baslatmak ister misiniz? (E/H): "
-if /i "%choice%"=="E" (
-    echo.
-    echo Geliştirme ortami baslatiliyor...
+choice /c EH /m "Simdi gelistirme ortamini baslat"
+if !errorlevel! equ 1 (
+    endlocal
     call rundev.bat
+    exit /b 0
 )
-goto end
+goto :eof
 
-:error
+:fail
 echo.
-echo [FAIL] Kurulum sirasinda bir hata olustu. Lutfen yukaridaki hatalari kontrol edin.
+echo [FAIL] Kurulum sirasinda hata olustu. Yukaridaki mesajlari kontrol edin.
 pause
 exit /b 1
-
-:end
-pause

@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "powerbi-modeling": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@microsoft/powerbi-modeling-mcp@latest",
+        "--start",
+        "--accept-eula"
+      ],
+      "description": "Microsoft Power BI Authoring (Modeling) MCP Server — Power BI semantic modellerine AI agent erişimi sağlar (DAX yazma, tablo/kolon/ölçü/ilişki yönetimi). Bağlantı hedefi: Power BI Desktop, Fabric workspace veya PBIP/TMDL dosyaları.",
+      "env": {
+        "PBI_MODELING_MCP_ACCEPT_EULA": "true"
+      }
+    }
+  }
+}

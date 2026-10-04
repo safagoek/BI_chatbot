@@ -15,21 +15,22 @@ import plotly.graph_objects as go
 
 logger = logging.getLogger(__name__)
 
-# ── Dark tema sabitleri ──────────────────────────────────────────────────────
-DARK_TEMPLATE = "plotly_dark"
-PAPER_BG = "rgba(0,0,0,0)"
+# ── Nötr grafik sabitleri ────────────────────────────────────────────────────
+CHART_TEMPLATE = "plotly_white"  # tema stili frontend tarafında uygulanır
+PAPER_BG = "rgba(0,0,0,0)"   # şeffaf — kart zemine uyum sağlar
 PLOT_BG = "rgba(0,0,0,0)"
 FONT_FAMILY = "Inter, sans-serif"
-FONT_COLOR = "#8b949e"
-TITLE_COLOR = "#e6edf3"
-GRID_COLOR = "#21262d"
+# Orta ton gri: hem aydınlık hem koyu zeminde okunur
+FONT_COLOR = "#8a8580"
+TITLE_COLOR = "#57534e"
+GRID_COLOR = "rgba(138, 133, 128, 0.25)"
 MARGIN = dict(t=40, r=10, l=40, b=40)
 
 
 def _apply_dark_theme(fig: go.Figure) -> go.Figure:
-    """Apply consistent dark theme to any Plotly figure."""
+    """Apply consistent neutral theme to any Plotly figure."""
     fig.update_layout(
-        template=DARK_TEMPLATE,
+        template=CHART_TEMPLATE,
         paper_bgcolor=PAPER_BG,
         plot_bgcolor=PLOT_BG,
         margin=MARGIN,

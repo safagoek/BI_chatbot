@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useBIStore, BACKEND_BASE } from '../context/store';
+import { apiFetch } from '../api/client';
 import { translations } from '../context/translations';
 import FileUpload from './FileUpload';
 import {
@@ -57,13 +58,13 @@ const DEFAULT_FORM: ConnectionForm = {
 };
 
 const DB_TYPE_OPTIONS = [
-  { value: 'sap_s4hana', label: 'SAP S/4HANA', icon: Cpu, color: '#f9ab00' },
-  { value: 'postgresql', label: 'PostgreSQL', icon: Database, color: '#0078d4' },   // Fluent Communication Blue
-  { value: 'mysql', label: 'MySQL / MariaDB', icon: Server, color: '#00acac' },
-  { value: 'sqlite', label: 'SQLite', icon: HardDrive, color: '#7a4dff' },          // Fluent Purple
-  { value: 'snowflake', label: 'Snowflake', icon: Cloud, color: '#00c0f3' },
-  { value: 'mssql', label: 'MS SQL Server', icon: Database, color: '#e81123' },
-  { value: 'bigquery', label: 'Google BigQuery', icon: Layers, color: '#4285f4' },
+  { value: 'sap_s4hana', label: 'SAP S/4HANA', icon: Cpu, color: '#fbbf24' },
+  { value: 'postgresql', label: 'PostgreSQL', icon: Database, color: '#60a5fa' },
+  { value: 'mysql', label: 'MySQL / MariaDB', icon: Server, color: '#34d399' },
+  { value: 'sqlite', label: 'SQLite', icon: HardDrive, color: '#a78bfa' },
+  { value: 'snowflake', label: 'Snowflake', icon: Cloud, color: '#38bdf8' },
+  { value: 'mssql', label: 'MS SQL Server', icon: Database, color: '#f87171' },
+  { value: 'bigquery', label: 'Google BigQuery', icon: Layers, color: '#818cf8' },
 ];
 
 
@@ -78,10 +79,14 @@ const DEFAULT_PORTS: Record<DbType, string> = {
 };
 
 export const SourceManager: React.FC = () => {
-  const { 
-    sources, files, activeSourceId, selectedSourceIds, 
-    fetchSources, fetchFiles, setActiveSourceId, language 
-  } = useBIStore();
+  const sources = useBIStore((s) => s.sources);
+  const files = useBIStore((s) => s.files);
+  const activeSourceId = useBIStore((s) => s.activeSourceId);
+  const selectedSourceIds = useBIStore((s) => s.selectedSourceIds);
+  const fetchSources = useBIStore((s) => s.fetchSources);
+  const fetchFiles = useBIStore((s) => s.fetchFiles);
+  const setActiveSourceId = useBIStore((s) => s.setActiveSourceId);
+  const language = useBIStore((s) => s.language);
 
   const t = translations[language];
 
@@ -159,14 +164,11 @@ export const SourceManager: React.FC = () => {
       const fetchLocalSqliteFiles = async () => {
         setLoadingSqliteFiles(true);
         try {
-          const res = await fetch(`${API}/api/sources/local-sqlite-files`);
-          if (res.ok) {
-            const data = await res.json();
-            setLocalSqliteFiles(data);
-            if (!formValues.database_path && data.length > 0) {
-              const defaultDb = data[0];
-              setFormValues(prev => ({ ...prev, database_path: defaultDb }));
-            }
+          const data = await apiFetch('/api/sources/local-sqlite-files');
+          setLocalSqliteFiles(data);
+          if (!formValues.database_path && data.length > 0) {
+            const defaultDb = data[0];
+            setFormValues(prev => ({ ...prev, database_path: defaultDb }));
           }
         } catch (err) {
           console.error("Failed to load local SQLite files", err);
@@ -262,12 +264,10 @@ export const SourceManager: React.FC = () => {
     setTesting(true);
     setTestResult(null);
     try {
-      const res = await fetch(`${API}/api/sources/test-connection`, {
+      const data = await apiFetch('/api/sources/test-connection', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: formValues.type, connection_details: buildConnectionDetails() }),
       });
-      const data = await res.json();
       setTestResult({ success: data.success, message: data.message });
     } catch {
       setTestResult({ success: false, message: t.serverConnectionFailed });
@@ -281,7 +281,7 @@ export const SourceManager: React.FC = () => {
     setSaving(true);
     setSaveError(null);
     try {
-      const url = editingSourceId ? `${API}/api/sources/${editingSourceId}` : `${API}/api/sources`;
+      const url = editingSourceId ? `/api/sources/${editingSourceId}` : '/api/sources';
       const method = editingSourceId ? 'PUT' : 'POST';
       const bodyPayload = editingSourceId ? {
         display_name: formValues.display_name,
@@ -292,23 +292,17 @@ export const SourceManager: React.FC = () => {
         connection_details: buildConnectionDetails(),
       };
 
-      const res = await fetch(url, {
+      await apiFetch(url, {
         method: method,
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(bodyPayload),
       });
-      if (!res.ok) {
-        const err = await res.json();
-        setSaveError(err.detail || t.saveConnectionFailed);
-        return;
-      }
       await fetchSources();
       setShowForm(false);
       setEditingSourceId(null);
       setFormValues(DEFAULT_FORM);
       setTestResult(null);
     } catch (e: any) {
-      setSaveError(e.message);
+      setSaveError(e.message || t.saveConnectionFailed);
     } finally {
       setSaving(false);
     }
@@ -318,8 +312,8 @@ export const SourceManager: React.FC = () => {
     e.stopPropagation();
     setRefreshing(sourceId);
     try {
-      const res = await fetch(`${API}/api/sources/${sourceId}/refresh-schema`, { method: 'PUT' });
-      if (res.ok) await fetchSources();
+      await apiFetch(`/api/sources/${sourceId}/refresh-schema`, { method: 'PUT' });
+      await fetchSources();
     } finally {
       setRefreshing(null);
     }
@@ -330,8 +324,8 @@ export const SourceManager: React.FC = () => {
     if (!window.confirm(t.deleteConfirm)) return;
     setDeleting(sourceId);
     try {
-      const res = await fetch(`${API}/api/sources/${sourceId}`, { method: 'DELETE' });
-      if (res.ok) await fetchSources();
+      await apiFetch(`/api/sources/${sourceId}`, { method: 'DELETE' });
+      await fetchSources();
     } finally {
       setDeleting(null);
     }
@@ -498,15 +492,10 @@ export const SourceManager: React.FC = () => {
     e.stopPropagation();
     setTogglingId(sourceId);
     try {
-      const res = await fetch(`${API}/api/sources/${sourceId}/status`, {
+      await apiFetch(`/api/sources/${sourceId}/status`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_active: !isActive })
       });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.detail || t.updateStatusFailed);
-      }
       await fetchSources();
     } catch (err: any) {
       alert(err.message || t.updateStatusFailed);
@@ -519,15 +508,10 @@ export const SourceManager: React.FC = () => {
     e.stopPropagation();
     setCloningId(sourceId);
     try {
-      const res = await fetch(`${API}/api/sources/${sourceId}/clone`, {
+      await apiFetch(`/api/sources/${sourceId}/clone`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
       });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.detail || t.cloningFailed);
-      }
       await fetchSources();
     } catch (err: any) {
       alert(err.message || t.cloningFailed);
@@ -545,15 +529,10 @@ export const SourceManager: React.FC = () => {
       .map(l => l.trim())
       .filter(Boolean);
     try {
-      const res = await fetch(`${API}/api/sources/${detailSourceId}/labels`, {
+      await apiFetch(`/api/sources/${detailSourceId}/labels`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ labels })
       });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.detail || t.saveTagsFailed);
-      }
       await fetchSources();
       closeDetails();
     } catch (err: any) {
@@ -573,9 +552,7 @@ export const SourceManager: React.FC = () => {
     setSemanticError(null);
 
     try {
-      const res = await fetch(`${API}/api/sources/${sourceId}/semantic`);
-      if (!res.ok) throw new Error(t.loadSemanticFailed);
-      const data = await res.json();
+      const data = await apiFetch(`/api/sources/${sourceId}/semantic`);
 
       const initialMapping: typeof semanticMapping = {};
       if (src.schema) {
@@ -622,15 +599,10 @@ export const SourceManager: React.FC = () => {
         }
       });
 
-      const res = await fetch(`${API}/api/sources/${semanticSourceId}/semantic`, {
+      await apiFetch(`/api/sources/${semanticSourceId}/semantic`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(cleanMapping),
       });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.detail || t.saveSemanticFailed);
-      }
       setSemanticSourceId(null);
     } catch (err: any) {
       setSemanticError(err.message || t.saveSemanticError);
@@ -640,7 +612,7 @@ export const SourceManager: React.FC = () => {
   };
 
   const colorFor = (type: string) =>
-    DB_TYPE_OPTIONS.find(o => o.value === type)?.color ?? '#0078d4';
+    DB_TYPE_OPTIONS.find(o => o.value === type)?.color ?? '#818cf8';
 
   const labelTextFor = (type: string) =>
     DB_TYPE_OPTIONS.find(o => o.value === type)?.label ?? type.toUpperCase();
@@ -658,7 +630,7 @@ export const SourceManager: React.FC = () => {
     <Box sx={{ flex: 1, p: 4, display: 'flex', flexDirection: 'column', gap: 3.5, overflowY: 'auto' }}>
       
       {/* Shell Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', borderBottom: '1px solid', borderColor: 'divider', pb: 2.5 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', borderBottom: '1px solid', borderColor: 'var(--color-border)', pb: 2.5 }}>
         <Box>
           <Typography variant="h6" sx={{ fontWeight: 'extrabold', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: 1.5, textTransform: 'uppercase' }}>
             <Database className="w-5 h-5 text-gh-accent" />
@@ -670,7 +642,7 @@ export const SourceManager: React.FC = () => {
         </Box>
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Tooltip title={t.refreshListTooltip}>
-            <IconButton onClick={() => fetchSources()} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '8px' }}>
+            <IconButton onClick={() => fetchSources()} sx={{ border: '1px solid', borderColor: 'var(--color-border)', borderRadius: '8px' }}>
               <RefreshCw size={14} />
             </IconButton>
           </Tooltip>
@@ -678,7 +650,7 @@ export const SourceManager: React.FC = () => {
             variant="contained"
             onClick={handleStartAdd}
             startIcon={<Plus size={14} />}
-            sx={{ bgcolor: '#0078d4', '&:hover': { bgcolor: '#106ebe' }, fontWeight: 600, fontSize: 11, color: '#ffffff', borderRadius: '8px' }}
+            sx={{ bgcolor: 'var(--color-accent)', '&:hover': { bgcolor: 'var(--color-accent-hover)' }, fontWeight: 600, fontSize: 11, color: '#ffffff', borderRadius: '8px' }}
           >
             {t.addBtn}
           </Button>
@@ -686,9 +658,9 @@ export const SourceManager: React.FC = () => {
       </Box>
 
       {/* File Upload & Preview Segment */}
-      <Card sx={{ bgcolor: 'rgba(0, 120, 212, 0.01)', borderRadius: '8px' }}>
+      <Card sx={{ bgcolor: 'var(--color-surface)', borderRadius: '12px', border: '1px solid', borderColor: 'var(--color-border)', boxShadow: 'var(--shadow-2)' }}>
         <CardContent sx={{ p: 2.5 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', borderBottom: '1px solid', borderColor: 'divider', pb: 1.5, mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', borderBottom: '1px solid', borderColor: 'var(--color-border)', pb: 1.5, mb: 2 }}>
             <Box>
               <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: 11.5, textTransform: 'uppercase', tracking: '0.05em' }}>
                 {t.fileSourcesSection}
@@ -697,7 +669,7 @@ export const SourceManager: React.FC = () => {
                 {t.fileSourcesDesc}
               </Typography>
             </Box>
-            <IconButton onClick={() => fetchFiles()} size="small" sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '6px' }}>
+            <IconButton onClick={() => fetchFiles()} size="small" sx={{ border: '1px solid', borderColor: 'var(--color-border)', borderRadius: '6px' }}>
               <RefreshCw size={12} />
             </IconButton>
           </Box>
@@ -706,9 +678,9 @@ export const SourceManager: React.FC = () => {
       </Card>
 
       {/* Active Selection Indicator */}
-      <Card sx={{ bgcolor: 'rgba(0, 120, 212, 0.01)', borderRadius: '8px' }}>
+      <Card sx={{ bgcolor: 'var(--color-surface)', borderRadius: '12px', border: '1px solid', borderColor: 'var(--color-border)', boxShadow: 'var(--shadow-2)' }}>
         <CardContent sx={{ p: 2.5 }}>
-          <Box sx={{ borderBottom: '1px solid', borderColor: 'divider', pb: 1.5, mb: 2 }}>
+          <Box sx={{ borderBottom: '1px solid', borderColor: 'var(--color-border)', pb: 1.5, mb: 2 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: 11.5, textTransform: 'uppercase', tracking: '0.05em' }}>
               {t.activeSessionTables}
             </Typography>
@@ -723,7 +695,7 @@ export const SourceManager: React.FC = () => {
                   <Typography variant="caption" sx={{ fontWeight: 600, color: 'primary.main', textTransform: 'uppercase', tracking: '0.05em', display: 'block', mb: 1 }}>
                     {t.mainSourceLabel}
                   </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 'extrabold', fontFamily: 'monospace', p: '6px 12px', bgcolor: 'rgba(0, 120, 212, 0.03)', border: '1px solid', borderColor: 'divider', borderRadius: '6px', fontSize: 11 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 'extrabold', fontFamily: 'monospace', p: '6px 12px', bgcolor: 'var(--color-accent-subtle)', border: '1px solid', borderColor: 'var(--color-border)', borderRadius: '6px', fontSize: 11 }}>
                     {activeSourceId || t.noActiveSource}
                   </Typography>
                 </Box>
@@ -737,10 +709,10 @@ export const SourceManager: React.FC = () => {
                       if (src && src.schema) {
                         const tbls = Object.keys(src.schema || {});
                         if (tbls.length === 0) return <li className="text-gh-muted italic">{t.noTablesFoundLabel}</li>;
-                        return tbls.map(t => <li key={`active-${t}`} style={{ color: '#0078d4' }}>{t}</li>);
+                        return tbls.map(t => <li key={`active-${t}`} style={{ color: '#818cf8' }}>{t}</li>);
                       }
                       const fileItem = files.find(f => f.id === activeSourceId || f.alias === activeSourceId);
-                      if (fileItem) return <li key={`active-file-${fileItem.alias}`} style={{ color: '#0078d4' }}>{fileItem.alias}</li>;
+                      if (fileItem) return <li key={`active-file-${fileItem.alias}`} style={{ color: '#818cf8' }}>{fileItem.alias}</li>;
                       return <li className="text-gh-muted italic">{t.emptySelectionLabel}</li>;
                     })()}
                   </ul>
@@ -770,8 +742,8 @@ export const SourceManager: React.FC = () => {
                         if (src) {
                           const tbls = Object.keys(src.schema || {});
                           return (
-                            <Box key={`sel-${sid}`} sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', bgcolor: 'rgba(0, 120, 212, 0.02)', p: '4px 8px', borderRadius: '4px', border: '1px solid', borderColor: 'divider', fontSize: 10.5 }}>
-                              <span style={{ color: '#0078d4', fontWeight: 600 }}>{sid}</span>
+                            <Box key={`sel-${sid}`} sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', bgcolor: 'var(--color-canvas)', p: '4px 8px', borderRadius: '4px', border: '1px solid', borderColor: 'var(--color-border)', fontSize: 10.5 }}>
+                              <span style={{ color: '#818cf8', fontWeight: 600 }}>{sid}</span>
                               <span style={{ color: 'var(--color-text)' }}>({tbls.length} {tbls.length === 1 ? t.tableSuffix : t.tablesSuffix})</span>
                             </Box>
                           );
@@ -779,9 +751,9 @@ export const SourceManager: React.FC = () => {
                         const fileItem = files.find(f => f.id === sid || f.alias === sid);
                         if (fileItem) {
                           return (
-                            <Box key={`sel-file-${sid}`} sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', bgcolor: 'rgba(0, 120, 212, 0.02)', p: '4px 8px', borderRadius: '4px', border: '1px solid', borderColor: 'divider', fontSize: 10.5 }}>
-                              <span style={{ color: '#0078d4', fontWeight: 600 }}>{fileItem.alias}</span>
-                              <span style={{ color: '#0078d4' }}>{t.fileLabel.replace(':', '').trim()}</span>
+                            <Box key={`sel-file-${sid}`} sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', bgcolor: 'var(--color-canvas)', p: '4px 8px', borderRadius: '4px', border: '1px solid', borderColor: 'var(--color-border)', fontSize: 10.5 }}>
+                              <span style={{ color: '#818cf8', fontWeight: 600 }}>{fileItem.alias}</span>
+                              <span style={{ color: '#818cf8' }}>{t.fileLabel.replace(':', '').trim()}</span>
                             </Box>
                           );
                         }
@@ -803,8 +775,8 @@ export const SourceManager: React.FC = () => {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle sx={{ p: 2.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Database size={16} style={{ color: '#0078d4' }} />
+        <DialogTitle sx={{ p: 2.5, borderBottom: '1px solid', borderColor: 'var(--color-border)', display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Database size={16} style={{ color: '#818cf8' }} />
           <Typography variant="subtitle2" sx={{ fontWeight: 'extrabold', fontSize: 13, m: 0 }}>
             {t.detailsModalTitle}
           </Typography>
@@ -822,9 +794,9 @@ export const SourceManager: React.FC = () => {
                       {detailSource.display_name}
                     </Typography>
                     <Box sx={{ mt: 1.5, display: 'flex', flexDirection: 'column', gap: 1, fontSize: 10.5, color: 'text.secondary' }}>
-                      <Box>{t.typeLabel}<Chip label={detailSource.type.toUpperCase()} size="small" sx={{ height: 16, fontSize: 8.5, fontWeight: 600, bgcolor: 'rgba(0, 120, 212, 0.1)', color: '#0078d4', border: 0 }} /></Box>
+                      <Box>{t.typeLabel}<Chip label={detailSource.type.toUpperCase()} size="small" sx={{ height: 16, fontSize: 8.5, fontWeight: 600, bgcolor: 'var(--color-accent-subtle)', color: '#818cf8', border: 0 }} /></Box>
                       <Box>{t.statusLabel}{detailSource.is_active ? <Chip label={t.active} color="success" size="small" sx={{ height: 16, fontSize: 8.5, fontWeight: 600, border: 0 }} /> : <Chip label={t.passive} color="error" size="small" sx={{ height: 16, fontSize: 8.5, fontWeight: 600, border: 0 }} />}</Box>
-                      <Box>{t.tablesLabel}<span style={{ color: '#0078d4', fontWeight: 600, fontFamily: 'monospace' }}>{Object.keys(detailSource.schema || {}).length}</span></Box>
+                      <Box>{t.tablesLabel}<span style={{ color: '#818cf8', fontWeight: 600, fontFamily: 'monospace' }}>{Object.keys(detailSource.schema || {}).length}</span></Box>
                       <Box sx={{ fontSize: 9.5, opacity: 0.8 }}>{t.lastUpdateLabel}{detailSource.last_schema_update || '—'}</Box>
                     </Box>
                   </Box>
@@ -837,29 +809,29 @@ export const SourceManager: React.FC = () => {
                     </Typography>
                     {detailSource.type === 'sqlite' ? (
                       <Typography variant="caption" sx={{ fontFamily: 'monospace', display: 'block', wordBreak: 'break-all' }}>
-                        {t.fileLabel}<span style={{ color: '#0078d4' }}>{detailDetails.database_path || '—'}</span>
+                        {t.fileLabel}<span style={{ color: '#818cf8' }}>{detailDetails.database_path || '—'}</span>
                       </Typography>
                     ) : detailSource.type === 'snowflake' ? (
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, fontFamily: 'monospace', fontSize: 10.5, color: 'text.secondary' }}>
-                        <div>Account ID: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.account || '—'}</span></div>
-                        <div>Warehouse: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.warehouse || '—'}</span></div>
-                        <div>DB: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.database || '—'}</span></div>
-                        <div>Schema: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.schema || '—'}</span></div>
-                        <div>User: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.user || '—'}</span></div>
+                        <div>Account ID: <span style={{ color: '#818cf8', fontWeight: 600 }}>{detailDetails.account || '—'}</span></div>
+                        <div>Warehouse: <span style={{ color: '#818cf8', fontWeight: 600 }}>{detailDetails.warehouse || '—'}</span></div>
+                        <div>DB: <span style={{ color: '#818cf8', fontWeight: 600 }}>{detailDetails.database || '—'}</span></div>
+                        <div>Schema: <span style={{ color: '#818cf8', fontWeight: 600 }}>{detailDetails.schema || '—'}</span></div>
+                        <div>User: <span style={{ color: '#818cf8', fontWeight: 600 }}>{detailDetails.user || '—'}</span></div>
                       </Box>
                     ) : detailSource.type === 'bigquery' ? (
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, fontFamily: 'monospace', fontSize: 10.5, color: 'text.secondary' }}>
-                        <div>Project ID: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.project_id || '—'}</span></div>
-                        <div>JSON Key: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.credentials_json ? t.loadedStatus : '—'}</span></div>
+                        <div>Project ID: <span style={{ color: '#818cf8', fontWeight: 600 }}>{detailDetails.project_id || '—'}</span></div>
+                        <div>JSON Key: <span style={{ color: '#818cf8', fontWeight: 600 }}>{detailDetails.credentials_json ? t.loadedStatus : '—'}</span></div>
                       </Box>
                     ) : (
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, fontFamily: 'monospace', fontSize: 10.5, color: 'text.secondary' }}>
-                        <div>Host: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.host || '—'}</span></div>
-                        <div>Port: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.port || '—'}</span></div>
-                        <div>DB: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.database || '—'}</span></div>
-                        <div>{t.schemaLabel}<span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.schema || '—'}</span></div>
-                        <div>User: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.user || '—'}</span></div>
-                        <div>{t.dbPasswordLabel}: <span style={{ color: '#0078d4', fontWeight: 600 }}>{detailDetails.password ? '••••••••' : '—'}</span></div>
+                        <div>Host: <span style={{ color: '#818cf8', fontWeight: 600 }}>{detailDetails.host || '—'}</span></div>
+                        <div>Port: <span style={{ color: '#818cf8', fontWeight: 600 }}>{detailDetails.port || '—'}</span></div>
+                        <div>DB: <span style={{ color: '#818cf8', fontWeight: 600 }}>{detailDetails.database || '—'}</span></div>
+                        <div>{t.schemaLabel}<span style={{ color: '#818cf8', fontWeight: 600 }}>{detailDetails.schema || '—'}</span></div>
+                        <div>User: <span style={{ color: '#818cf8', fontWeight: 600 }}>{detailDetails.user || '—'}</span></div>
+                        <div>{t.dbPasswordLabel}: <span style={{ color: '#818cf8', fontWeight: 600 }}>{detailDetails.password ? '••••••••' : '—'}</span></div>
                       </Box>
                     )}
                   </Box>
@@ -876,7 +848,7 @@ export const SourceManager: React.FC = () => {
                     disabled={labelsSaving}
                     variant="contained"
                     size="small"
-                    sx={{ bgcolor: '#0078d4', '&:hover': { bgcolor: '#106ebe' }, color: '#ffffff', px: 2, height: 24, fontSize: 10, fontWeight: 600 }}
+                    sx={{ bgcolor: 'var(--color-accent)', '&:hover': { bgcolor: 'var(--color-accent-hover)' }, color: '#ffffff', px: 2, height: 24, fontSize: 10, fontWeight: 600 }}
                   >
                     {t.saveBtn}
                   </Button>
@@ -897,7 +869,7 @@ export const SourceManager: React.FC = () => {
           )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button onClick={closeDetails} variant="outlined" sx={{ borderColor: 'divider', color: 'text.primary' }}>
+          <Button onClick={closeDetails} variant="outlined" sx={{ borderColor: 'var(--color-border)', color: 'text.primary' }}>
             {t.closeBtn}
           </Button>
         </DialogActions>
@@ -911,8 +883,8 @@ export const SourceManager: React.FC = () => {
         fullWidth
         scroll="paper"
       >
-        <DialogTitle sx={{ p: 2.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Box sx={{ width: 32, height: 32, borderRadius: '6px', bgcolor: 'rgba(0, 120, 212, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0078d4' }}>
+        <DialogTitle sx={{ p: 2.5, borderBottom: '1px solid', borderColor: 'var(--color-border)', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box sx={{ width: 32, height: 32, borderRadius: '6px', bgcolor: 'var(--color-accent-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#818cf8' }}>
             <Tag size={16} />
           </Box>
           <Box>
@@ -941,13 +913,13 @@ export const SourceManager: React.FC = () => {
           ) : (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {Object.entries(semanticMapping).map(([tbl, cols]) => (
-                <Box key={tbl} sx={{ border: '1px solid', borderColor: 'divider', bgcolor: 'background.paper', borderRadius: '6px', overflow: 'hidden' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'action.hover' }}>
+                <Box key={tbl} sx={{ border: '1px solid', borderColor: 'var(--color-border)', bgcolor: 'var(--color-surface)', borderRadius: '6px', overflow: 'hidden' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'var(--color-border)', bgcolor: 'var(--color-surface2)' }}>
                     <Typography variant="caption" sx={{ fontWeight: 'extrabold', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Database className="w-3.5 h-3.5 text-gh-accent" />
                       {tbl}
                     </Typography>
-                    <Chip label={`${Object.keys(cols).length} ${t.columnCount}`} size="small" sx={{ height: 16, fontSize: 8.5, fontWeight: 600, bgcolor: 'rgba(0, 120, 212, 0.1)', color: '#0078d4' }} />
+                    <Chip label={`${Object.keys(cols).length} ${t.columnCount}`} size="small" sx={{ height: 16, fontSize: 8.5, fontWeight: 600, bgcolor: 'var(--color-accent-subtle)', color: '#818cf8' }} />
                   </Box>
                   
                   <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -1001,7 +973,7 @@ export const SourceManager: React.FC = () => {
           )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
-          <Button onClick={() => setSemanticSourceId(null)} variant="outlined" sx={{ borderColor: 'divider', color: 'text.primary' }}>
+          <Button onClick={() => setSemanticSourceId(null)} variant="outlined" sx={{ borderColor: 'var(--color-border)', color: 'text.primary' }}>
             {t.cancelBtn}
           </Button>
           <Button
@@ -1009,7 +981,7 @@ export const SourceManager: React.FC = () => {
             variant="contained"
             disabled={semanticSaving || semanticLoading}
             onClick={handleSaveSemantic}
-            sx={{ bgcolor: '#0078d4', '&:hover': { bgcolor: '#106ebe' }, color: '#ffffff', fontWeight: 600 }}
+            sx={{ bgcolor: 'var(--color-accent)', '&:hover': { bgcolor: 'var(--color-accent-hover)' }, color: '#ffffff', fontWeight: 600 }}
           >
             {semanticSaving ? t.semanticBtnSaving : t.semanticBtnSave}
           </Button>
@@ -1024,9 +996,9 @@ export const SourceManager: React.FC = () => {
         fullWidth
         sx={{ '& .MuiDialog-paper': { borderRadius: '12px' } }}
       >
-        <DialogTitle sx={{ p: 2.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <DialogTitle sx={{ p: 2.5, borderBottom: '1px solid', borderColor: 'var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Box sx={{ width: 32, height: 32, borderRadius: '6px', bgcolor: 'rgba(0, 120, 212, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0078d4' }}>
+            <Box sx={{ width: 32, height: 32, borderRadius: '6px', bgcolor: 'var(--color-accent-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#818cf8' }}>
               <Layers size={16} />
             </Box>
             <Box>
@@ -1075,7 +1047,7 @@ export const SourceManager: React.FC = () => {
                 });
                 setSelectedTables(updated);
               }}
-              sx={{ borderRadius: '6px', fontSize: 10.5, py: 0.5, px: 1.5, borderColor: 'divider', color: 'text.primary', textTransform: 'none' }}
+              sx={{ borderRadius: '6px', fontSize: 10.5, py: 0.5, px: 1.5, borderColor: 'var(--color-border)', color: 'text.primary', textTransform: 'none' }}
             >
               {t.selectAll}
             </Button>
@@ -1089,14 +1061,14 @@ export const SourceManager: React.FC = () => {
                 });
                 setSelectedTables(updated);
               }}
-              sx={{ borderRadius: '6px', fontSize: 10.5, py: 0.5, px: 1.5, borderColor: 'divider', color: 'text.primary', textTransform: 'none' }}
+              sx={{ borderRadius: '6px', fontSize: 10.5, py: 0.5, px: 1.5, borderColor: 'var(--color-border)', color: 'text.primary', textTransform: 'none' }}
             >
               {t.clearAllBtn}
             </Button>
           </Box>
 
           {/* Scrollable list of tables with Checkboxes */}
-          <Box sx={{ flex: 1, overflowY: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: '8px', maxHeight: '300px', p: 1, bgcolor: 'action.hover' }}>
+          <Box sx={{ flex: 1, overflowY: 'auto', border: '1px solid', borderColor: 'var(--color-border)', borderRadius: '8px', maxHeight: '300px', p: 1, bgcolor: 'var(--color-surface2)' }}>
             {Object.entries(tableSelectionSource?.schema ?? {})
               .filter(([tblName]) => tblName.toLowerCase().includes(tableSearchQuery.toLowerCase()))
               .map(([tblName, cols]) => (
@@ -1109,7 +1081,7 @@ export const SourceManager: React.FC = () => {
                     px: 1.5,
                     py: 0.5,
                     borderRadius: '6px',
-                    '&:hover': { bgcolor: 'action.selected' }
+                    '&:hover': { bgcolor: 'var(--color-surface2)' }
                   }}
                 >
                   <FormControlLabel
@@ -1145,11 +1117,11 @@ export const SourceManager: React.FC = () => {
           </Box>
         </DialogContent>
 
-        <DialogActions sx={{ p: 2.5, borderTop: '1px solid', borderColor: 'divider', gap: 1 }}>
+        <DialogActions sx={{ p: 2.5, borderTop: '1px solid', borderColor: 'var(--color-border)', gap: 1 }}>
           <Button
             onClick={() => setTableSelectionOpen(false)}
             variant="outlined"
-            sx={{ borderRadius: '8px', fontSize: 11, fontWeight: 600, px: 2, borderColor: 'divider', color: 'text.primary', textTransform: 'none' }}
+            sx={{ borderRadius: '8px', fontSize: 11, fontWeight: 600, px: 2, borderColor: 'var(--color-border)', color: 'text.primary', textTransform: 'none' }}
           >
             {t.closeBtn}
           </Button>
@@ -1165,7 +1137,7 @@ export const SourceManager: React.FC = () => {
             }}
             variant="contained"
             disabled={Object.keys(selectedTables).filter(k => selectedTables[k]).length === 0}
-            sx={{ borderRadius: '8px', fontSize: 11, fontWeight: 600, px: 2.5, bgcolor: '#0078d4', '&:hover': { bgcolor: '#106ebe' }, color: '#ffffff', textTransform: 'none' }}
+            sx={{ borderRadius: '8px', fontSize: 11, fontWeight: 600, px: 2.5, bgcolor: 'var(--color-accent)', '&:hover': { bgcolor: 'var(--color-accent-hover)' }, color: '#ffffff', textTransform: 'none' }}
           >
             {t.startReplicationBtn}
           </Button>
@@ -1179,9 +1151,9 @@ export const SourceManager: React.FC = () => {
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle sx={{ p: 2.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', justify: 'space-between' }}>
+        <DialogTitle sx={{ p: 2.5, borderBottom: '1px solid', borderColor: 'var(--color-border)', display: 'flex', alignItems: 'center', justify: 'space-between' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Box sx={{ width: 32, height: 32, borderRadius: '6px', bgcolor: 'rgba(0, 120, 212, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0078d4' }}>
+            <Box sx={{ width: 32, height: 32, borderRadius: '6px', bgcolor: 'var(--color-accent-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#818cf8' }}>
               <HardDrive size={16} />
             </Box>
             <Box>
@@ -1201,8 +1173,8 @@ export const SourceManager: React.FC = () => {
         </DialogTitle>
         <DialogContent sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
           {/* 1. Educational Guided Info Card */}
-          <Alert severity="info" icon={<ShieldCheck size={20} />} sx={{ borderRadius: '8px', bgcolor: 'rgba(0, 120, 212, 0.03)', border: '1px solid rgba(0, 120, 212, 0.15)', '& .MuiAlert-message': { width: '100%' } }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: 11, mb: 0.5, color: '#0078d4', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+          <Alert severity="info" icon={<ShieldCheck size={20} />} sx={{ borderRadius: '8px', bgcolor: 'var(--color-accent-subtle)', border: '1px solid rgba(99, 102, 241, 0.25)', '& .MuiAlert-message': { width: '100%' } }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: 11, mb: 0.5, color: '#818cf8', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
               {t.howSnapshotWorksTitle}
             </Typography>
             <Typography variant="caption" sx={{ display: 'block', lineHeight: 1.5, color: 'text.secondary' }}>
@@ -1211,17 +1183,17 @@ export const SourceManager: React.FC = () => {
           </Alert>
 
           {/* 2. Visual table-by-table list with live status */}
-          <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '8px', overflow: 'hidden', bgcolor: 'background.paper' }}>
-            <Box sx={{ px: 2.5, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'action.hover', display: 'flex', alignItems: 'center', justify: 'space-between' }}>
+          <Box sx={{ border: '1px solid', borderColor: 'var(--color-border)', borderRadius: '8px', overflow: 'hidden', bgcolor: 'var(--color-surface)' }}>
+            <Box sx={{ px: 2.5, py: 1.5, borderBottom: '1px solid', borderColor: 'var(--color-border)', bgcolor: 'var(--color-surface2)', display: 'flex', alignItems: 'center', justify: 'space-between' }}>
               <Typography variant="caption" sx={{ fontWeight: 700, textTransform: 'uppercase', tracking: '0.03em', display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Database size={13} style={{ color: '#0078d4' }} />
+                <Database size={13} style={{ color: '#818cf8' }} />
                 {t.discoveredTablesReplicationStatus}
               </Typography>
               {snapshotProgress.discoveredTables.length > 0 && (
                 <Chip 
                   label={`${snapshotProgress.discoveredTables.length} ${snapshotProgress.discoveredTables.length === 1 ? t.tableSuffix : t.tablesSuffix}`} 
                   size="small" 
-                  sx={{ height: 18, fontSize: 8.5, fontWeight: 700, bgcolor: 'rgba(0, 120, 212, 0.1)', color: '#0078d4' }} 
+                  sx={{ height: 18, fontSize: 8.5, fontWeight: 700, bgcolor: 'var(--color-accent-subtle)', color: '#818cf8' }} 
                 />
               )}
             </Box>
@@ -1239,26 +1211,26 @@ export const SourceManager: React.FC = () => {
                   {snapshotProgress.discoveredTables.map((tName) => {
                     const statusInfo = snapshotProgress.completedTables[tName] || { rows: 0, indexes: 0, status: 'pending' };
                     let statusBg = 'rgba(255, 255, 255, 0.02)';
-                    let statusBorder = 'divider';
+                    let statusBorder = 'var(--color-border)';
                     let statusColor = 'text.secondary';
                     let statusText = t.pendingStatus;
                     let statusIcon = <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: 'text.disabled' }} />;
 
                     if (statusInfo.status === 'running') {
-                      statusBg = 'rgba(0, 120, 212, 0.03)';
-                      statusBorder = '#0078d4';
-                      statusColor = '#0078d4';
+                      statusBg = 'var(--color-accent-subtle)';
+                      statusBorder = 'var(--color-accent)';
+                      statusColor = 'var(--color-accent-fg)';
                       statusText = t.copyingRowsStatus.replace('{rows}', String(statusInfo.rows));
                       statusIcon = <CircularProgress size={8} color="inherit" />;
                     } else if (statusInfo.status === 'completed') {
-                      statusBg = 'rgba(46, 125, 50, 0.03)';
-                      statusBorder = 'rgba(46, 125, 50, 0.25)';
+                      statusBg = 'var(--color-success-subtle)';
+                      statusBorder = 'rgba(52, 211, 153, 0.25)';
                       statusColor = 'success.main';
                       statusText = t.successRowsIdxStatus.replace('{rows}', String(statusInfo.rows)).replace('{indexes}', String(statusInfo.indexes));
                       statusIcon = <ShieldCheck size={10} style={{ color: 'var(--color-success)' }} />;
                     } else if (statusInfo.status === 'failed') {
-                      statusBg = 'rgba(211, 47, 47, 0.03)';
-                      statusBorder = 'rgba(211, 47, 47, 0.25)';
+                      statusBg = 'var(--color-danger-subtle)';
+                      statusBorder = 'rgba(239, 68, 68, 0.25)';
                       statusColor = 'error.main';
                       statusText = t.failedStatus;
                       statusIcon = <AlertCircle size={10} style={{ color: 'var(--color-error)' }} />;
@@ -1288,7 +1260,7 @@ export const SourceManager: React.FC = () => {
                 <span>
                   {t.overallReplicationProgress}
                 </span>
-                <span style={{ color: '#0078d4' }}>
+                <span style={{ color: '#818cf8' }}>
                   {snapshotProgress.status === 'completed' 
                     ? t.completedStatus
                     : `${snapshotProgress.currentTableIndex + 1} / ${snapshotProgress.discoveredTables.length} ${snapshotProgress.discoveredTables.length === 1 ? t.tableSuffix : t.tablesSuffix}`}
@@ -1296,11 +1268,11 @@ export const SourceManager: React.FC = () => {
               </Box>
 
               {/* Progress bar */}
-              <Box sx={{ height: 6, width: '100%', bgcolor: 'divider', borderRadius: '3px', overflow: 'hidden' }}>
+              <Box sx={{ height: 6, width: '100%', bgcolor: 'var(--color-surface2)', borderRadius: '3px', overflow: 'hidden' }}>
                 <Box 
                    sx={{ 
                     height: '100%', 
-                    bgcolor: snapshotProgress.status === 'completed' ? 'success.main' : '#0078d4', 
+                    bgcolor: snapshotProgress.status === 'completed' ? 'success.main' : 'var(--color-accent)',
                     borderRadius: '3px', 
                     transition: 'width 0.3s ease', 
                     width: `${((snapshotProgress.status === 'completed' ? snapshotProgress.discoveredTables.length : snapshotProgress.currentTableIndex) / snapshotProgress.discoveredTables.length) * 100}%` 
@@ -1318,8 +1290,8 @@ export const SourceManager: React.FC = () => {
             <Box 
               sx={{ 
                 p: 2, 
-                bgcolor: 'black', 
-                color: '#00ff00', 
+                bgcolor: 'var(--color-log-bg)',
+                color: 'var(--color-log-fg)',
                 fontFamily: 'monospace', 
                 fontSize: 10, 
                 borderRadius: '6px', 
@@ -1327,7 +1299,7 @@ export const SourceManager: React.FC = () => {
                 maxHeight: 140, 
                 overflowY: 'auto',
                 border: '1px solid',
-                borderColor: 'divider',
+                borderColor: 'var(--color-border)',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 0.5
@@ -1340,9 +1312,9 @@ export const SourceManager: React.FC = () => {
             </Box>
           </Box>
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5, borderTop: '1px solid', borderColor: 'divider', gap: 1 }}>
+        <DialogActions sx={{ px: 3, pb: 2.5, borderTop: '1px solid', borderColor: 'var(--color-border)', gap: 1 }}>
           {snapshotProgress.status !== 'running' && (
-            <Button onClick={() => setSnapshotDialogOpen(false)} variant="contained" sx={{ bgcolor: '#0078d4', '&:hover': { bgcolor: '#106ebe' }, color: '#ffffff', fontWeight: 600 }}>
+            <Button onClick={() => setSnapshotDialogOpen(false)} variant="contained" sx={{ bgcolor: 'var(--color-accent)', '&:hover': { bgcolor: 'var(--color-accent-hover)' }, color: '#ffffff', fontWeight: 600 }}>
               {t.closeBtn}
             </Button>
           )}
@@ -1363,7 +1335,7 @@ export const SourceManager: React.FC = () => {
         {/* Left Side: Master Connections list */}
         <Grid size={{ xs: 12, lg: showForm ? 7 : 12 }} sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
           {sources.length === 0 && (
-            <Box className="panel p-12" sx={{ textCenter: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderStyle: 'dashed', borderRadius: '8px', bgcolor: 'rgba(0, 120, 212, 0.02)' }}>
+            <Box className="panel p-12" sx={{ textCenter: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderStyle: 'dashed', borderRadius: '8px', bgcolor: 'var(--color-canvas)' }}>
               <Database className="w-10 h-10 mb-3 opacity-30 text-gh-muted" />
               <Typography variant="body2" sx={{ fontWeight: 600 }}>{t.noDatabaseConnected}</Typography>
               <Typography variant="caption" sx={{ color: 'text.secondary', mt: 0.5 }}>{t.startAnalysisPrompt}</Typography>
@@ -1373,7 +1345,7 @@ export const SourceManager: React.FC = () => {
           {sources.map((src) => {
             const isSelected = activeSourceId === src.id;
             const tableCount = Object.keys(src.schema ?? {}).length;
-            const accentColor = src.connection_details?.is_snapshot ? '#800080' : colorFor(src.type);
+            const accentColor = src.connection_details?.is_snapshot ? '#8b5cf6' : colorFor(src.type);
             const isActive = src.is_active ?? true;
 
             return (
@@ -1382,23 +1354,26 @@ export const SourceManager: React.FC = () => {
                 onClick={() => setActiveSourceId(src.id)}
                 sx={{
                   cursor: 'pointer',
-                  borderColor: isSelected ? '#0078d4' : 'divider',
-                  bgcolor: isSelected ? 'rgba(0, 120, 212, 0.04)' : 'background.paper',
-                  borderLeft: `4px solid ${accentColor}`,
-                  borderRadius: '8px',
+                  border: '1px solid',
+                  borderColor: isSelected ? 'var(--color-accent)' : 'var(--color-border)',
+                  bgcolor: isSelected ? 'var(--color-accent-subtle)' : 'var(--color-surface)',
+                  borderLeft: `2px solid ${accentColor}`,
+                  borderRadius: '12px',
+                  boxShadow: 'var(--shadow-2)',
                   transition: 'all 0.2s',
                   opacity: !isActive ? 0.7 : 1,
                   '&:hover': {
-                    borderColor: isSelected ? '#0078d4' : 'text.secondary',
+                    bgcolor: isSelected ? 'var(--color-accent-subtle)' : 'var(--color-surface2)',
+                    borderColor: isSelected ? 'var(--color-accent)' : 'rgba(255, 255, 255, 0.16)',
                   }
                 }}
               >
                 <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', gap: 2, flexWrap: 'wrap' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
-                      <Box sx={{ width: 36, height: 36, borderRadius: '8px', border: '1px solid', borderColor: isSelected ? 'rgba(0, 120, 212, 0.3)' : 'divider', display: 'flex', alignItems: 'center', justifyContent: 'center', color: isSelected ? '#0078d4' : 'text.secondary', bgcolor: isSelected ? 'rgba(0, 120, 212, 0.08)' : 'background.default' }}>
+                      <Box sx={{ width: 36, height: 36, borderRadius: '8px', border: '1px solid', borderColor: isSelected ? 'rgba(99, 102, 241, 0.4)' : 'var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: isSelected ? 'var(--color-accent-fg)' : 'text.secondary', bgcolor: isSelected ? 'var(--color-accent-subtle2)' : 'var(--color-canvas)' }}>
                         {src.connection_details?.is_snapshot ? (
-                          <HardDrive className="w-4.5 h-4.5 text-[#a371f7]" />
+                          <HardDrive className="w-4.5 h-4.5 text-[#a78bfa]" />
                         ) : (
                           <Database className="w-4.5 h-4.5" />
                         )}
@@ -1406,8 +1381,8 @@ export const SourceManager: React.FC = () => {
                       <Box sx={{ minWidth: 0 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                           <Typography variant="body2" sx={{ fontWeight: 'extrabold', fontSize: 12 }}>{src.display_name}</Typography>
-                          <Chip label={src.connection_details?.is_snapshot ? 'SNAPSHOT' : labelTextFor(src.type).toUpperCase()} size="small" sx={{ height: 16, fontSize: 8, fontWeight: 600, bgcolor: src.connection_details?.is_snapshot ? 'rgba(163, 113, 247, 0.15)' : 'rgba(0, 120, 212, 0.1)', color: src.connection_details?.is_snapshot ? '#a371f7' : '#0078d4', border: 0 }} />
-                          {!isActive && <Chip label={t.passive} size="small" sx={{ height: 16, fontSize: 8, fontWeight: 600, bgcolor: 'rgba(255, 255, 255, 0.08)', color: 'text.secondary', border: 0 }} />}
+                          <Chip label={src.connection_details?.is_snapshot ? 'SNAPSHOT' : labelTextFor(src.type).toUpperCase()} size="small" sx={{ height: 16, fontSize: 8, fontWeight: 600, bgcolor: 'var(--color-surface2)', color: 'var(--color-muted)', border: '1px solid', borderColor: 'var(--color-border)', '& .MuiChip-label': { px: 0.75 }, '&::before': { content: '""', display: 'inline-block', width: 5, height: 5, borderRadius: '50%', bgcolor: accentColor, ml: 0.75, mr: 0.5 } }} />
+                          {!isActive && <Chip label={t.passive} size="small" sx={{ height: 16, fontSize: 8, fontWeight: 600, bgcolor: 'var(--color-surface2)', color: 'var(--color-faint)', border: '1px solid', borderColor: 'var(--color-border)' }} />}
                           {isSelected && <Chip label={t.active} size="small" color="success" sx={{ height: 16, fontSize: 8, fontWeight: 600, border: 0 }} />}
                         </Box>
                         <Typography variant="caption" sx={{ color: 'text.secondary', fontFamily: 'monospace', display: 'block', mt: 0.5 }} title={hostLabel(src)}>
@@ -1416,10 +1391,10 @@ export const SourceManager: React.FC = () => {
                         {src.labels && src.labels.length > 0 && (
                           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
                             {src.labels.slice(0, 3).map((label: string) => (
-                              <Chip key={label} label={label} size="small" sx={{ height: 14, fontSize: 7.5, fontWeight: 600, bgcolor: 'action.hover', border: '1px solid', borderColor: 'divider', color: 'text.secondary' }} />
+                              <Chip key={label} label={label} size="small" sx={{ height: 14, fontSize: 7.5, fontWeight: 600, bgcolor: 'var(--color-surface2)', border: '1px solid', borderColor: 'var(--color-border)', color: 'text.secondary' }} />
                             ))}
                             {src.labels.length > 3 && (
-                              <span style={{ fontSize: 8, color: '#9aa6bf', fontWeight: 600 }}>+{src.labels.length - 3}</span>
+                              <span style={{ fontSize: 8, color: 'var(--color-faint)', fontWeight: 600 }}>+{src.labels.length - 3}</span>
                             )}
                           </Box>
                         )}
@@ -1448,7 +1423,7 @@ export const SourceManager: React.FC = () => {
 
                       <Tooltip title={isActive ? t.toggleStatusActiveTooltip : t.toggleStatusPassiveTooltip}>
                         <IconButton size="small" onClick={(e) => handleToggleStatus(e, src.id, isActive)} disabled={togglingId === src.id}>
-                          {togglingId === src.id ? <CircularProgress size={13.5} /> : <Power size={13.5} style={{ color: isActive ? 'inherit' : '#0078d4' }} />}
+                          {togglingId === src.id ? <CircularProgress size={13.5} /> : <Power size={13.5} style={{ color: isActive ? 'inherit' : '#818cf8' }} />}
                         </IconButton>
                       </Tooltip>
 
@@ -1482,7 +1457,7 @@ export const SourceManager: React.FC = () => {
                         <Button
                           size="small"
                           onClick={() => setActiveSourceId(src.id)}
-                          sx={{ fontSize: 9.5, fontWeight: 600, border: '1px solid', borderColor: 'divider', color: 'text.secondary', borderRadius: '6px', py: 0.3 }}
+                          sx={{ fontSize: 9.5, fontWeight: 600, border: '1px solid', borderColor: 'var(--color-border)', color: 'text.secondary', borderRadius: '6px', py: 0.3 }}
                         >
                           {t.selectSourceBtn}
                         </Button>
@@ -1494,7 +1469,7 @@ export const SourceManager: React.FC = () => {
                   <Accordion
                     disableGutters
                     elevation={0}
-                    sx={{ mt: 1.5, borderTop: '1px solid', borderColor: 'divider', bgcolor: 'transparent', '&:before': { display: 'none' } }}
+                    sx={{ mt: 1.5, borderTop: '1px solid', borderColor: 'var(--color-border)', bgcolor: 'transparent', '&:before': { display: 'none' } }}
                   >
                     <AccordionSummary
                       expandIcon={<ChevronDown size={14} />}
@@ -1513,14 +1488,14 @@ export const SourceManager: React.FC = () => {
                         <Grid container spacing={1.5} sx={{ pt: 1 }}>
                           {Object.entries(src.schema).map(([tbl, cols]) => (
                             <Grid size={{ xs: 12, sm: 6 }} key={tbl}>
-                              <Box className="panel-inset" sx={{ p: 1.5, borderRadius: '8px', bgcolor: 'rgba(0, 120, 212, 0.02)', border: '1px solid', borderColor: 'divider' }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', borderBottom: '1px solid', borderColor: 'divider', pb: 0.5, mb: 1 }}>
+                              <Box className="panel-inset" sx={{ p: 1.5, borderRadius: '8px', bgcolor: 'var(--color-canvas)', border: '1px solid', borderColor: 'var(--color-border)' }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', borderBottom: '1px solid', borderColor: 'var(--color-border)', pb: 0.5, mb: 1 }}>
                                   <span style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 10.5 }}>{tbl}</span>
-                                  <span style={{ fontSize: 9, color: '#9aa6bf', fontFamily: 'monospace' }}>{(cols as string[]).length} {t.dbColumnSuffix}</span>
+                                  <span style={{ fontSize: 9, color: 'var(--color-faint)', fontFamily: 'monospace' }}>{(cols as string[]).length} {t.dbColumnSuffix}</span>
                                 </Box>
                                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                                   {(cols as string[]).map(col => (
-                                    <span key={col} style={{ fontFamily: 'monospace', padding: '1px 5px', fontSize: 9, color: '#9aa6bf', backgroundColor: 'rgba(0, 120, 212, 0.01)', border: '1px solid rgba(0, 120, 212, 0.15)', borderRadius: '3px' }}>
+                                    <span key={col} style={{ fontFamily: 'monospace', padding: '1px 5px', fontSize: 9, color: 'var(--color-faint)', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '3px' }}>
                                       {col}
                                     </span>
                                   ))}
@@ -1542,10 +1517,10 @@ export const SourceManager: React.FC = () => {
         {/* Right Side: Setup & Edit Connection form */}
         {showForm && (
           <Grid size={{ xs: 12, lg: 5 }}>
-            <Card sx={{ bgcolor: 'background.paper', borderRadius: '8px', border: '1px solid', borderColor: 'divider' }}>
+            <Card sx={{ bgcolor: 'var(--color-surface)', borderRadius: '12px', border: '1px solid', borderColor: 'var(--color-border)', boxShadow: 'var(--shadow-2)' }}>
               <CardContent sx={{ p: 2.5, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
                 {/* Form Header */}
-                <Box sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', borderBottom: '1px solid', borderColor: 'divider', pb: 1.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', borderBottom: '1px solid', borderColor: 'var(--color-border)', pb: 1.5 }}>
                   <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.primary', textTransform: 'uppercase', tracking: '0.05em', display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Database className="w-3.5 h-3.5 text-gh-accent" />
                     {editingSourceId ? t.editConnectionTooltip : t.addBtn}
@@ -1567,10 +1542,10 @@ export const SourceManager: React.FC = () => {
                       onChange={(_, v) => v && handleTypeChange(v as DbType)}
                       fullWidth
                       sx={{
-                        border: '1px solid rgba(0, 120, 212, 0.15)', borderRadius: '8px', p: 0.5, bgcolor: 'rgba(0, 120, 212, 0.01)',
+                        border: '1px solid', borderColor: 'var(--color-border)', borderRadius: '8px', p: 0.5, bgcolor: 'var(--color-surface)',
                         '& .MuiToggleButton-root': {
                           border: 0, borderRadius: '6px', py: 1, textTransform: 'none', color: 'text.secondary', fontWeight: 600, fontSize: 10,
-                          '&.Mui-selected': { bgcolor: 'rgba(0, 120, 212, 0.1)', color: '#60cdff' }
+                          '&.Mui-selected': { bgcolor: 'var(--color-accent-subtle)', color: 'var(--color-accent-fg)' }
                         }
                       }}
                     >
@@ -1623,7 +1598,7 @@ export const SourceManager: React.FC = () => {
                             variant="text"
                             size="small"
                             onClick={() => setShowManualPathInput(!showManualPathInput)}
-                            sx={{ fontSize: 9, p: 0, minWidth: 'auto', textTransform: 'none', color: '#0078d4' }}
+                            sx={{ fontSize: 9, p: 0, minWidth: 'auto', textTransform: 'none', color: '#818cf8' }}
                           >
                             {showManualPathInput 
                               ? (language === 'tr' ? 'Listeden Seç' : 'Select from List')
@@ -1646,7 +1621,7 @@ export const SourceManager: React.FC = () => {
                           placeholder={t.sqlitePathPlaceholder}
                           slotProps={{
                             input: {
-                              startAdornment: <HardDrive size={13.5} style={{ marginRight: 6, color: '#0078d4' }} />
+                              startAdornment: <HardDrive size={13.5} style={{ marginRight: 6, color: '#818cf8' }} />
                             }
                           }}
                           sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
@@ -1659,7 +1634,7 @@ export const SourceManager: React.FC = () => {
                           onChange={e => setFormValues(p => ({ ...p, database_path: e.target.value }))}
                           slotProps={{
                             input: {
-                              startAdornment: <HardDrive size={13.5} style={{ marginRight: 6, color: '#0078d4' }} />
+                              startAdornment: <HardDrive size={13.5} style={{ marginRight: 6, color: '#818cf8' }} />
                             },
                             select: {
                               native: true
@@ -1695,22 +1670,16 @@ export const SourceManager: React.FC = () => {
                             setUploadingSqlite(true);
                             setUploadSqliteError(null);
                             try {
-                              const res = await fetch(`${API}/api/sources/upload-sqlite`, {
+                              const data = await apiFetch('/api/sources/upload-sqlite', {
                                 method: 'POST',
                                 body: formData
                               });
-                              if (res.ok) {
-                                const data = await res.json();
-                                setFormValues(prev => ({ ...prev, database_path: data.database_path }));
-                                setLocalSqliteFiles(prev => {
-                                  if (prev.includes(data.database_path)) return prev;
-                                  return [...prev, data.database_path].sort();
-                                });
-                                setShowManualPathInput(false);
-                              } else {
-                                const err = await res.json();
-                                setUploadSqliteError(err.detail || (language === 'tr' ? 'Dosya yüklenemedi.' : 'Failed to upload file.'));
-                              }
+                              setFormValues(prev => ({ ...prev, database_path: data.database_path }));
+                              setLocalSqliteFiles(prev => {
+                                if (prev.includes(data.database_path)) return prev;
+                                return [...prev, data.database_path].sort();
+                              });
+                              setShowManualPathInput(false);
                             } catch (err: any) {
                               setUploadSqliteError(err.message || (language === 'tr' ? 'Bağlantı hatası.' : 'Connection error.'));
                             } finally {
@@ -1729,14 +1698,14 @@ export const SourceManager: React.FC = () => {
                             sx={{
                               borderStyle: 'dashed',
                               borderRadius: '8px',
-                              borderColor: 'divider',
+                              borderColor: 'var(--color-border)',
                               textTransform: 'none',
                               fontSize: 10.5,
                               py: 0.8,
                               color: 'text.secondary',
                               '&:hover': {
-                                borderColor: '#0078d4',
-                                bgcolor: 'rgba(0, 120, 212, 0.04)'
+                                borderColor: '#818cf8',
+                                bgcolor: 'var(--color-accent-subtle)'
                               }
                             }}
                           >
@@ -1904,7 +1873,7 @@ export const SourceManager: React.FC = () => {
                               placeholder={t.serverHostPlaceholder}
                               slotProps={{
                                 input: {
-                                  startAdornment: <Server size={13.5} style={{ marginRight: 6, color: '#0078d4' }} />
+                                  startAdornment: <Server size={13.5} style={{ marginRight: 6, color: '#818cf8' }} />
                                 }
                               }}
                               sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
@@ -2007,13 +1976,13 @@ export const SourceManager: React.FC = () => {
                 )}
 
                 {/* Form Buttons */}
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, pt: 2, borderTop: '1px solid', borderColor: 'var(--color-border)' }}>
                   <Button
                     onClick={handleTest}
                     disabled={testing}
                     variant="outlined"
                     startIcon={!testing && <Play size={14} />}
-                    sx={{ width: '100%', borderRadius: '8px', borderColor: 'divider', color: 'text.primary', fontWeight: 600, fontSize: 11, py: 1 }}
+                    sx={{ width: '100%', borderRadius: '8px', borderColor: 'var(--color-border)', color: 'text.primary', fontWeight: 600, fontSize: 11, py: 1 }}
                   >
                     {testing ? <CircularProgress size={14} color="inherit" /> : t.testConnectionBtn}
                   </Button>
@@ -2042,12 +2011,12 @@ export const SourceManager: React.FC = () => {
             <Card
               onClick={handleStartAdd}
               sx={{
-                borderStyle: 'dashed', cursor: 'pointer', borderColor: 'divider', bgcolor: 'rgba(0, 120, 212, 0.01)',
-                transition: 'all 0.2s', borderRadius: '8px', textAlign: 'center', p: 3,
-                '&:hover': { borderColor: '#0078d4', bgcolor: 'rgba(0, 120, 212, 0.04)' }
+                borderStyle: 'dashed', cursor: 'pointer', borderColor: 'var(--color-border)', bgcolor: 'var(--color-surface)',
+                transition: 'all 0.2s', borderRadius: '12px', textAlign: 'center', p: 3,
+                '&:hover': { borderColor: 'var(--color-accent)', bgcolor: 'var(--color-accent-subtle)' }
               }}
             >
-              <Box sx={{ width: 40, height: 40, borderRadius: '50%', border: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'text.secondary', mx: 'auto', mb: 2 }}>
+              <Box sx={{ width: 40, height: 40, borderRadius: '50%', border: '1px solid', borderColor: 'var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'text.secondary', mx: 'auto', mb: 2 }}>
                 <Plus className="w-5 h-5" />
               </Box>
               <Typography variant="body2" sx={{ fontWeight: 'extrabold', textTransform: 'uppercase', fontSize: 11, tracking: '0.05em' }}>{t.addNewSourceCard}</Typography>
@@ -2056,9 +2025,9 @@ export const SourceManager: React.FC = () => {
               </Typography>
             </Card>
 
-            <Card sx={{ bgcolor: 'rgba(0, 120, 212, 0.01)', borderRadius: '8px', border: '1px solid', borderColor: 'divider' }}>
+            <Card sx={{ bgcolor: 'var(--color-surface)', borderRadius: '12px', border: '1px solid', borderColor: 'var(--color-border)', boxShadow: 'var(--shadow-2)' }}>
               <CardContent sx={{ p: 2.5 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, borderBottom: '1px solid', borderColor: 'divider', pb: 1, mb: 1.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, borderBottom: '1px solid', borderColor: 'var(--color-border)', pb: 1, mb: 1.5 }}>
                   <ShieldCheck className="w-4 h-4 text-gh-accent" />
                   <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.primary', textTransform: 'uppercase', tracking: '0.05em' }}>
                     {t.securitySectionTitle}
@@ -2066,15 +2035,15 @@ export const SourceManager: React.FC = () => {
                 </Box>
                 <ul className="text-[11px] text-gh-muted leading-relaxed space-y-2 list-none p-0 m-0 select-none">
                   <li className="flex items-start gap-2">
-                    <span style={{ color: '#0078d4', fontWeight: 600 }}>•</span>
+                    <span style={{ color: '#818cf8', fontWeight: 600 }}>•</span>
                     <span>{t.securityPoint1}</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span style={{ color: '#0078d4', fontWeight: 600 }}>•</span>
+                    <span style={{ color: '#818cf8', fontWeight: 600 }}>•</span>
                     <span>{t.securityPoint2}</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span style={{ color: '#0078d4', fontWeight: 600 }}>•</span>
+                    <span style={{ color: '#818cf8', fontWeight: 600 }}>•</span>
                     <span>{t.securityPoint3}</span>
                   </li>
                 </ul>

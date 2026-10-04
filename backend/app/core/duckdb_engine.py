@@ -52,24 +52,30 @@ def execute_duckdb_query(sql_query: str, file_mappings: Dict[str, str], is_forec
                     conn.register(table_name, df)
                 elif suffix == '.tsv':
                     # Register TSV directly using auto CSV scanner
-                    conn.execute(f"CREATE VIEW \"{table_name}\" AS SELECT * FROM read_csv_auto('{file_path}', delim='\\t')")
+                    safe_path = file_path.replace("'", "''")
+                    conn.execute(f"CREATE VIEW \"{table_name}\" AS SELECT * FROM read_csv_auto('{safe_path}', delim='\\t')")
                 else:
                     # Register CSV directly using auto CSV scanner
-                    conn.execute(f"CREATE VIEW \"{table_name}\" AS SELECT * FROM read_csv_auto('{file_path}')")
+                    safe_path = file_path.replace("'", "''")
+                    conn.execute(f"CREATE VIEW \"{table_name}\" AS SELECT * FROM read_csv_auto('{safe_path}')")
             except Exception as e:
                 raise DuckDBEngineError(f"Veri kaynağı yüklenirken hata oluştu ({table_name}): {str(e)}")
 
         # 3. Clean query string and enforce read-only policy via sanitizer
+        # Fail-closed: sanitizer yoksa veya hata verirse sorgu reddedilir,
+        # doğrulanmamış SQL asla çalıştırılmaz.
         try:
             from app.core.sql_sanitizer import sanitize_and_validate_sql, SQLSanitationError
+        except Exception as import_err:
+            raise DuckDBEngineError(f"SQL sanitizer yüklenemedi, sorgu reddedildi: {import_err}")
+        try:
             clean_query = sanitize_and_validate_sql(sql_query.strip())
         except SQLSanitationError as se:
             raise DuckDBEngineError(f"SQL Güvenlik Hatası: {str(se)}")
+        except DuckDBEngineError:
+            raise
         except Exception as parse_err:
-            # sanitizer import veya parse hatası — basit temizleme ile devam et
-            import logging
-            logging.getLogger(__name__).warning(f"SQL sanitizer bypass (fallback): {parse_err}")
-            clean_query = sql_query.strip().rstrip(';')
+            raise DuckDBEngineError(f"SQL sanitizer beklenmeyen hata, sorgu reddedildi: {parse_err}")
 
         # 4. Execute the SQL query
         try:

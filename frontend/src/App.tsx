@@ -1,189 +1,75 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { useBIStore } from './context/store';
-import { translations } from './context/translations';
 import Sidebar from './components/Sidebar';
 import ChatConsole from './components/ChatConsole';
 import ResultVisualizer from './components/ResultVisualizer';
-import SourceManager from './components/SourceManager';
-import Dashboard from './components/Dashboard';
-import RAGMemoryPanel from './components/RAGMemoryPanel';
-import CommandHelpModal from './components/CommandHelpModal';
-import { Settings, Key, HardDrive, X, Eye, EyeOff, LayoutDashboard, Brain, MessageSquare } from 'lucide-react';
+import LoginPage from './components/LoginPage';
+
+const SourceManager = lazy(() => import('./components/SourceManager'));
+const Dashboard = lazy(() => import('./components/Dashboard'));
+const RAGMemoryPanel = lazy(() => import('./components/RAGMemoryPanel'));
+const CommandHelpModal = lazy(() => import('./components/CommandHelpModal'));
+const SettingsPage = lazy(() => import('./components/SettingsPage'));
+
+import { HardDrive, X, LayoutDashboard, Brain, MessageSquare, Settings, Sun, Moon } from 'lucide-react';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import {
-  Dialog, DialogTitle, DialogContent, Alert, TextField, Button, Box,
-  Card, CardActionArea, Typography, IconButton, InputAdornment, CircularProgress
+  Dialog, DialogTitle, DialogContent, Box, Typography, IconButton, CircularProgress
 } from '@mui/material';
 
+type MainView = 'chat' | 'dashboard' | 'rag' | 'settings';
+
 export const App: React.FC = () => {
-  const { apiConfig, setApiConfig, fetchSources, fetchFiles, language, visualizerDismissed } = useBIStore();
-  const t = translations[language];
+  const user = useBIStore((s) => s.user);
+  const authChecked = useBIStore((s) => s.authChecked);
+  const fetchMe = useBIStore((s) => s.fetchMe);
+  const logout = useBIStore((s) => s.logout);
+  const fetchSources = useBIStore((s) => s.fetchSources);
+  const fetchFiles = useBIStore((s) => s.fetchFiles);
+  const language = useBIStore((s) => s.language);
+  const visualizerDismissed = useBIStore((s) => s.visualizerDismissed);
+  const studioMode = useBIStore((s) => s.studioMode);
+  const setStudioMode = useBIStore((s) => s.setStudioMode);
 
   const [splitRatio, setSplitRatio] = useState(0.42);
   const splitContainerRef = useRef<HTMLDivElement>(null);
   const isDraggingRef = useRef(false);
 
-  // Active main view tab
-  const [activeTab, setActiveTab] = useState<'chat' | 'dashboard' | 'rag'>('chat');
+  // Active main view
+  const [activeTab, setActiveTab] = useState<MainView>('chat');
 
-  // Dedicated overlay dialogs
-  const [showSettings, setShowSettings] = useState(false);
+  // Data sources overlay dialog (quick access — full yönetim Ayarlar sayfasında)
   const [showSources, setShowSources] = useState(false);
   const [showCommandHelp, setShowCommandHelp] = useState(false);
 
-  // Settings form states
-  const [apiKey, setApiKey] = useState(apiConfig.apiKey);
-  const [baseUrl, setBaseUrl] = useState(apiConfig.baseUrl);
-  const [model, setModel] = useState(apiConfig.model);
-  const [saveOk, setSaveOk] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  // Oturum kontrolü + 401'de login ekranına dönüş
+  useEffect(() => {
+    fetchMe();
+    const onUnauthorized = () => logout();
+    window.addEventListener('deepbi:unauthorized', onUnauthorized);
+    return () => window.removeEventListener('deepbi:unauthorized', onUnauthorized);
+  }, [fetchMe, logout]);
 
-  // Parent-level theme management
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+  const toggleTheme = () => {
+    const next = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
+    document.documentElement.classList.toggle('dark', next === 'dark');
+    document.documentElement.classList.toggle('light', next === 'light');
+    localStorage.setItem('theme', next);
+  };
+
+  // Theme from storage (dark-first)
+  const [theme] = useState<'light' | 'dark'>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('theme');
-      if (saved === 'dark') return 'dark';
-      return 'light'; // Default to premium light theme (Nordic Minimalist)
+      return localStorage.getItem('theme') === 'dark' ? 'dark' : 'light';
     }
     return 'light';
   });
 
   useEffect(() => {
-    setApiKey(apiConfig.apiKey);
-    setBaseUrl(apiConfig.baseUrl);
-    setModel(apiConfig.model);
-  }, [apiConfig]);
-
-  useEffect(() => {
     const html = document.documentElement;
-    if (theme === 'dark') {
-      html.classList.add('dark');
-      html.classList.remove('light');
-    } else {
-      html.classList.add('light');
-      html.classList.remove('dark');
-    }
+    html.classList.toggle('dark', theme === 'dark');
+    html.classList.toggle('light', theme !== 'dark');
   }, [theme]);
-
-  const toggleTheme = () => {
-    const next = theme === 'dark' ? 'light' : 'dark';
-    setTheme(next);
-    localStorage.setItem('theme', next);
-  };
-
-  const presets = [
-    {
-      id: 'openai',
-      label: language === 'tr' ? 'OpenAI Resmi API' : 'Official OpenAI API',
-      value: 'https://api.openai.com/v1',
-      defaultModel: 'gpt-4o',
-      desc: language === 'tr' ? 'Kurumsal bulut altyapısı ve stabil model servisi' : 'Enterprise cloud infrastructure and stable model service',
-      icon: '◼'
-    },
-    {
-      id: 'openrouter',
-      label: 'OpenRouter Gateway',
-      value: 'https://openrouter.ai/api/v1',
-      defaultModel: 'google/gemini-2.5-flash',
-      desc: language === 'tr' ? 'Çoklu model geçidi ve pratik rotalama' : 'Multi-model gateway and convenient routing',
-      icon: '◼'
-    },
-    {
-      id: 'lmstudio',
-      label: 'LM Studio (Local)',
-      value: 'http://localhost:1234/v1',
-      defaultModel: 'local-model',
-      desc: language === 'tr' ? 'Çevrimdışı çalışır, veri çıkışı olmaz' : 'Runs offline, no data leaves your machine',
-      icon: '◻'
-    },
-    {
-      id: 'ollama',
-      label: 'Ollama (Local)',
-      value: 'http://localhost:11434/v1',
-      defaultModel: 'llama3',
-      desc: language === 'tr' ? 'Local model orkestrasyonu ve hızlı deneme modu' : 'Local model orchestration and fast prototyping mode',
-      icon: '◻'
-    },
-    {
-      id: 'custom',
-      label: language === 'tr' ? 'Özel Base URL' : 'Custom Base URL',
-      value: 'custom',
-      defaultModel: 'gpt-4o',
-      desc: language === 'tr' ? 'Manuel URL girişi (ör: https://openrouter.ai/api/v1)' : 'Manual URL input (e.g. https://openrouter.ai/api/v1)',
-      icon: '◻'
-    }
-  ];
-
-  const [selectedPreset, setSelectedPreset] = useState(() => {
-    const matched = presets.find(p => p.value === apiConfig.baseUrl);
-    return matched ? matched.value : 'custom';
-  });
-
-  const [customUrl, setCustomUrl] = useState(() => {
-    const matched = presets.find(p => p.value === apiConfig.baseUrl);
-    return matched ? '' : apiConfig.baseUrl;
-  });
-
-  const handlePresetChange = (val: string) => {
-    setSelectedPreset(val);
-    if (val === 'custom') {
-      setBaseUrl(customUrl || 'https://');
-      return;
-    }
-    setBaseUrl(val);
-    const matched = presets.find(p => p.value === val);
-    if (matched) {
-      setModel(matched.defaultModel);
-    }
-  };
-
-  const handleBaseUrlChange = (val: string) => {
-    setCustomUrl(val);
-    setBaseUrl(val);
-    setSelectedPreset('custom');
-  };
-
-  const isLocalPreset = baseUrl.startsWith('http://localhost');
-
-  const [isTesting, setIsTesting] = useState(false);
-  const [testStatus, setTestStatus] = useState<'idle' | 'ok' | 'error'>('idle');
-  const [testMessage, setTestMessage] = useState('');
-
-  const handleTestConnection = async () => {
-    setIsTesting(true);
-    setTestStatus('idle');
-    setTestMessage('');
-    try {
-      const cleanBase = baseUrl.replace(/\/+$/, '');
-      const testUrl = `${cleanBase}/models`;
-      const headers: Record<string, string> = {};
-      if (apiKey && !isLocalPreset) {
-        headers.Authorization = `Bearer ${apiKey}`;
-      }
-
-      const res = await fetch(testUrl, { method: 'GET', headers });
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-      setTestStatus('ok');
-      setTestMessage(t.testSuccess);
-    } catch (err: any) {
-      const msg = err?.message || t.testFailed;
-      setTestStatus('error');
-      setTestMessage(msg.includes('Failed to fetch') ? (language === 'tr' ? 'Bağlantı başarısız (CORS veya URL hatası).' : 'Connection failed (CORS or URL error).') : msg);
-    } finally {
-      setIsTesting(false);
-    }
-  };
-
-  const handleSaveSettings = () => {
-    setApiConfig({ apiKey, baseUrl, model });
-    setSaveOk(true);
-    setTimeout(() => {
-      setSaveOk(false);
-      setShowSettings(false);
-    }, 1200);
-  };
 
   useEffect(() => {
     const handleMove = (event: PointerEvent) => {
@@ -212,54 +98,35 @@ export const App: React.FC = () => {
     event.currentTarget.setPointerCapture(event.pointerId);
   };
 
-  // Build the Material UI custom theme synchronized with Fluent Design 2 tokens
+  const isDark = theme === 'dark';
+
   const muiTheme = React.useMemo(() => {
-    const isDark = theme === 'dark';
     return createTheme({
       palette: {
         mode: theme,
-        primary: {
-          main: '#0078d4',          // Fluent Communication Blue
-          light: '#60cdff',
-          dark: '#005a9e',
-          contrastText: '#ffffff',
-        },
-        background: {
-          default: isDark ? '#141414' : '#f3f2f1',  // Fluent Ground
-          paper:   isDark ? '#1c1c1c' : '#ffffff',  // Fluent Layer
-        },
-        text: {
-          primary:   isDark ? '#ffffff' : '#201f1e',
-          secondary: isDark ? 'rgba(255,255,255,0.7844)' : 'rgba(32,31,30,0.7827)',
-        },
-        divider: isDark ? 'rgba(255,255,255,0.0837)' : 'rgba(0,0,0,0.0824)',
-        error:   { main: isDark ? '#d13438' : '#a4262c' },
-        success: { main: isDark ? '#54b054' : '#107c10' },
-        warning: { main: isDark ? '#ffb900' : '#986f0b' },
+        primary: { main: '#c96442', light: '#e08a63', dark: '#a34628', contrastText: '#ffffff' },
+        background: { default: isDark ? '#1b1917' : '#faf9f7', paper: isDark ? '#282521' : '#ffffff' },
+        text: { primary: isDark ? '#faf9f7' : '#1f1e1c', secondary: isDark ? '#a8a29e' : '#78716c' },
+        divider: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(28,25,23,0.09)',
+        error: { main: isDark ? '#ef4444' : '#dc2626' },
+        success: { main: isDark ? '#34d399' : '#059669' },
+        warning: { main: isDark ? '#fbbf24' : '#d97706' },
       },
       typography: {
-        fontFamily: "'Plus Jakarta Sans', 'Outfit', 'Inter', system-ui, -apple-system, sans-serif",
+        fontFamily: "'Inter', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif",
         fontSize: 13,
-        button: {
-          textTransform: 'none',    // Fluent: Sentence case
-          fontWeight: 600,
-          letterSpacing: 0,
-        },
+        button: { textTransform: 'none', fontWeight: 600, letterSpacing: 0 },
       },
-      shape: {
-        borderRadius: 4,            // Fluent: Small radius (4px base)
-      },
+      shape: { borderRadius: 8 },
       components: {
         MuiDialog: {
           styleOverrides: {
             paper: {
               backgroundImage: 'none',
-              backgroundColor: isDark ? '#1c1c1c' : '#ffffff',
-              border: `1px solid ${isDark ? 'rgba(255,255,255,0.0837)' : 'rgba(0,0,0,0.0824)'}`,
-              boxShadow: isDark
-                ? '0 28px 56px rgba(0,0,0,0.58), 0 0px 4px rgba(0,0,0,0.14)'
-                : '0 16px 32px rgba(0,0,0,0.14), 0 0px 2px rgba(0,0,0,0.06)',
-              borderRadius: 8,
+              backgroundColor: isDark ? '#16161a' : '#ffffff',
+              border: `1px solid ${isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.08)'}`,
+              boxShadow: isDark ? '0 24px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.02)' : '0 16px 32px rgba(0,0,0,0.12)',
+              borderRadius: 12,
             }
           }
         },
@@ -267,386 +134,217 @@ export const App: React.FC = () => {
           styleOverrides: {
             root: {
               backgroundImage: 'none',
-              backgroundColor: isDark ? '#242424' : '#ffffff',
-              border: `1px solid ${isDark ? 'rgba(255,255,255,0.0837)' : 'rgba(0,0,0,0.0824)'}`,
-              boxShadow: '0 2px 4px rgba(0,0,0,0.14)',
-              borderRadius: 8,
-            }
-          }
-        },
-        MuiTextField: {
-          defaultProps: { size: 'small' },
-          styleOverrides: {
-            root: {
-              '& .MuiOutlinedInput-root': {
-                borderRadius: 4,
-                backgroundColor: isDark ? '#242424' : '#f5f5f5',
-                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                  borderColor: '#0078d4',
-                  borderWidth: '1px',
-                },
-                '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: isDark ? 'rgba(255,255,255,0.0837)' : 'rgba(0,0,0,0.0824)',
-                }
-              }
-            }
-          }
-        },
-        MuiButton: {
-          styleOverrides: {
-            root: {
-              borderRadius: 4,
-              padding: '6px 16px',
+              backgroundColor: isDark ? '#16161a' : '#ffffff',
+              border: `1px solid ${isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.08)'}`,
               boxShadow: 'none',
-              '&:hover': { boxShadow: 'none' },
-            },
-            contained: {
-              '&:hover': {
-                backgroundColor: '#106ebe',
-              }
+              borderRadius: 10,
             }
           }
         },
-        MuiAlert: {
-          styleOverrides: {
-            root: { borderRadius: 4 }
-          }
-        }
       }
     });
-  }, [theme]);
+  }, [theme, isDark]);
+
+  // ─── Auth gate ──────────────────────────────────────────────────────────────
+  if (!authChecked) {
+    return (
+      <div className="w-screen h-screen flex items-center justify-center bg-gh-bg">
+        <CircularProgress size={28} sx={{ color: '#6366f1' }} />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <ThemeProvider theme={muiTheme}>
+        <LoginPage />
+      </ThemeProvider>
+    );
+  }
 
   return (
     <ThemeProvider theme={muiTheme}>
       <div className="w-screen h-screen flex bg-gh-bg text-gh-text overflow-hidden relative">
-        
+
         {/* 1. Global Navigation Sidebar */}
-        <Sidebar 
-          onOpenSettings={() => setShowSettings(true)} 
-          onOpenSources={() => setShowSources(true)} 
-          theme={theme}
-          onToggleTheme={toggleTheme}
-        />
+        <Sidebar onOpenSources={() => setShowSources(true)} />
 
         {/* 2. Main Content Viewport */}
         <main className="flex-1 h-full flex flex-col overflow-hidden">
-          {/* Tab Bar */}
+          {/* Top Bar — segmented view switcher */}
           <div
-            className="flex items-center shrink-0 px-4 gap-1"
-            style={{ height: 44, borderBottom: '1px solid var(--color-border)', background: 'var(--color-canvas)' }}
+            className="flex items-center shrink-0 px-4 gap-3"
+            style={{
+              height: 48,
+              borderBottom: '1px solid var(--color-border)',
+              background: 'color-mix(in srgb, var(--color-canvas) 85%, transparent)',
+              backdropFilter: 'blur(12px)',
+            }}
           >
-            {([
-              { id: 'chat', label: language === 'tr' ? 'Sohbet' : 'Chat', icon: <MessageSquare size={13} /> },
-              { id: 'dashboard', label: language === 'tr' ? 'Dashboard' : 'Dashboard', icon: <LayoutDashboard size={13} /> },
-              { id: 'rag', label: language === 'tr' ? 'RAG Belleği' : 'RAG Memory', icon: <Brain size={13} /> },
-            ] as const).map((tab) => (
+            <div
+              className="flex items-center gap-0.5"
+              style={{
+                background: 'var(--color-surface)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 10,
+                padding: 3,
+              }}
+            >
+              {([
+                { id: 'chat', label: language === 'tr' ? 'Sohbet' : 'Chat', icon: <MessageSquare size={13} /> },
+                { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={13} /> },
+                { id: 'rag', label: language === 'tr' ? 'RAG Belleği' : 'RAG Memory', icon: <Brain size={13} /> },
+                { id: 'settings', label: language === 'tr' ? 'Ayarlar' : 'Settings', icon: <Settings size={13} /> },
+              ] as const).map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className="flex items-center gap-1.5 transition-all duration-150"
+                  style={{
+                    height: 28,
+                    padding: '0 12px',
+                    fontSize: 11.5,
+                    fontFamily: 'var(--font-sans)',
+                    fontWeight: activeTab === tab.id ? 600 : 500,
+                    color: activeTab === tab.id ? 'var(--color-text)' : 'var(--color-muted)',
+                    background: activeTab === tab.id ? 'var(--color-surface2)' : 'transparent',
+                    border: 'none',
+                    borderRadius: 7,
+                    cursor: 'pointer',
+                    boxShadow: activeTab === tab.id ? '0 1px 3px rgba(0,0,0,0.3)' : 'none',
+                  }}
+                >
+                  {tab.icon}
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex-1" />
+
+            {/* Stüdyo toggle — yalnız Sohbet görünümünde */}
+            {activeTab === 'chat' && (
               <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className="flex items-center gap-1.5 cursor-pointer transition-all duration-150"
+                onClick={() => setStudioMode(!studioMode)}
+                className="flex items-center gap-1.5 transition-all duration-150"
                 style={{
-                  height: 44,
-                  padding: '0 14px',
+                  height: 28,
+                  padding: '0 12px',
                   fontSize: 11.5,
                   fontFamily: 'var(--font-sans)',
-                  fontWeight: activeTab === tab.id ? 700 : 500,
-                  color: activeTab === tab.id ? 'var(--color-text)' : 'var(--color-muted)',
-                  background: 'none',
-                  border: 'none',
-                  borderBottom: activeTab === tab.id ? '2px solid #6366f1' : '2px solid transparent',
+                  fontWeight: studioMode ? 600 : 500,
+                  color: studioMode ? 'var(--color-accent-fg)' : 'var(--color-muted)',
+                  background: studioMode ? 'var(--color-accent-subtle)' : 'transparent',
+                  border: '1px solid ' + (studioMode ? 'rgba(201,100,66,0.3)' : 'var(--color-border)'),
+                  borderRadius: 8,
                   cursor: 'pointer',
                 }}
+                title={language === 'tr'
+                  ? (studioMode ? 'Stüdyoyu kapat — tek kolon sohbet' : 'Stüdyoyu aç — sonuç yan panelde')
+                  : (studioMode ? 'Close studio' : 'Open studio panel')}
               >
-                {tab.icon}
-                {tab.label}
+                ◫ {language === 'tr' ? 'Stüdyo' : 'Studio'}
               </button>
-            ))}
-            <div className="flex-1" />
+            )}
+
+            {/* Dil ve tema düğmeleri */}
+            <button
+              onClick={toggleTheme}
+              className="flex items-center justify-center transition-all duration-150 hover:bg-[var(--color-surface2)] hover:text-[var(--color-text)]"
+              style={{
+                width: 28, height: 28, borderRadius: 8,
+                background: 'transparent', border: '1px solid var(--color-border)',
+                color: 'var(--color-muted)', cursor: 'pointer',
+              }}
+              title={isDark ? (language === 'tr' ? 'Aydınlık Mod' : 'Light Mode') : (language === 'tr' ? 'Karanlık Mod' : 'Dark Mode')}
+            >
+              {isDark ? <Sun size={13} /> : <Moon size={13} />}
+            </button>
+            <button
+              onClick={() => {
+                const next = language === 'tr' ? 'en' : 'tr';
+                useBIStore.getState().setLanguage(next);
+              }}
+              className="transition-all duration-150 hover:bg-[var(--color-surface2)] hover:text-[var(--color-text)]"
+              style={{
+                height: 28, padding: '0 8px', borderRadius: 8,
+                background: 'transparent', border: '1px solid var(--color-border)',
+                color: 'var(--color-muted)', cursor: 'pointer',
+                fontSize: 10, fontWeight: 600, fontFamily: 'var(--font-mono)',
+              }}
+              title={language === 'tr' ? 'Switch to English' : "Türkçe'ye Geç"}
+            >
+              {language.toUpperCase()}
+            </button>
+
             <button
               onClick={() => setShowCommandHelp(true)}
-              className="flex items-center gap-1.5 cursor-pointer transition-all duration-150 hover:text-indigo-400"
+              className="flex items-center gap-1.5 transition-all duration-150 hover:brightness-125"
               style={{
                 height: 28, padding: '0 10px', fontSize: 10.5,
                 fontFamily: 'var(--font-mono)', fontWeight: 600,
-                background: 'rgba(99,102,241,0.08)',
-                border: '1px solid rgba(99,102,241,0.2)',
-                borderRadius: 6, color: '#818cf8', cursor: 'pointer',
+                background: 'var(--color-accent-subtle)',
+                border: '1px solid rgba(99,102,241,0.25)',
+                borderRadius: 8, color: 'var(--color-accent-fg)', cursor: 'pointer',
               }}
               title={language === 'tr' ? 'Komut listesini göster' : 'Show command list'}
             >
-              ⌨️ {language === 'tr' ? 'Komutlar' : 'Commands'}
+              ⌘ {language === 'tr' ? 'Komutlar' : 'Commands'}
             </button>
           </div>
 
-          {/* Tab Content */}
+          {/* Content */}
           <div className="flex-1 flex overflow-hidden">
             {activeTab === 'chat' && (
-              <div ref={splitContainerRef} className="w-full h-full flex overflow-hidden">
-                <div
-                  className="h-full flex flex-col min-w-[320px] transition-all duration-200 ease-in-out"
-                  style={{ flexBasis: visualizerDismissed ? '100%' : `${splitRatio * 100}%` }}
-                >
+              studioMode && !visualizerDismissed ? (
+                <div ref={splitContainerRef} className="w-full h-full flex overflow-hidden">
+                  <div
+                    className="h-full flex flex-col min-w-[320px] transition-all duration-200 ease-in-out"
+                    style={{ flexBasis: `${splitRatio * 100}%` }}
+                  >
+                    <ChatConsole />
+                  </div>
+                  <div
+                    className="splitter"
+                    role="separator"
+                    aria-orientation="vertical"
+                    onPointerDown={handleSplitterDown}
+                  />
+                  <div className="flex-grow h-full flex flex-col min-w-[360px]">
+                    <ResultVisualizer />
+                  </div>
+                </div>
+              ) : (
+                <div className="w-full h-full flex flex-col overflow-hidden">
                   <ChatConsole />
                 </div>
-                {!visualizerDismissed && (
-                  <>
-                    <div
-                      className="splitter"
-                      role="separator"
-                      aria-orientation="vertical"
-                      onPointerDown={handleSplitterDown}
-                    />
-                    <div className="flex-grow h-full flex flex-col min-w-[360px]">
-                      <ResultVisualizer />
-                    </div>
-                  </>
-                )}
-              </div>
+              )
             )}
-            {activeTab === 'dashboard' && <Dashboard />}
-            {activeTab === 'rag' && <RAGMemoryPanel />}
+            {activeTab === 'dashboard' && (
+              <Suspense fallback={<Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}><CircularProgress size={28} /></Box>}>
+                <Dashboard />
+              </Suspense>
+            )}
+            {activeTab === 'rag' && (
+              <Suspense fallback={<Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}><CircularProgress size={28} /></Box>}>
+                <RAGMemoryPanel />
+              </Suspense>
+            )}
+            {activeTab === 'settings' && (
+              <Suspense fallback={<Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}><CircularProgress size={28} /></Box>}>
+                <SettingsPage />
+              </Suspense>
+            )}
           </div>
         </main>
 
         {/* Command Help Modal */}
-        <CommandHelpModal open={showCommandHelp} onClose={() => setShowCommandHelp(false)} language={language} />
+        {showCommandHelp && (
+          <Suspense fallback={null}>
+            <CommandHelpModal open={showCommandHelp} onClose={() => setShowCommandHelp(false)} language={language} />
+          </Suspense>
+        )}
 
-        {/* ── 3. Dedicated LLM Settings Modal (Google Material UI Redesigned) ── */}
-        <Dialog
-          open={showSettings}
-          onClose={() => setShowSettings(false)}
-          maxWidth="md"
-          fullWidth
-          aria-labelledby="settings-dialog-title"
-        >
-          {/* Fluent Command Bar Header */}
-          <DialogTitle
-            id="settings-dialog-title"
-            sx={{
-              p: 0,
-              borderBottom: '1px solid',
-              borderColor: 'divider',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              minHeight: 48,
-              px: 2.5,
-              bgcolor: theme === 'dark' ? '#1c1c1c' : '#ffffff',
-            }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <Box sx={{
-                width: 32, height: 32, borderRadius: '4px',
-                bgcolor: 'rgba(0, 120, 212, 0.1)',
-                border: '1px solid rgba(0, 120, 212, 0.25)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: '#0078d4'
-              }}>
-                <Settings size={16} />
-              </Box>
-              <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: 13, m: 0, letterSpacing: '-0.01em' }}>
-                  {t.llmSettingsTitle}
-                </Typography>
-                <Typography variant="caption" sx={{ fontSize: 10, color: 'text.secondary', letterSpacing: 0 }}>
-                  {t.llmSettingsSubtitle}
-                </Typography>
-              </Box>
-            </Box>
-            <IconButton onClick={() => setShowSettings(false)} size="small" sx={{ color: 'text.secondary', borderRadius: '4px' }}>
-              <X size={15} />
-            </IconButton>
-          </DialogTitle>
-
-          <DialogContent sx={{ p: 0, display: 'flex', minHeight: 480, height: 480, overflow: 'hidden' }}>
-            {/* Left Pane - Fluent Provider Selection */}
-            <Box sx={{ width: '40%', borderRight: '1px solid', borderColor: 'divider', bgcolor: theme === 'dark' ? '#141414' : '#f3f2f1', p: 2.5, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-              <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em' }}>
-                {t.engineSelection}
-              </Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                {presets.map((p) => {
-                  const isActivePreset = selectedPreset === p.value;
-                  return (
-                    <Card
-                      key={p.id}
-                      onClick={() => handlePresetChange(p.value)}
-                      sx={{
-                        cursor: 'pointer',
-                        borderColor: isActivePreset ? '#0078d4' : 'divider',
-                        bgcolor: isActivePreset
-                          ? 'rgba(0, 120, 212, 0.1)'
-                          : (theme === 'dark' ? '#242424' : '#ffffff'),
-                        boxShadow: isActivePreset ? '0 2px 4px rgba(0,0,0,0.18)' : 'none',
-                        transition: 'all 0.1s cubic-bezier(0.1, 0.9, 0.2, 1)',
-                        borderRadius: '4px',
-                        borderWidth: isActivePreset ? '1.5px' : '1px',
-                        '&:hover': {
-                          bgcolor: isActivePreset
-                            ? 'rgba(0, 120, 212, 0.14)'
-                            : (theme === 'dark' ? '#2c2c2c' : '#f5f5f5'),
-                          borderColor: isActivePreset ? '#0078d4' : 'rgba(0,120,212,0.2)',
-                        }
-                      }}
-                    >
-                      <CardActionArea sx={{ p: 1.5, display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
-                        <Typography sx={{ fontSize: 12, color: '#0078d4', mt: 0.2, userSelect: 'none' }}>{p.icon}</Typography>
-                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', userSelect: 'none' }}>
-                            <Typography variant="body2" sx={{ fontWeight: 600, fontSize: 11.5, letterSpacing: 0 }}>
-                              {p.label}
-                            </Typography>
-                            {isActivePreset && (
-                              <Box sx={{ width: 7, height: 7, borderRadius: '2px', bgcolor: '#0078d4' }} />
-                            )}
-                          </Box>
-                          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: 9.5, mt: 0.3, display: 'block', lineHeight: 1.4 }}>
-                            {p.desc}
-                          </Typography>
-                        </Box>
-                      </CardActionArea>
-                    </Card>
-                  );
-                })}
-              </Box>
-            </Box>
-
-            {/* Right Pane - Endpoint Details Form */}
-            <Box sx={{ flex: 1, p: 4, overflowY: 'auto' }}>
-              <Box component="form" onSubmit={(e) => { e.preventDefault(); handleSaveSettings(); }} sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, maxWidth: 440 }}>
-                <Box>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold', fontSize: 12, textTransform: 'uppercase', tracking: '0.05em', color: 'text.primary', mb: 0.5 }}>
-                    {t.presetsTitle}
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: 10.5 }}>
-                    {t.presetsSubtitle}
-                  </Typography>
-                </Box>
-
-                <Box sx={{ height: '1px', bgcolor: 'divider' }} />
-
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
-                    {t.baseUrlLabel}
-                  </Typography>
-                  <TextField
-                    fullWidth
-                    variant="outlined"
-                    value={baseUrl}
-                    onChange={e => handleBaseUrlChange(e.target.value)}
-                    placeholder="https://openrouter.ai/api/v1"
-                    slotProps={{
-                      htmlInput: {
-                        style: { fontFamily: 'monospace', fontSize: 12 }
-                      }
-                    }}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
-                  />
-                  <Typography variant="caption" sx={{ fontSize: 9, color: 'text.secondary', mt: 0.5 }}>
-                    {t.baseUrlDesc}
-                  </Typography>
-                </Box>
-
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', mb: 0.5, display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <Key size={11} style={{ color: '#0078d4' }} />
-                    {t.apiKeyLabel}
-                  </Typography>
-                  <TextField
-                    fullWidth
-                    variant="outlined"
-                    type={showPassword ? 'text' : 'password'}
-                    value={apiKey}
-                    onChange={e => setApiKey(e.target.value)}
-                    placeholder={isLocalPreset ? t.apiKeyDescLocal : 'sk-...'}
-                    disabled={isLocalPreset}
-                    slotProps={{
-                      htmlInput: {
-                        style: { fontFamily: 'monospace', fontSize: 12 }
-                      },
-                      input: {
-                        endAdornment: (
-                           <InputAdornment position="end">
-                            <IconButton onClick={() => setShowPassword(!showPassword)} size="small" disabled={isLocalPreset}>
-                              {showPassword ? <EyeOff size={13} /> : <Eye size={13} />}
-                            </IconButton>
-                          </InputAdornment>
-                        )
-                      }
-                    }}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
-                  />
-                  <Typography variant="caption" sx={{ fontSize: 9, color: 'text.secondary', mt: 0.5 }}>
-                    {isLocalPreset ? t.apiKeyDescLocal : t.apiKeyDescCloud}
-                  </Typography>
-                </Box>
-
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', mb: 0.5 }}>
-                    {t.modelLabel}
-                  </Typography>
-                  <TextField
-                    fullWidth
-                    variant="outlined"
-                    required
-                    value={model}
-                    onChange={e => setModel(e.target.value)}
-                    placeholder="deepseek-coder veya gpt-4o"
-                    slotProps={{
-                      htmlInput: {
-                        style: { fontFamily: 'monospace', fontSize: 12 }
-                      }
-                    }}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
-                  />
-                  <Typography variant="caption" sx={{ fontSize: 9, color: 'text.secondary', mt: 0.5 }}>
-                    {t.modelDesc}
-                  </Typography>
-                </Box>
-
-                <Box sx={{ pt: 2, display: 'flex', gap: 1, borderTop: '1px solid', borderColor: 'divider' }}>
-                  <Button
-                    onClick={handleTestConnection}
-                    disabled={isTesting || !baseUrl}
-                    variant="outlined"
-                    sx={{ flex: 1, fontSize: 11, borderRadius: '4px', py: 0.8, borderColor: 'divider', color: 'text.primary' }}
-                  >
-                    {isTesting ? <CircularProgress size={13} color="inherit" /> : t.testBtn}
-                  </Button>
-                  <Button
-                    onClick={() => setShowSettings(false)}
-                    variant="outlined"
-                    sx={{ flex: 1, fontSize: 11, borderRadius: '4px', py: 0.8, borderColor: 'divider', color: 'text.primary' }}
-                  >
-                    {t.closeBtn}
-                  </Button>
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    sx={{
-                      flex: 2, fontSize: 11,
-                      bgcolor: '#0078d4',
-                      '&:hover': { bgcolor: '#106ebe' },
-                      '&:active': { bgcolor: '#005a9e' },
-                      fontWeight: 600, color: '#ffffff',
-                      borderRadius: '4px', py: 0.8
-                    }}
-                  >
-                    {saveOk ? t.savedBtn : t.applyBtn}
-                  </Button>
-                </Box>
-
-                {testStatus !== 'idle' && (
-                  <Alert severity={testStatus === 'ok' ? 'success' : 'error'} sx={{ fontSize: 10.5, borderRadius: '8px', py: 0.5 }}>
-                    {testMessage}
-                  </Alert>
-                )}
-              </Box>
-            </Box>
-          </DialogContent>
-        </Dialog>
-
-        {/* ── 4. Fullscreen Data Sources Modal (Google Material UI Redesigned) ── */}
+        {/* Quick-access Data Sources Modal */}
         <Dialog
           open={showSources}
           onClose={() => {
@@ -659,7 +357,6 @@ export const App: React.FC = () => {
           aria-labelledby="sources-dialog-title"
           scroll="paper"
         >
-          {/* Fluent Command Bar Header */}
           <DialogTitle
             id="sources-dialog-title"
             sx={{
@@ -669,17 +366,17 @@ export const App: React.FC = () => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              minHeight: 48,
-              bgcolor: theme === 'dark' ? '#1c1c1c' : '#ffffff',
+              minHeight: 52,
+              bgcolor: 'transparent',
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
               <Box sx={{
-                width: 32, height: 32, borderRadius: '4px',
-                bgcolor: 'rgba(0, 120, 212, 0.1)',
-                border: '1px solid rgba(0, 120, 212, 0.25)',
+                width: 32, height: 32, borderRadius: '8px',
+                bgcolor: 'var(--color-accent-subtle)',
+                border: '1px solid rgba(99, 102, 241, 0.25)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: '#0078d4'
+                color: 'var(--color-accent-fg)'
               }}>
                 <HardDrive size={16} />
               </Box>
@@ -687,7 +384,7 @@ export const App: React.FC = () => {
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: 13, m: 0, letterSpacing: '-0.01em' }}>
                   {language === 'tr' ? 'Veri Kaynakları' : 'Data Sources'}
                 </Typography>
-                <Typography variant="caption" sx={{ fontSize: 10, color: 'text.secondary', letterSpacing: 0 }}>
+                <Typography variant="caption" sx={{ fontSize: 10, color: 'text.secondary' }}>
                   {language === 'tr' ? 'DeepBI Birleşik Veri Merkezi' : 'DeepBI Unified Data Hub'}
                 </Typography>
               </Box>
@@ -699,14 +396,16 @@ export const App: React.FC = () => {
                 fetchFiles();
               }}
               size="small"
-              sx={{ color: 'text.secondary', borderRadius: '4px' }}
+              sx={{ color: 'text.secondary', borderRadius: '8px' }}
             >
               <X size={15} />
             </IconButton>
           </DialogTitle>
 
-          <DialogContent sx={{ p: 0, bgcolor: theme === 'dark' ? '#141414' : '#f3f2f1', maxH: '80vh' }}>
-            <SourceManager />
+          <DialogContent sx={{ p: 0, bgcolor: isDark ? '#0f0f12' : '#fafafa', maxHeight: '80vh' }}>
+            <Suspense fallback={<Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 8 }}><CircularProgress size={32} /></Box>}>
+              <SourceManager />
+            </Suspense>
           </DialogContent>
         </Dialog>
 

@@ -11,7 +11,7 @@ const COMMANDS = [
   {
     cmd: '/graph',
     icon: '📈',
-    color: '#6366f1',
+    color: '#c96442',
     tr: 'Veri üzerinden grafik ve görselleştirme oluşturur',
     en: 'Creates charts and visualizations from data',
     example: '/graph satış trendi',
@@ -20,7 +20,7 @@ const COMMANDS = [
   {
     cmd: '/sql',
     icon: '🗄️',
-    color: '#06b6d4',
+    color: '#c96442',
     tr: 'Doğrudan SQL sorgusu çalıştırır',
     en: 'Runs a direct SQL query',
     example: '/sql SELECT * FROM orders LIMIT 10',
@@ -29,7 +29,7 @@ const COMMANDS = [
   {
     cmd: '/table',
     icon: '📋',
-    color: '#06b6d4',
+    color: '#c96442',
     tr: 'Tablosal veri listesi getirir',
     en: 'Fetches tabular data list',
     example: '/table tüm ürünleri listele',
@@ -38,7 +38,7 @@ const COMMANDS = [
   {
     cmd: '/forecast',
     icon: '🔮',
-    color: '#a855f7',
+    color: '#e08a63',
     tr: 'Zaman serisi tahmini (ML/Trend)',
     en: 'Time series forecasting (ML/Trend)',
     example: '/forecast gelecek 3 ay satış',
@@ -47,7 +47,7 @@ const COMMANDS = [
   {
     cmd: '/ml',
     icon: '🤖',
-    color: '#a855f7',
+    color: '#e08a63',
     tr: 'Makine öğrenmesi analizi (sınıflandırma, kümeleme)',
     en: 'Machine learning analysis (classification, clustering)',
     example: '/ml müşteri segmentasyonu',
@@ -56,7 +56,7 @@ const COMMANDS = [
   {
     cmd: '/corr',
     icon: '🔗',
-    color: '#a855f7',
+    color: '#e08a63',
     tr: 'Korelasyon analizi ve Heatmap oluşturur',
     en: 'Correlation analysis and Heatmap',
     example: '/corr tüm sütunlar',
@@ -65,7 +65,7 @@ const COMMANDS = [
   {
     cmd: '/pivot',
     icon: '🔄',
-    color: '#f59e0b',
+    color: '#fbbf24',
     tr: 'Dinamik pivot tablo analizi',
     en: 'Dynamic pivot table analysis',
     example: '/pivot bölge × ürün × satış',
@@ -74,7 +74,7 @@ const COMMANDS = [
   {
     cmd: '/clean',
     icon: '🧹',
-    color: '#10b981',
+    color: '#34d399',
     tr: 'Veri temizleme ve EDA (Keşifsel Veri Analizi)',
     en: 'Data cleaning and EDA',
     example: '/clean eksik değerleri analiz et',
@@ -83,7 +83,7 @@ const COMMANDS = [
   {
     cmd: '/explain',
     icon: '🔬',
-    color: '#10b981',
+    color: '#34d399',
     tr: 'Veri açıklama ve istatistiksel özet',
     en: 'Data explanation and statistical summary',
     example: '/explain satış sütununu açıkla',
@@ -92,7 +92,7 @@ const COMMANDS = [
   {
     cmd: '/ask',
     icon: '💡',
-    color: '#f59e0b',
+    color: '#fbbf24',
     tr: 'Kavramsal/teorik soru sorma modu',
     en: 'Conceptual/theoretical question mode',
     example: '/ask makine öğrenmesi nedir?',
@@ -101,7 +101,7 @@ const COMMANDS = [
   {
     cmd: '/rapor',
     icon: '📄',
-    color: '#6366f1',
+    color: '#c96442',
     tr: 'Detaylı analiz raporu oluşturur',
     en: 'Generates a detailed analysis report',
     example: '/rapor satış analizi',
@@ -110,7 +110,7 @@ const COMMANDS = [
   {
     cmd: '/bilgi',
     icon: '📚',
-    color: '#f59e0b',
+    color: '#fbbf24',
     tr: 'Bilgi sorgulama (Türkçe alias)',
     en: 'Knowledge query (Turkish alias)',
     example: '/bilgi korelasyon nedir',
@@ -119,7 +119,7 @@ const COMMANDS = [
   {
     cmd: '/help',
     icon: '❓',
-    color: '#6b7280',
+    color: '#a1a1aa',
     tr: 'Kullanım rehberi ve yardım',
     en: 'Usage guide and help',
     example: '/help',
@@ -128,19 +128,19 @@ const COMMANDS = [
 ];
 
 const TYPE_COLORS: Record<string, string> = {
-  SQL: 'rgba(6,182,212,0.15)',
-  PYTHON: 'rgba(99,102,241,0.15)',
-  ML: 'rgba(168,85,247,0.15)',
-  INFO: 'rgba(245,158,11,0.15)',
-  REPORT: 'rgba(99,102,241,0.15)',
+  SQL: 'var(--color-accent-subtle)',
+  PYTHON: 'var(--color-accent-subtle)',
+  ML: 'var(--color-warning-subtle)',
+  INFO: 'var(--color-warning-subtle)',
+  REPORT: 'var(--color-accent-subtle)',
 };
 
 const TYPE_TEXT: Record<string, string> = {
-  SQL: '#06b6d4',
-  PYTHON: '#818cf8',
-  ML: '#c084fc',
-  INFO: '#f59e0b',
-  REPORT: '#818cf8',
+  SQL: 'var(--color-accent-fg)',
+  PYTHON: 'var(--color-accent-fg)',
+  ML: 'var(--color-warning)',
+  INFO: 'var(--color-warning)',
+  REPORT: 'var(--color-accent-fg)',
 };
 
 const CommandHelpModal: React.FC<CommandHelpModalProps> = ({ open, onClose, language }) => {
@@ -149,7 +149,7 @@ const CommandHelpModal: React.FC<CommandHelpModalProps> = ({ open, onClose, lang
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
+      style={{ background: 'rgba(28,25,23,0.35)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
     >
       <div
@@ -157,44 +157,45 @@ const CommandHelpModal: React.FC<CommandHelpModalProps> = ({ open, onClose, lang
         style={{
           background: 'var(--color-canvas)',
           border: '1px solid var(--color-border)',
-          borderRadius: 16,
+          borderRadius: 12,
           width: '92%',
           maxWidth: 720,
           maxHeight: '85vh',
-          boxShadow: '0 32px 64px rgba(0,0,0,0.4)',
+          boxShadow: '0 12px 32px rgba(28,25,23,0.10)',
           overflow: 'hidden',
         }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div
-          className="flex items-center justify-between px-6 shrink-0"
-          style={{ height: 56, borderBottom: '1px solid var(--color-border)', background: 'var(--color-bg)' }}
+          className="flex items-center justify-between px-5 shrink-0"
+          style={{ height: 56, borderBottom: '1px solid var(--color-border)' }}
         >
           <div className="flex items-center gap-3">
             <div
+              className="flex items-center justify-center shadow-[0_0_12px_rgba(201,100,66,0.25)]"
               style={{
-                width: 32, height: 32, borderRadius: 8,
-                background: 'linear-gradient(135deg, #6366f1, #a855f7)',
+                width: 30, height: 30, borderRadius: 8,
+                background: 'linear-gradient(135deg, #c96442, #b8532f)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 14,
+                fontSize: 13,
               }}
             >
               ⌨️
             </div>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-text)', fontFamily: 'var(--font-sans)', letterSpacing: '-0.015em' }}>
+              <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--color-text)', fontFamily: 'var(--font-sans)', letterSpacing: '-0.01em' }}>
                 {language === 'tr' ? 'Komut Paleti' : 'Command Palette'}
               </div>
-              <div style={{ fontSize: 10, color: 'var(--color-muted)', fontFamily: 'var(--font-mono)' }}>
+              <div style={{ fontSize: 10, color: 'var(--color-faint)', fontFamily: 'var(--font-mono)' }}>
                 {COMMANDS.length} {language === 'tr' ? 'komut mevcut' : 'commands available'}
               </div>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="btn-icon cursor-pointer hover:text-rose-400 hover:border-rose-500/30 transition-all"
-            style={{ padding: 6, borderRadius: 8 }}
+            className="btn-icon cursor-pointer hover:bg-[var(--color-surface2)] hover:text-[var(--color-text)] transition-colors"
+            style={{ padding: 6, borderRadius: 8, color: 'var(--color-muted)', display: 'flex', alignItems: 'center' }}
           >
             <X size={15} />
           </button>
@@ -202,10 +203,10 @@ const CommandHelpModal: React.FC<CommandHelpModalProps> = ({ open, onClose, lang
 
         {/* Info banner */}
         <div
-          className="px-6 py-3 shrink-0"
-          style={{ background: 'rgba(99,102,241,0.06)', borderBottom: '1px solid var(--color-border)' }}
+          className="px-5 py-3 shrink-0"
+          style={{ background: 'var(--color-accent-subtle)', borderBottom: '1px solid var(--color-border)' }}
         >
-          <div style={{ fontSize: 11, color: 'var(--color-muted)', fontFamily: 'var(--font-sans)' }}>
+          <div style={{ fontSize: 11, color: 'var(--color-text-2)', fontFamily: 'var(--font-sans)', lineHeight: 1.5 }}>
             {language === 'tr'
               ? '💡 Sohbet kutusuna / ile başlayarak doğrudan komut moduna geçebilirsiniz. Komut yazmadan da doğal dil sorgusu yapabilirsiniz — sistem otomatik yönlendirir.'
               : '💡 Type / in the chat box to activate command mode directly. You can also ask in natural language without commands — the system auto-routes.'}
@@ -221,20 +222,21 @@ const CommandHelpModal: React.FC<CommandHelpModalProps> = ({ open, onClose, lang
                 style={{
                   background: 'var(--color-surface)',
                   border: '1px solid var(--color-border)',
-                  borderRadius: 10,
+                  borderRadius: 8,
                   padding: '12px 14px',
                   transition: 'border-color 0.15s, background 0.15s',
                 }}
-                className="hover:border-indigo-500/30 hover:bg-indigo-500/5 transition-all"
+                className="hover:bg-[var(--color-surface2)] hover:border-[var(--color-border)] transition-all"
               >
                 <div className="flex items-center gap-2 mb-2">
-                  <span style={{ fontSize: 16 }}>{cmd.icon}</span>
+                  <span style={{ fontSize: 15 }}>{cmd.icon}</span>
                   <code
                     style={{
-                      fontSize: 12, fontWeight: 700, color: cmd.color,
+                      fontSize: 11.5, fontWeight: 700, color: 'var(--color-accent-fg)',
                       fontFamily: 'var(--font-mono)',
-                      background: `${cmd.color}18`,
-                      padding: '2px 7px', borderRadius: 5,
+                      background: 'var(--color-canvas)',
+                      border: '1px solid var(--color-border)',
+                      padding: '2px 8px', borderRadius: 5,
                     }}
                   >
                     {cmd.cmd}
@@ -244,19 +246,20 @@ const CommandHelpModal: React.FC<CommandHelpModalProps> = ({ open, onClose, lang
                       fontSize: 8.5, fontWeight: 700, fontFamily: 'var(--font-mono)',
                       background: TYPE_COLORS[cmd.type],
                       color: TYPE_TEXT[cmd.type],
-                      padding: '2px 5px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: '0.04em',
+                      border: '1px solid var(--color-border2)',
+                      padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: '0.05em',
                     }}
                   >
                     {cmd.type}
                   </span>
                 </div>
-                <div style={{ fontSize: 11.5, color: 'var(--color-text-2)', fontFamily: 'var(--font-sans)', lineHeight: 1.4, marginBottom: 8 }}>
+                <div style={{ fontSize: 11.5, color: 'var(--color-text-2)', fontFamily: 'var(--font-sans)', lineHeight: 1.45, marginBottom: 8 }}>
                   {language === 'tr' ? cmd.tr : cmd.en}
                 </div>
                 <div
                   style={{
-                    fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--color-faint)',
-                    background: 'var(--color-bg)', padding: '4px 8px', borderRadius: 5,
+                    fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--color-muted)',
+                    background: 'var(--color-canvas)', padding: '4px 8px', borderRadius: 5,
                     border: '1px solid var(--color-border)', wordBreak: 'break-all',
                   }}
                 >

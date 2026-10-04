@@ -2,28 +2,30 @@ import React, { useState, useEffect } from 'react';
 import { useBIStore } from '../context/store';
 import { translations } from '../context/translations';
 import {
-  FileText, Database, Settings, RefreshCw,
-  Plus, Trash2, Edit, HardDrive, Sun, Moon
+  FileText, Database, RefreshCw,
+  Plus, Trash2, Edit, HardDrive, LogOut
 } from 'lucide-react';
 
 interface SidebarProps {
-  onOpenSettings: () => void;
   onOpenSources: () => void;
-  theme: 'light' | 'dark';
-  onToggleTheme: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onOpenSources, theme, onToggleTheme }) => {
-  const {
-    sources, files,
-    activeSourceId,
-    sessions, activeSessionId,
-    selectSession, deleteSession, fetchSessions,
-    renameSession,
-    fetchSources, fetchFiles,
-    setShowSourcePicker,
-    language, setLanguage
-  } = useBIStore();
+export const Sidebar: React.FC<SidebarProps> = ({ onOpenSources }) => {
+  const user = useBIStore((s) => s.user);
+  const logout = useBIStore((s) => s.logout);
+  const sources = useBIStore((s) => s.sources);
+  const files = useBIStore((s) => s.files);
+  const activeSourceId = useBIStore((s) => s.activeSourceId);
+  const sessions = useBIStore((s) => s.sessions);
+  const activeSessionId = useBIStore((s) => s.activeSessionId);
+  const selectSession = useBIStore((s) => s.selectSession);
+  const deleteSession = useBIStore((s) => s.deleteSession);
+  const fetchSessions = useBIStore((s) => s.fetchSessions);
+  const renameSession = useBIStore((s) => s.renameSession);
+  const fetchSources = useBIStore((s) => s.fetchSources);
+  const fetchFiles = useBIStore((s) => s.fetchFiles);
+  const setShowSourcePicker = useBIStore((s) => s.setShowSourcePicker);
+  const language = useBIStore((s) => s.language);
 
   const t = translations[language];
 
@@ -49,6 +51,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onOpenSources,
     return null;
   }, [sources, files, activeSourceId, language]);
 
+  const iconBtn = (): React.CSSProperties => ({
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: 'var(--color-muted)',
+    borderRadius: '6px',
+    border: '1px solid transparent',
+    transition: 'background 0.15s, color 0.15s',
+  });
+
   return (
     <aside
       className="flex flex-col shrink-0 z-20 select-none overflow-hidden"
@@ -59,25 +71,24 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onOpenSources,
         borderRight: '1px solid var(--color-border)',
       }}
     >
-      {/* ── Fluent Navigation Header ── */}
+      {/* ── Brand Header ── */}
       <div
-        className="flex items-center justify-between px-4 shrink-0"
+        className="flex items-center justify-between px-3 shrink-0"
         style={{
-          height: 56,
-          background: 'var(--color-canvas)',
-          borderBottom: '1px solid var(--color-border)',
+          height: 52,
+          borderBottom: '1px solid var(--color-border2)',
         }}
       >
         <div className="flex items-center gap-2.5 min-w-0">
-          {/* Brand Icon — premium gradient with a subtle neon glow */}
+          {/* Brand mark — coral gradient with a soft glow */}
           <div
-            className="flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(99,102,241,0.35)]"
+            className="flex items-center justify-center shrink-0 shadow-[0_0_14px_rgba(201,100,66,0.25)]"
             style={{
-              width: 28, height: 28,
-              background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
+              width: 26, height: 26,
+              background: 'linear-gradient(135deg, #c96442 0%, #b8532f 60%, #a34628 100%)',
               color: '#ffffff',
-              borderRadius: '8px',
-              fontSize: 10,
+              borderRadius: '7px',
+              fontSize: 9.5,
               fontWeight: 800,
               fontFamily: 'var(--font-mono)',
               letterSpacing: '0.05em',
@@ -87,74 +98,44 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onOpenSources,
             BI
           </div>
           <div className="min-w-0">
-            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text)', fontFamily: 'var(--font-sans)', letterSpacing: '-0.015em', lineHeight: 1.2 }}>DeepBI</div>
-            <div style={{ fontSize: 9.5, color: 'var(--color-muted)', fontFamily: 'var(--font-sans)', fontWeight: 500, letterSpacing: '0.02em', textTransform: 'uppercase' }}>Analytics Studio</div>
+            <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--color-text)', fontFamily: 'var(--font-sans)', letterSpacing: '-0.01em', lineHeight: 1.25 }}>DeepBI</div>
+            <div style={{ fontSize: 9, color: 'var(--color-faint)', fontFamily: 'var(--font-sans)', fontWeight: 500, letterSpacing: '0.04em', textTransform: 'uppercase' }}>Analytics Studio</div>
           </div>
-        </div>
-
-        <div className="flex items-center gap-1.5 shrink-0">
-          <button
-            onClick={() => setLanguage(language === 'tr' ? 'en' : 'tr')}
-            className="shrink-0 cursor-pointer hover:border-indigo-500/40 hover:text-indigo-400 transition-all duration-200"
-            style={{
-              padding: '3px 7px',
-              background: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
-              borderRadius: '6px',
-              color: 'var(--color-text-2)',
-              fontSize: 10,
-              fontWeight: 600,
-              fontFamily: 'var(--font-sans)',
-              cursor: 'pointer',
-            }}
-            title={language === 'tr' ? 'Switch to English' : "Türkçe'ye Geç"}
-          >
-            {language.toUpperCase()}
-          </button>
-
-          <button
-            onClick={onToggleTheme}
-            className="btn-icon shrink-0 cursor-pointer hover:border-indigo-500/40 hover:text-indigo-400 transition-all duration-200"
-            style={{ padding: 5, borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            title={theme === 'dark' ? (language === 'tr' ? 'Aydınlık Mod' : 'Light Mode') : (language === 'tr' ? 'Karanlık Mod' : 'Dark Mode')}
-          >
-            {theme === 'dark' ? <Sun size={12} className="text-amber-400" /> : <Moon size={12} className="text-indigo-400" />}
-          </button>
         </div>
       </div>
 
-      {/* ── Fluent Navigation Rail Body ── */}
-      <div className="flex-1 flex flex-col px-3 pt-4 pb-2 min-h-0 overflow-hidden">
+      {/* ── Sessions ── */}
+      <div className="flex-1 flex flex-col px-2.5 pt-3.5 pb-2 min-h-0 overflow-hidden">
 
-        {/* Section label — Premium caption style */}
+        {/* Section label */}
         <div
-          className="flex items-center justify-between px-1 mb-2.5 shrink-0"
-          style={{ fontSize: 9.5, color: 'var(--color-muted)', fontFamily: 'var(--font-mono)', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}
+          className="flex items-center justify-between px-1.5 mb-2 shrink-0"
+          style={{ fontSize: 9.5, color: 'var(--color-faint)', fontFamily: 'var(--font-sans)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}
         >
           <span>{t.notebooks}</span>
           <button
             onClick={() => setShowSourcePicker(true, 'create')}
-            className="btn-icon cursor-pointer hover:border-indigo-500/40 hover:text-indigo-400 transition-all duration-200"
-            style={{ padding: 4, borderRadius: '6px' }}
+            className="btn-icon cursor-pointer hover:bg-[var(--color-surface2)] hover:text-[var(--color-text)] transition-colors duration-150"
+            style={{ ...iconBtn(), padding: 3.5, cursor: 'pointer' }}
             title={language === 'tr' ? 'Yeni Çalışma Oturumu Aç' : 'Open New Study Session'}
           >
-            <Plus size={12} />
+            <Plus size={13} />
           </button>
         </div>
 
-        {/* Search — Premium SearchBox style */}
-        <div className="px-0 mb-3 shrink-0">
+        {/* Search */}
+        <div className="px-0.5 mb-2.5 shrink-0">
           <input
             value={sessionFilter}
             onChange={(e) => setSessionFilter(e.target.value)}
             placeholder={t.search}
-            className="input w-full hover:border-indigo-500/20 focus:border-indigo-500/50 transition-all duration-200"
-            style={{ paddingTop: 6, paddingBottom: 6, fontSize: 11, borderRadius: '8px', fontFamily: 'var(--font-mono)' }}
+            className="input w-full focus:border-[var(--color-border-focus)] transition-colors duration-150"
+            style={{ paddingTop: 6, paddingBottom: 6, fontSize: 11, borderRadius: '8px', fontFamily: 'var(--font-sans)' }}
           />
         </div>
 
         {/* Session list */}
-        <div className="flex-1 overflow-y-auto space-y-1.5 pr-0.5 min-h-0 scrollbar-thin">
+        <div className="flex-1 overflow-y-auto space-y-0.5 pr-0.5 min-h-0 scrollbar-thin">
           {filteredSessions.map(s => {
             const active = activeSessionId === s.id;
             const isEditing = editingSessionId === s.id;
@@ -162,16 +143,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onOpenSources,
               <div
                 key={s.id}
                 onClick={() => !isEditing && selectSession(s.id)}
-                className={`flex items-center justify-between group cursor-pointer transition-all duration-200 rounded-lg ${
-                  active 
-                    ? 'bg-indigo-500/10 border border-indigo-500/20 shadow-[0_0_8px_rgba(99,102,241,0.05)]' 
-                    : 'hover:bg-gh-surface border border-transparent hover:border-gh-border/50'
+                className={`flex items-center justify-between group cursor-pointer transition-colors duration-150 ${
+                  active
+                    ? 'bg-[var(--color-surface2)]'
+                    : 'hover:bg-[var(--color-surface)]'
                 }`}
-                style={{ padding: '6px 10px' }}
+                style={{
+                  padding: '6px 8px',
+                  borderRadius: '8px',
+                  boxShadow: active ? 'inset 2px 0 0 var(--color-accent)' : 'none',
+                }}
               >
                 {isEditing ? (
                   <div className="flex items-center gap-2 min-w-0 flex-1" onClick={(e) => e.stopPropagation()}>
-                    <FileText size={11} style={{ color: '#6366f1', flexShrink: 0 }} />
+                    <FileText size={11} style={{ color: 'var(--color-accent-fg)', flexShrink: 0 }} />
                     <input
                       value={editingTitle}
                       onChange={(e) => setEditingTitle(e.target.value)}
@@ -188,22 +173,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onOpenSources,
                         setEditingSessionId(null);
                       }}
                       autoFocus
-                      className="bg-transparent border-b border-indigo-500 text-xs text-gh-text outline-none w-full font-mono"
-                      style={{ fontSize: 11 }}
+                      className="bg-transparent text-xs text-gh-text outline-none w-full font-mono"
+                      style={{ fontSize: 11, borderBottom: '1px solid var(--color-accent)' }}
                     />
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                    <div 
-                      className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
-                        active 
-                          ? 'bg-indigo-500 shadow-[0_0_6px_#6366f1] scale-110' 
-                          : 'bg-zinc-500/40 group-hover:bg-zinc-400'
-                      }`}
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <div
+                      className="w-1.5 h-1.5 rounded-full shrink-0 transition-all duration-200"
+                      style={{
+                        background: active ? 'var(--color-accent)' : 'var(--color-disabled)',
+                        boxShadow: active ? '0 0 5px rgba(201,100,66,0.45)' : 'none',
+                        opacity: active ? 1 : 0.55,
+                      }}
                     />
                     <span
-                      className="truncate flex-1 font-mono text-[11px] font-medium"
-                      style={{ color: active ? 'var(--color-text)' : 'var(--color-muted)' }}
+                      className="truncate flex-1 font-sans text-[11.5px]"
+                      style={{ color: active ? 'var(--color-text)' : 'var(--color-muted)', fontWeight: active ? 500 : 400, letterSpacing: '-0.005em' }}
                       onDoubleClick={(e) => {
                         e.stopPropagation();
                         setEditingSessionId(s.id);
@@ -216,23 +202,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onOpenSources,
                   </div>
                 )}
                 {!isEditing && (
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all shrink-0">
+                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         setEditingSessionId(s.id);
                         setEditingTitle(s.title);
                       }}
-                      className="btn-icon cursor-pointer hover:text-indigo-400 hover:border-indigo-500/40 transition-colors"
-                      style={{ padding: 2.5, borderRadius: '4px' }}
+                      className="btn-icon cursor-pointer hover:text-[var(--color-text)] hover:bg-[var(--color-surface)] transition-colors"
+                      style={{ padding: 3, borderRadius: '4px', color: 'var(--color-faint)', border: 'none', display: 'flex', alignItems: 'center' }}
                       title={language === 'tr' ? 'Yeniden Adlandır' : 'Rename'}
                     >
                       <Edit size={10} />
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); deleteSession(s.id); }}
-                      className="btn-icon cursor-pointer hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/30 transition-colors"
-                      style={{ padding: 2.5, color: 'var(--color-danger)', borderColor: 'transparent', borderRadius: '4px' }}
+                      className="btn-icon cursor-pointer hover:bg-rose-500/10 hover:text-rose-400 transition-colors"
+                      style={{ padding: 3, color: 'var(--color-faint)', border: 'none', borderRadius: '4px', display: 'flex', alignItems: 'center' }}
                       title={language === 'tr' ? 'Oturumu Kapat' : 'Close Session'}
                     >
                       <Trash2 size={10} />
@@ -244,52 +230,56 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onOpenSources,
           })}
 
           {filteredSessions.length === 0 && (
-            <div className="px-2 py-6 text-center font-mono" style={{ fontSize: 10, color: 'var(--color-faint)' }}>
-              {t.noResults}
+            <div
+              className="px-2 py-6 text-center font-sans"
+              style={{ fontSize: 10.5, color: 'var(--color-faint)', lineHeight: 1.5, whiteSpace: 'pre-line' }}
+            >
+              {sessions.length === 0
+                ? (language === 'tr' ? 'Henüz oturum yok.\nİlk mesajınla bir oturum başlat.' : 'No sessions yet.\nStart one with your first message.')
+                : t.noResults}
             </div>
           )}
         </div>
       </div>
 
-      {/* ── Fluent Active Dataset Section ── */}
-      <div className="px-3 py-4 shrink-0" style={{ borderTop: '1px solid var(--color-border)' }}>
+      {/* ── Active Dataset ── */}
+      <div className="px-2.5 py-3 shrink-0" style={{ borderTop: '1px solid var(--color-border2)' }}>
         <div
-          className="flex items-center justify-between mb-2.5 px-1"
-          style={{ fontSize: 9.5, color: 'var(--color-muted)', fontFamily: 'var(--font-mono)', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}
+          className="flex items-center justify-between mb-2 px-1.5"
+          style={{ fontSize: 9.5, color: 'var(--color-faint)', fontFamily: 'var(--font-sans)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}
         >
           <span>{t.activeDataset}</span>
           <button
             onClick={() => { fetchSources(); fetchFiles(); }}
-            className="btn-icon cursor-pointer hover:border-indigo-500/40 hover:text-indigo-400 hover:rotate-180 transition-all duration-300"
-            style={{ padding: 3, borderRadius: '4px' }}
+            className="btn-icon cursor-pointer hover:bg-[var(--color-surface2)] hover:text-[var(--color-text)] transition-colors duration-150"
+            style={{ ...iconBtn(), padding: 3.5, cursor: 'pointer' }}
             title={language === 'tr' ? 'Yenile' : 'Refresh'}
           >
-            <RefreshCw size={10} />
+            <RefreshCw size={11} />
           </button>
         </div>
 
         {activeSource ? (
           <div
             onClick={onOpenSources}
-            className="cursor-pointer transition-all duration-200 hover:-translate-y-[1px] hover:shadow-md"
+            className="cursor-pointer transition-colors duration-150 hover:bg-[var(--color-surface2)]"
             style={{
-              background: 'rgba(99, 102, 241, 0.04)',
-              border: '1px solid rgba(99, 102, 241, 0.15)',
-              borderLeft: '4px solid #6366f1',
-              padding: '10px 12px',
-              borderRadius: '10px',
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
+              background: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+              borderLeft: '2px solid var(--color-accent)',
+              padding: '9px 11px',
+              borderRadius: '8px',
             }}
           >
             <div className="flex items-center gap-2.5 min-w-0">
               {activeSource.isDb
-                ? <Database size={12} style={{ color: '#818cf8', flexShrink: 0 }} />
-                : <HardDrive size={12} style={{ color: '#818cf8', flexShrink: 0 }} />}
+                ? <Database size={13} style={{ color: 'var(--color-accent-fg)', flexShrink: 0 }} />
+                : <HardDrive size={13} style={{ color: 'var(--color-accent-fg)', flexShrink: 0 }} />}
               <div className="min-w-0 flex-1">
-                <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--color-text)', fontFamily: 'var(--font-sans)', letterSpacing: '-0.015em' }} className="truncate">
+                <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--color-text)', fontFamily: 'var(--font-sans)', letterSpacing: '-0.01em' }} className="truncate">
                   {activeSource.label}
                 </div>
-                <div style={{ fontSize: 9.5, color: 'var(--color-muted)', fontFamily: 'var(--font-mono)', marginTop: 2, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                <div style={{ fontSize: 9.5, color: 'var(--color-faint)', fontFamily: 'var(--font-mono)', marginTop: 2, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
                   {activeSource.type}
                 </div>
               </div>
@@ -298,15 +288,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onOpenSources,
         ) : (
           <div
             onClick={onOpenSources}
-            className="cursor-pointer hover:border-indigo-500/30 hover:text-indigo-400/80 transition-all duration-200"
+            className="cursor-pointer hover:border-[var(--color-border)] hover:text-[var(--color-muted)] transition-colors duration-150"
             style={{
-              border: '1.5px dashed var(--color-border)',
-              padding: '12px 10px',
+              border: '1px dashed var(--color-border)',
+              padding: '11px 10px',
               fontSize: 10.5,
               color: 'var(--color-faint)',
-              borderRadius: '10px',
+              borderRadius: '8px',
               textAlign: 'center',
-              fontFamily: 'var(--font-mono)',
+              fontFamily: 'var(--font-sans)',
               fontWeight: 500,
             }}
           >
@@ -315,28 +305,43 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onOpenSources,
         )}
       </div>
 
-      {/* ── Fluent Command Bar Footer ── */}
-      <div
-        className="px-3 py-3 shrink-0 flex items-center gap-2"
-        style={{ borderTop: '1px solid var(--color-border)', background: 'var(--color-canvas)' }}
-      >
-        <button
-          onClick={onOpenSources}
-          className="btn btn-ghost cursor-pointer flex-1 hover:bg-indigo-500/10 hover:text-indigo-400 hover:border-indigo-500/20 transition-all duration-200"
-          style={{ fontSize: 11.5, padding: '7px 12px', gap: 6, justifyContent: 'flex-start', borderRadius: '8px', border: '1px solid transparent', fontFamily: 'var(--font-mono)' }}
-        >
-          <Database size={12} className="text-zinc-400 group-hover:text-indigo-400" />
-          <span>{t.sources}</span>
-        </button>
-        <button
-          onClick={onOpenSettings}
-          className="btn btn-ghost cursor-pointer flex-1 hover:bg-indigo-500/10 hover:text-indigo-400 hover:border-indigo-500/20 transition-all duration-200"
-          style={{ fontSize: 11.5, padding: '7px 12px', gap: 6, justifyContent: 'flex-start', borderRadius: '8px', border: '1px solid transparent', fontFamily: 'var(--font-mono)' }}
-        >
-          <Settings size={12} className="text-zinc-400 group-hover:text-indigo-400" />
-          <span>{t.settings}</span>
-        </button>
-      </div>
+      {/* Oturum: kullanıcı bilgisi + çıkış */}
+      {user && (
+        <div style={{ padding: '8px 10px 10px', borderTop: '1px solid var(--color-border2)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{
+              width: 26, height: 26, borderRadius: 8, flexShrink: 0,
+              background: 'linear-gradient(135deg, #c96442, #b8532f)',
+              color: '#fff', fontSize: 11, fontWeight: 700,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              textTransform: 'uppercase',
+            }}>
+              {(user.display_name || user.username).charAt(0)}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--color-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {user.display_name || user.username}
+              </div>
+              <div style={{ fontSize: 9.5, color: user.role === 'admin' ? 'var(--color-accent-fg)' : 'var(--color-faint)' }}>
+                {user.role === 'admin' ? 'Yönetici' : 'Kullanıcı'}
+              </div>
+            </div>
+            <button
+              onClick={logout}
+              title="Çıkış yap"
+              style={{
+                width: 26, height: 26, borderRadius: 6, flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'transparent', border: '1px solid transparent',
+                color: 'var(--color-faint)', cursor: 'pointer',
+              }}
+              className="hover:bg-[var(--color-surface2)] hover:text-[var(--color-danger)] transition-colors duration-150"
+            >
+              <LogOut size={13} />
+            </button>
+          </div>
+        </div>
+      )}
     </aside>
   );
 };

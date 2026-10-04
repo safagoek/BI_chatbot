@@ -25,12 +25,12 @@ class PythonSandbox:
         }
 
         forbidden_modules = {
-            "os", "sys", "subprocess", "shutil", "socket", "urllib", "requests", "pty", "ctypes", 
+            "os", "sys", "subprocess", "shutil", "socket", "urllib", "requests", "pty", "ctypes",
             "importlib", "platform", "pickle", "marshal", "shelve", "dbm", "sqlite3", "tempfile"
         }
 
         unsafe_keywords = [
-            "__builtins__", "subprocess", "os.system", "os.popen", "shutil", 
+            "__builtins__", "subprocess", "os.system", "os.popen", "shutil",
             "pty", "ctypes", "socket", "urllib", "requests", "importlib"
         ]
 
@@ -53,15 +53,23 @@ class PythonSandbox:
                 elif isinstance(node, ast.Name):
                     if node.id in forbidden_builtins:
                         return f"'{node.id}' fonksiyonu/değişkeninin kullanılması yasaktır."
-                    if node.id.startswith("_") or "__" in node.id:
+                    # os/sys/subprocess gibi modül isimlerinin doğrudan değişken
+                    # olarak kullanılması da engellenir (runner ortamı sızıntısına karşı).
+                    if node.id in forbidden_modules:
+                        return f"'{node.id}' modülüne doğrudan erişim yasaktır."
+                    if node.id != "_" and (node.id.startswith("__") or "__" in node.id):
                         return f"Gizli veya özel isimlerin ('{node.id}') kullanılması yasaktır."
 
                 # 3. Block double-underscores (dunder) / private attributes access
                 elif isinstance(node, ast.Attribute):
-                    if node.attr.startswith("_") or "__" in node.attr:
+                    if node.attr.startswith("__") or "__" in node.attr:
                         return f"'{node.attr}' özniteliğine erişim yasaktır."
                     if node.attr in forbidden_builtins:
                         return f"'{node.attr}' fonksiyonuna erişim yasaktır."
+                    # pd.io.common.os gibi güvenilir nesneler üzerinden modül
+                    # kaçış zincirlerini engeller (ör. pd.io.common.os.system).
+                    if node.attr in forbidden_modules or node.attr == "io":
+                        return f"'{node.attr}' özniteliği üzerinden modül erişimi yasaktır."
 
         except Exception as e:
             return f"Kod sözdizimi doğrulanırken hata oluştu: {str(e)}"
@@ -102,7 +110,8 @@ class PythonSandbox:
                 capture_output=True,
                 text=True,
                 timeout=self.timeout_seconds,
-                encoding='utf-8'
+                encoding='utf-8',
+                preexec_fn=self._make_limits_hook() if os.name == "posix" else None,
             )
             
             if res.returncode == 0:
@@ -132,11 +141,23 @@ class PythonSandbox:
                 except Exception:
                     pass
 
+    def _make_limits_hook(self):
+        """POSIX alt süreçlerine CPU ve bellek limiti uygulayan preexec hook'u."""
+        import resource
+
+        def _apply_limits():
+            limit = self.max_memory_mb * 1024 * 1024
+            resource.setrlimit(resource.RLIMIT_AS, (limit, limit))
+            resource.setrlimit(resource.RLIMIT_CPU, (int(self.timeout_seconds) * 4, int(self.timeout_seconds) * 4 + 1))
+
+        return _apply_limits
+
     def _generate_runner_code(self, code: str, file_mappings: Dict[str, str]) -> str:
         runner_template = f"""# -*- coding: utf-8 -*-
 import os
 import sys
 import json
+import builtins as _builtins
 import numpy as np
 import pandas as pd
 
@@ -151,7 +172,7 @@ except ImportError:
 def run_isolated():
     file_mappings = {repr(file_mappings)}
     user_code = {repr(code)}
-    
+
     # Load dataframes into context
     locs = {{}}
     for df_name, file_path in file_mappings.items():
@@ -168,20 +189,31 @@ def run_isolated():
         except Exception as e:
             print(json.dumps({{"error": f"Veri dosyası {{df_name}} yüklenemedi: {{str(e)}}"}}))
             return
-            
+
     locs["result"] = None
     locs["fig"] = None
-    
-    # Inject libraries for convenience
-    locs["pd"] = pd
-    locs["np"] = np
+
+    # İzole exec ortamı: os/sys/subprocess asla kullanıcı koduna sızmaz,
+    # tehlikeli builtin'ler (__import__, open, eval, exec, ...) ayıklanır.
+    _removed = {{"__import__", "open", "eval", "exec", "compile", "input",
+                  "breakpoint", "globals", "locals", "vars", "dir", "help",
+                  "exit", "quit"}}
+    _safe_builtins = {{name: getattr(_builtins, name) for name in dir(_builtins)
+                      if name not in _removed and not name.startswith("_")}}
+    exec_globals = {{
+        "__builtins__": _safe_builtins,
+        "__name__": "__sandbox__",
+        "pd": pd,
+        "np": np,
+        "json": json,
+    }}
     if HAS_PLOTLY:
-        locs["plotly"] = plotly
-        locs["px"] = px
-        locs["go"] = go
+        exec_globals["plotly"] = plotly
+        exec_globals["px"] = px
+        exec_globals["go"] = go
 
     try:
-        exec(user_code, globals(), locs)
+        exec(user_code, exec_globals, locs)
     except Exception as e:
         import traceback
         exc_type, exc_value, exc_traceback = sys.exc_info()

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { useBIStore, BACKEND_BASE } from '../context/store';
+import { useBIStore } from '../context/store';
+import { apiFetch } from '../api/client';
 import { translations } from '../context/translations';
 import { useDropzone } from 'react-dropzone';
 import { Upload, FileText, Trash2, FileSpreadsheet, Loader2, Eye } from 'lucide-react';
@@ -17,7 +18,12 @@ interface FileUploadProps {
 export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) => {
   const muiTheme = useTheme();
   const isDark = muiTheme.palette.mode === 'dark';
-  const { files, fetchFiles, deleteFile, activeSourceId, setActiveSourceId, language } = useBIStore();
+  const files = useBIStore((s) => s.files);
+  const fetchFiles = useBIStore((s) => s.fetchFiles);
+  const deleteFile = useBIStore((s) => s.deleteFile);
+  const activeSourceId = useBIStore((s) => s.activeSourceId);
+  const setActiveSourceId = useBIStore((s) => s.setActiveSourceId);
+  const language = useBIStore((s) => s.language);
   const t = translations[language];
 
   const [uploading, setUploading] = useState(false);
@@ -54,22 +60,16 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
         setUploading(true);
         setUploadError(null);
         try {
-          const res = await fetch(`${BACKEND_BASE}/api/files/${activeSourceId}/preview`);
-          if (res.ok) {
-            const data = await res.json();
-            setPreviewData({
-              columns: data.preview.columns,
-              rows: data.preview.rows,
-              row_count: data.preview.row_count,
-              alias: data.preview.alias,
-              id: data.preview.id,
-              schema: data.preview.schema
-            });
-            setPage(0);
-          } else {
-            const err = await res.json();
-            setUploadError(err.detail || (language === 'tr' ? 'Ön izleme yükleme hatası.' : 'Preview loading error.'));
-          }
+          const data = await apiFetch(`/api/files/${activeSourceId}/preview`);
+          setPreviewData({
+            columns: data.preview.columns,
+            rows: data.preview.rows,
+            row_count: data.preview.row_count,
+            alias: data.preview.alias,
+            id: data.preview.id,
+            schema: data.preview.schema
+          });
+          setPage(0);
         } catch (err: any) {
           setUploadError(err.message || (language === 'tr' ? 'Ön izleme alınırken bağlantı hatası oluştu.' : 'Connection error occurred while retrieving preview.'));
         } finally {
@@ -102,15 +102,13 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
     setUploading(true);
     
     try {
-      const response = await fetch(`${BACKEND_BASE}/api/files/upload`, {
+      const result = await apiFetch('/api/files/upload', {
         method: 'POST',
         body: formData,
       });
-      
-      const result = response.ok ? await response.json() : null;
-      
-      if (!response.ok || !result) {
-        const errDetail = result?.detail || (language === 'tr' ? 'Dosya yükleme hatası.' : 'File upload error.');
+
+      if (!result) {
+        const errDetail = (language === 'tr' ? 'Dosya yükleme hatası.' : 'File upload error.');
         throw new Error(errDetail);
       }
       
@@ -175,7 +173,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
       
       {/* View Header */}
       {!hideHeader && (
-        <Box sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', borderBottom: '1px solid', borderColor: 'divider', pb: 2.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', borderBottom: '1px solid', borderColor: 'var(--color-border)', pb: 2.5 }}>
           <Box>
             <Typography variant="h6" sx={{ fontWeight: 'extrabold', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: 1.5, textTransform: 'uppercase' }}>
               <FileSpreadsheet className="w-5 h-5 text-gh-accent" />
@@ -198,15 +196,15 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
             {...getRootProps()} 
             sx={{
               p: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center',
-              cursor: 'pointer', border: '2px dashed', borderColor: isDragActive ? '#0078d4' : 'divider', borderRadius: '8px',
-              bgcolor: isDragActive ? 'rgba(0, 120, 212, 0.04)' : 'rgba(0, 120, 212, 0.01)', transition: 'all 0.2s',
-              '&:hover': { borderColor: '#0078d4', bgcolor: 'rgba(0, 120, 212, 0.04)' }
+              cursor: 'pointer', border: '1.5px dashed', borderColor: isDragActive ? 'var(--color-accent)' : 'var(--color-border)', borderRadius: '12px',
+              bgcolor: isDragActive ? 'var(--color-accent-subtle)' : 'transparent', transition: 'all 0.2s',
+              '&:hover': { borderColor: 'var(--color-accent)', bgcolor: 'var(--color-accent-subtle)' }
             }}
           >
             <input {...getInputProps()} />
             <Box sx={{
-              width: 40, height: 40, borderRadius: '8px', border: '1px solid', borderColor: isDragActive ? '#0078d4' : 'divider',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 2, color: 'text.secondary', bgcolor: 'background.paper'
+              width: 40, height: 40, borderRadius: '8px', border: '1px solid', borderColor: isDragActive ? 'var(--color-accent)' : 'var(--color-border)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 2, color: 'text.secondary', bgcolor: 'var(--color-surface)'
             }}>
               {uploading ? (
                 <Loader2 className="w-5 h-5 animate-spin text-gh-accent" />
@@ -228,7 +226,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
                 <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>{t.clickToUpload}</Typography>
               </Box>
             )}
-            <span style={{ fontSize: 9, padding: '2px 6px', border: '1px solid rgba(0, 120, 212, 0.15)', background: 'rgba(0, 120, 212, 0.01)', color: '#9aa6bf', fontFamily: 'monospace', borderRadius: '4px', marginTop: 16 }}>
+            <span style={{ fontSize: 9, padding: '2px 6px', border: '1px solid var(--color-border)', background: 'var(--color-surface2)', color: 'var(--color-faint)', fontFamily: 'monospace', borderRadius: '4px', marginTop: 16 }}>
               {t.fileTypesLabel}
             </span>
           </Box>
@@ -249,9 +247,9 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
           )}
 
           {/* Uploaded Files List Card */}
-          <Card sx={{ bgcolor: 'rgba(0, 120, 212, 0.01)', borderRadius: '8px', border: '1px solid', borderColor: 'divider' }}>
+          <Card sx={{ bgcolor: 'var(--color-surface)', borderRadius: '12px', border: '1px solid', borderColor: 'var(--color-border)', boxShadow: 'var(--shadow-2)' }}>
             <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-              <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', display: 'block', mb: 2, borderBottom: '1px solid', borderColor: 'divider', pb: 1 }}>
+              <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', tracking: '0.05em', display: 'block', mb: 2, borderBottom: '1px solid', borderColor: 'var(--color-border)', pb: 1 }}>
                 {t.uploadedFilesCardTitle}
               </Typography>
               
@@ -264,13 +262,13 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
                       onClick={() => setActiveSourceId(file.id)}
                       sx={{
                         p: 1.2, borderRadius: '8px', border: '1px solid',
-                        borderColor: isSelected ? '#0078d4' : 'divider',
-                        bgcolor: isSelected ? 'rgba(0, 120, 212, 0.08)' : 'rgba(0, 120, 212, 0.02)',
+                        borderColor: isSelected ? 'var(--color-accent)' : 'var(--color-border)',
+                        bgcolor: isSelected ? 'var(--color-accent-subtle)' : 'transparent',
                         cursor: 'pointer', transition: 'all 0.2s',
-                        '&:hover': { bgcolor: isSelected ? 'rgba(0, 120, 212, 0.12)' : 'action.hover' }
+                        '&:hover': { bgcolor: isSelected ? 'var(--color-accent-subtle2)' : 'var(--color-surface2)' }
                       }}
                     >
-                      <Box sx={{ width: 28, height: 28, borderRadius: '6px', border: '1px solid', borderColor: isSelected ? 'rgba(0, 120, 212, 0.3)' : 'divider', display: 'flex', alignItems: 'center', justifyContent: 'center', color: isSelected ? '#0078d4' : 'text.secondary', bgcolor: 'background.paper', mr: 1.5, shrink: 0 }}>
+                      <Box sx={{ width: 28, height: 28, borderRadius: '6px', border: '1px solid', borderColor: isSelected ? 'rgba(129, 140, 248, 0.4)' : 'var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: isSelected ? 'var(--color-accent-fg)' : 'var(--color-faint)', bgcolor: 'var(--color-canvas)', mr: 1.5, shrink: 0 }}>
                         <FileSpreadsheet className="w-3.5 h-3.5" />
                       </Box>
                       <Box sx={{ minWidth: 0, flex: 1, pr: 3 }}>
@@ -278,7 +276,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
                           {file.alias}
                         </Typography>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.2, fontSize: 9, fontFamily: 'monospace', color: 'text.secondary' }}>
-                          <Chip label={language === 'tr' ? `${file.row_count} SATIR` : `${file.row_count} ROWS`} size="small" sx={{ height: 14, fontSize: 7.5, fontWeight: 600, bgcolor: 'rgba(0, 120, 212, 0.1)', color: '#0078d4', border: 0 }} />
+                          <Chip label={language === 'tr' ? `${file.row_count} SATIR` : `${file.row_count} ROWS`} size="small" sx={{ height: 14, fontSize: 7.5, fontWeight: 600, bgcolor: 'var(--color-surface2)', color: 'var(--color-muted)', border: '1px solid', borderColor: 'var(--color-border)' }} />
                           <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: 80 }} title={file.original_name}>{file.original_name}</span>
                         </Box>
                       </Box>
@@ -306,9 +304,9 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
 
         {/* Right Side: Preview Table Panel */}
         <Grid size={{ xs: 12, lg: 8 }} sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-          <Card sx={{ bgcolor: isDark ? 'rgba(0, 120, 212, 0.01)' : '#ffffff', borderRadius: '8px' }}>
+          <Card sx={{ bgcolor: isDark ? 'var(--color-surface)' : '#ffffff', borderRadius: '12px', border: '1px solid', borderColor: 'var(--color-border)', boxShadow: 'var(--shadow-2)' }}>
             <CardContent sx={{ p: 2.5 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', borderBottom: '1px solid', borderColor: 'divider', pb: 1.5, mb: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', borderBottom: '1px solid', borderColor: 'var(--color-border)', pb: 1.5, mb: 2 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Eye className="w-4 h-4 text-gh-accent" />
                   <Box>
@@ -321,11 +319,11 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
                   </Box>
                 </Box>
                 {uploading ? (
-                  <span style={{ fontSize: 8.5, color: '#0078d4', fontFamily: 'monospace', fontWeight: 600, animation: 'pulse 1.5s infinite' }}>
+                  <span style={{ fontSize: 8.5, color: 'var(--color-accent-fg)', fontFamily: 'monospace', fontWeight: 600, animation: 'pulse 1.5s infinite' }}>
                     {language === 'tr' ? 'AKILLI TARAMA ÇALIŞIYOR...' : 'SMART SCAN RUNNING...'}
                   </span>
                 ) : previewData ? (
-                  <Chip label={language === 'tr' ? `TOPLAM ${previewData.row_count} SATIR` : `TOTAL ${previewData.row_count} ROWS`} size="small" sx={{ height: 16, fontSize: 8.5, fontWeight: 600, bgcolor: 'rgba(0, 120, 212, 0.1)', color: '#0078d4', border: 0 }} />
+                  <Chip label={language === 'tr' ? `TOPLAM ${previewData.row_count} SATIR` : `TOTAL ${previewData.row_count} ROWS`} size="small" sx={{ height: 16, fontSize: 8.5, fontWeight: 600, bgcolor: 'var(--color-surface2)', color: 'var(--color-muted)', border: '1px solid', borderColor: 'var(--color-border)' }} />
                 ) : null}
               </Box>
 
@@ -359,7 +357,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
                         }
                         
                         return (
-                          <Box key={colName} sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1.5, py: 0.5, bgcolor: 'rgba(0, 120, 212, 0.01)', border: '1px solid', borderColor: 'divider', borderRadius: '6px' }}>
+                          <Box key={colName} sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1.5, py: 0.5, bgcolor: 'var(--color-surface2)', border: '1px solid', borderColor: 'var(--color-border)', borderRadius: '6px' }}>
                             <span style={{ fontFamily: 'monospace', fontSize: 10.5, fontWeight: 600 }}>{colName}</span>
                             <Chip label={colTypeLabel.toUpperCase()} size="small" color={color} sx={{ height: 14, fontSize: 7, fontWeight: 600, border: 0, borderRadius: '4px' }} />
                           </Box>
@@ -374,24 +372,24 @@ export const FileUpload: React.FC<FileUploadProps> = ({ hideHeader = false }) =>
                       {language === 'tr' ? 'Veri Tablosu (İlk 20 Satır)' : 'Data Table (First 20 Rows)'}
                     </Typography>
                     
-                    <TableContainer component={Paper} variant="outlined" sx={{ border: '1px solid', borderColor: 'divider', bgcolor: 'rgba(0, 120, 212, 0.01)', maxHeight: 380 }}>
+                    <TableContainer component={Paper} variant="outlined" sx={{ border: '1px solid', borderColor: 'var(--color-border)', bgcolor: 'var(--color-code-bg)', maxHeight: 380, borderRadius: '8px' }}>
                       <Table size="small" stickyHeader>
                         <TableHead>
                           <TableRow>
-                            <TableCell align="center" sx={{ fontWeight: 600, fontSize: 10.5, bgcolor: 'background.paper', borderRight: '1px solid', borderColor: 'divider', width: 48, p: 1 }}>{t.tableHeadNumber}</TableCell>
+                            <TableCell align="center" sx={{ fontWeight: 600, fontSize: 10.5, bgcolor: 'var(--color-canvas)', borderRight: '1px solid', borderColor: 'var(--color-border)', borderBottom: '1px solid var(--color-border)', width: 48, p: 1 }}>{t.tableHeadNumber}</TableCell>
                             {previewData.columns.map((col) => (
-                              <TableCell key={col} sx={{ fontWeight: 600, fontSize: 10.5, bgcolor: 'background.paper', borderRight: '1px solid', borderColor: 'divider', p: 1 }}>{col}</TableCell>
+                              <TableCell key={col} sx={{ fontWeight: 600, fontSize: 10.5, bgcolor: 'var(--color-canvas)', borderRight: '1px solid', borderColor: 'var(--color-border)', borderBottom: '1px solid var(--color-border)', p: 1 }}>{col}</TableCell>
                             ))}
                           </TableRow>
                         </TableHead>
                         <TableBody>
                           {visibleRows.map((row, rIdx) => (
                             <TableRow key={rIdx} hover>
-                              <TableCell align="center" sx={{ fontFamily: 'monospace', fontSize: 10, borderRight: '1px solid', borderColor: 'divider', p: 0.8, bgcolor: 'rgba(0, 120, 212, 0.02)' }}>
+                              <TableCell align="center" sx={{ fontFamily: 'monospace', fontSize: 10, borderRight: '1px solid', borderColor: 'var(--color-border)', p: 0.8, bgcolor: 'var(--color-canvas)' }}>
                                 {page * rowsPerPage + rIdx + 1}
                               </TableCell>
                               {previewData.columns.map((col) => (
-                                <TableCell key={col} sx={{ fontFamily: 'monospace', fontSize: 10, borderRight: '1px solid', borderColor: 'divider', p: 0.8, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxW: 140 }}>
+                                <TableCell key={col} sx={{ fontFamily: 'monospace', fontSize: 10, borderRight: '1px solid', borderColor: 'var(--color-border)', p: 0.8, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxW: 140 }}>
                                   {row[col] === null ? <span style={{ fontStyle: 'italic', opacity: 0.5 }}>—</span> : String(row[col])}
                                 </TableCell>
                               ))}

@@ -8,12 +8,14 @@ import uuid
 import shutil
 import pandas as pd
 from typing import Any, Dict, List
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 
 from app.database.manager import (
     add_uploaded_file, get_uploaded_files, get_file_by_id, delete_uploaded_file,
 )
+from app.core.audit import audit
+from app.core.auth import require_admin
 from app.core.logger import logger
 from app.core.config import settings
 
@@ -31,7 +33,7 @@ def list_files():
         return get_uploaded_files()
     except Exception as e:
         logger.error(f"list_files error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="INTERNAL_ERROR")
 
 
 @router.get("/{file_id}/preview")
@@ -73,6 +75,7 @@ def get_file_preview(file_id: str):
 async def upload_file(
     file: UploadFile = File(...),
     alias: str = Form(...),
+    admin: dict = Depends(require_admin),
 ):
     filename = file.filename
     suffix = os.path.splitext(filename)[1].lower()
@@ -84,6 +87,7 @@ async def upload_file(
         clean_alias = f"file_{uuid.uuid4().hex[:6]}"
 
     file_id = str(uuid.uuid4())
+    audit("file.upload", target=alias, detail={"filename": filename, "size_mb": round((file.size or 0) / 1e6, 2)}, user=admin)
     save_path = os.path.join(UPLOAD_DIR, f"{file_id}{suffix}")
 
     try:
@@ -141,7 +145,8 @@ async def upload_file(
 
 
 @router.delete("/{file_id}")
-def delete_file(file_id: str):
+def delete_file(file_id: str, admin: dict = Depends(require_admin)):
+    audit("file.delete", target=file_id, user=admin)
     success = delete_uploaded_file(file_id)
     if not success:
         raise HTTPException(status_code=404, detail="FILE_NOT_FOUND")

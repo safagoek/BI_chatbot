@@ -29,6 +29,12 @@ class Settings(BaseSettings):
     secret_key: str = "changeme_super_secret_key_32chars"
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 480
+    # REST + WebSocket istekleri için beklenen token (boş = dev modu, auth kapalı)
+    app_token: str = ""
+
+    @property
+    def auth_enabled(self) -> bool:
+        return bool(self.app_token.strip())
 
     # === Storage ===
     upload_dir: str = "./uploads"
@@ -44,9 +50,20 @@ class Settings(BaseSettings):
     rag_top_k: int = 3
     rag_max_correct_attempts: int = 3
 
+    # === Scheduled Reports / Mail ===
+    smtp_host: Optional[str] = None
+    smtp_port: int = 587
+    smtp_user: Optional[str] = None
+    smtp_password: Optional[str] = None
+    smtp_from: Optional[str] = None
+    smtp_tls: bool = True
+    schedules_enabled: bool = True
+
     # === Logging ===
     log_level: str = "INFO"
     log_file: Optional[str] = None
+    # text (insan-okur) | json (yapılandırılmış — log toplayıcılar için)
+    log_format: str = "text"
 
     # === Remote DB ===
     pg_host: Optional[str] = None

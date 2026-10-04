@@ -9,48 +9,48 @@
 
 :root {
   /* Typography — Fluent-approved stack */
-  --font-sans:           'Plus Jakarta Sans', 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
-  --font-mono:           'Cascadia Code', 'IBM Plex Mono', ui-monospace, monospace;
+  --font-sans:           'Inter', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono:           'IBM Plex Mono', 'Cascadia Code', ui-monospace, monospace;
 
   /* ─── Fluent Dark Ground (Default) ─── */
-  --color-bg:            #141414;       /* Fluent Ground / App background */
-  --color-canvas:        #1c1c1c;       /* Fluent Layer / Card background */
-  --color-surface:       #242424;       /* Fluent Layer 2 / Secondary surface */
-  --color-surface2:      #2c2c2c;       /* Fluent Layer 3 / Tertiary surface */
-  --color-border:        rgba(255, 255, 255, 0.0837); /* Fluent Stroke/Default */
-  --color-border2:       rgba(255, 255, 255, 0.0536); /* Fluent Stroke/Subtle */
-  --color-border-focus:  rgba(0, 120, 212, 0.7);      /* Fluent Stroke/Focus */
+  --color-bg:            #faf9f7;       /* Zinc-950 - app background */
+  --color-canvas:        #ffffff;       /* Panel background */
+  --color-surface:       #f6f5f2;       /* Card / secondary surface */
+  --color-surface2:      #edebe6;       /* Hover / tertiary surface */
+  --color-border:        rgba(28, 25, 23, 0.09); /* Default border */
+  --color-border2:       rgba(28, 25, 23, 0.05); /* Subtle border */
+  --color-border-focus:  rgba(201, 100, 66, 0.55);   /* Indigo focus */
 
   /* Text — Fluent Neutral Foreground */
-  --color-text:          #ffffff;           /* Rest Primary */
-  --color-text-2:        rgba(255,255,255,0.7844); /* Rest Secondary */
-  --color-muted:         rgba(255,255,255,0.5442); /* Rest Tertiary */
-  --color-faint:         rgba(255,255,255,0.3628); /* Rest Quaternary */
-  --color-disabled:      rgba(255,255,255,0.2168); /* Disabled */
+  --color-text:          #1f1e1c;           /* Primary text */
+  --color-text-2:        #44403c;           /* Secondary text */
+  --color-muted:         #78716c;           /* Muted text */
+  --color-faint:         #a8a29e;           /* Faint text */
+  --color-disabled:      #d6d3d1;           /* Disabled text */
 
   /* Accent — Communication Blue */
-  --color-accent:        #0078d4;           /* Fluent Communication Blue */
-  --color-accent-hover:  #1a86db;           /* Hover state */
-  --color-accent-press:  #006cbe;           /* Pressed state */
-  --color-accent-subtle: rgba(0, 120, 212, 0.1);
-  --color-accent-subtle2:rgba(0, 120, 212, 0.15);
-  --color-accent-fg:     #60cdff;           /* Accent Light on Dark */
+  --color-accent:        #c96442;           /* Indigo-500 */
+  --color-accent-hover:  #b8532f;           /* Indigo-400 hover */
+  --color-accent-press:  #a34628;           /* Indigo-600 press */
+  --color-accent-subtle: rgba(201, 100, 66, 0.09);
+  --color-accent-subtle2:rgba(201, 100, 66, 0.15);
+  --color-accent-fg:     #b8532f;           /* Indigo-300 on dark */
 
   /* Semantic Status */
-  --color-success:       #54b054;           /* Fluent Palette: Success */
-  --color-success-subtle:rgba(84, 176, 84, 0.12);
-  --color-warning:       #ffb900;           /* Fluent Palette: Warning */
-  --color-warning-subtle:rgba(255, 185, 0, 0.12);
-  --color-danger:        #d13438;           /* Fluent Palette: Error */
-  --color-danger-subtle: rgba(209, 52, 56, 0.12);
-  --color-info:          #0078d4;
-  --color-done:          #7a4dff;
+  --color-success:       #3f9d6f;           /* Emerald */
+  --color-success-subtle:rgba(63, 157, 111, 0.12);
+  --color-warning:       #d97706;           /* Amber */
+  --color-warning-subtle:rgba(217, 119, 6, 0.12);
+  --color-danger:        #dc2626;           /* Red-500 */
+  --color-danger-subtle: rgba(220, 38, 38, 0.08);
+  --color-info:          #b45309;
+  --color-done:          #8b5cf6;
 
   /* Code/Log surfaces */
-  --color-code-bg:       #1b1b1b;
-  --color-code-fg:       #d4d4d4;           /* VS Code Light+/Dark token */
-  --color-log-bg:        #141414;
-  --color-log-fg:        rgba(255,255,255,0.78);
+  --color-code-bg:       #f4f2ee;
+  --color-code-fg:       #292524;
+  --color-log-bg:        #f4f2ee;
+  --color-log-fg:        #44403c;
 
   /* Fluent Elevation Shadows */
   --shadow-2:   0 2px 4px rgba(0,0,0,0.14), 0 0px 2px rgba(0,0,0,0.12);
@@ -80,34 +80,34 @@
 
 /* ─── Explicit Dark Mode ─── */
 :root.dark {
-  --color-bg:            #141414;
-  --color-canvas:        #1c1c1c;
-  --color-surface:       #242424;
-  --color-surface2:      #2c2c2c;
-  --color-border:        rgba(255, 255, 255, 0.0837);
-  --color-border2:       rgba(255, 255, 255, 0.0536);
-  --color-border-focus:  rgba(0, 120, 212, 0.7);
-  --color-text:          #ffffff;
-  --color-text-2:        rgba(255,255,255,0.7844);
-  --color-muted:         rgba(255,255,255,0.5442);
-  --color-faint:         rgba(255,255,255,0.3628);
-  --color-disabled:      rgba(255,255,255,0.2168);
-  --color-accent:        #0078d4;
-  --color-accent-hover:  #1a86db;
-  --color-accent-press:  #006cbe;
-  --color-accent-subtle: rgba(0, 120, 212, 0.1);
-  --color-accent-subtle2:rgba(0, 120, 212, 0.15);
-  --color-accent-fg:     #60cdff;
-  --color-success:       #54b054;
-  --color-success-subtle:rgba(84, 176, 84, 0.12);
-  --color-warning:       #ffb900;
-  --color-warning-subtle:rgba(255, 185, 0, 0.12);
-  --color-danger:        #d13438;
-  --color-danger-subtle: rgba(209, 52, 56, 0.12);
-  --color-code-bg:       #1b1b1b;
-  --color-code-fg:       #d4d4d4;
-  --color-log-bg:        #141414;
-  --color-log-fg:        rgba(255,255,255,0.78);
+  --color-bg:            #1b1917;
+  --color-canvas:        #211f1c;
+  --color-surface:       #282521;
+  --color-surface2:      #332f2a;
+  --color-border:        rgba(255, 255, 255, 0.10);
+  --color-border2:       rgba(255, 255, 255, 0.06);
+  --color-border-focus:  rgba(224, 138, 99, 0.55);
+  --color-text:          #faf9f7;
+  --color-text-2:        #e7e5e4;
+  --color-muted:         #a8a29e;
+  --color-faint:         #78716c;
+  --color-disabled:      #57534e;
+  --color-accent:        #e08a63;
+  --color-accent-hover:  #e89a77;
+  --color-accent-press:  #c96442;
+  --color-accent-subtle: rgba(224, 138, 99, 0.14);
+  --color-accent-subtle2:rgba(224, 138, 99, 0.20);
+  --color-accent-fg:     #e8a07e;
+  --color-success:       #52b788;
+  --color-success-subtle:rgba(82, 183, 136, 0.14);
+  --color-warning:       #fbbf24;
+  --color-warning-subtle:rgba(251, 191, 36, 0.12);
+  --color-danger:        #f87171;
+  --color-danger-subtle: rgba(239, 68, 68, 0.12);
+  --color-code-bg:       #191715;
+  --color-code-fg:       #e7e5e4;
+  --color-log-bg:        #191715;
+  --color-log-fg:        #e7e5e4;
   --shadow-2:   0 2px 4px rgba(0,0,0,0.20), 0 0px 2px rgba(0,0,0,0.14);
   --shadow-4:   0 4px 8px rgba(0,0,0,0.26), 0 0px 2px rgba(0,0,0,0.14);
   --shadow-8:   0 8px 16px rgba(0,0,0,0.32), 0 0px 2px rgba(0,0,0,0.14);
@@ -117,41 +117,41 @@
 
 /* ─── Light Mode — Nordic Minimal Steel Theme foundation ─── */
 :root.light {
-  --color-bg:            #fafaf9;       /* Nordic warm off-white */
-  --color-canvas:        #ffffff;       /* Pure white Layer */
-  --color-surface:       #f2f1ef;       /* Nordic light steel grey */
-  --color-surface2:      #e8e6e2;       /* Nordic medium steel grey */
-  --color-border:        rgba(0, 0, 0, 0.09); /* Neutral steel border */
-  --color-border2:       rgba(0, 0, 0, 0.055);
-  --color-border-focus:  #0f766e;       /* Nordic Teal */
-  --color-text:          #1e293b;       /* Slate 800 text */
-  --color-text-2:        #334155;       /* Slate 700 secondary text */
-  --color-muted:         #64748b;       /* Slate 500 muted text */
-  --color-faint:         #94a3b8;       /* Slate 400 faint text */
-  --color-disabled:      #cbd5e1;       /* Slate 300 disabled text */
-  --color-accent:        #0f766e;       /* Nordic Teal Accent */
-  --color-accent-hover:  #0d9488;       /* Teal Hover */
-  --color-accent-press:  #115e59;       /* Teal Press */
-  --color-accent-subtle: rgba(15, 118, 110, 0.07);
-  --color-accent-subtle2:rgba(15, 118, 110, 0.12);
-  --color-accent-fg:     #0f766e;       /* High-readability Teal */
-  --color-success:       #059669;       /* Nordic Emerald */
-  --color-success-subtle:rgba(5, 150, 105, 0.08);
-  --color-warning:       #d97706;       /* Nordic Amber */
-  --color-warning-subtle:rgba(217, 119, 6, 0.08);
-  --color-danger:        #dc2626;       /* Nordic Red */
+  --color-bg:            #faf9f7;       /* Zinc-50 */
+  --color-canvas:        #ffffff;       /* Pure white panel */
+  --color-surface:       #f6f5f2;       /* Zinc-100 */
+  --color-surface2:      #edebe6;       /* Zinc-200 */
+  --color-border:        rgba(28, 25, 23, 0.09); /* Neutral border */
+  --color-border2:       rgba(28, 25, 23, 0.05);
+  --color-border-focus:  rgba(201, 100, 66, 0.55);       /* Indigo */
+  --color-text:          #1f1e1c;       /* Zinc-900 */
+  --color-text-2:        #44403c;       /* Zinc-700 */
+  --color-muted:         #78716c;       /* Zinc-500 */
+  --color-faint:         #a8a29e;       /* Zinc-400 */
+  --color-disabled:      #d6d3d1;       /* Zinc-300 */
+  --color-accent:        #c96442;       /* Indigo-500 */
+  --color-accent-hover:  #b8532f;       /* Indigo-600 hover */
+  --color-accent-press:  #a34628;       /* Indigo-700 press */
+  --color-accent-subtle: rgba(201, 100, 66, 0.09);
+  --color-accent-subtle2:rgba(201, 100, 66, 0.15);
+  --color-accent-fg:     #b8532f;       /* Indigo on light */
+  --color-success:       #3f9d6f;       /* Emerald */
+  --color-success-subtle:rgba(63, 157, 111, 0.12);
+  --color-warning:       #d97706;       /* Amber */
+  --color-warning-subtle:rgba(217, 119, 6, 0.12);
+  --color-danger:        #dc2626;       /* Red */
   --color-danger-subtle: rgba(220, 38, 38, 0.08);
-  --color-code-bg:       #f4f4f3;
-  --color-code-fg:       #111827;
-  --color-log-bg:        #fafaf9;
-  --color-log-fg:        #374151;
+  --color-code-bg:       #f4f2ee;
+  --color-code-fg:       #292524;
+  --color-log-bg:        #f4f2ee;
+  --color-log-fg:        #44403c;
   --shadow-2:   0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
   --shadow-4:   0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
   --shadow-8:   0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
   --shadow-16:  0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
   --shadow-28:  0 25px 50px -12px rgba(0, 0, 0, 0.08);
-  --color-done:          #6b21a8;
-  --color-info:          #0f766e;
+  --color-done:          #8b5cf6;
+  --color-info:          #b45309;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -188,13 +188,13 @@
 /* ─── Fluent Mica Aura — subtle background texture ─── */
 :root.dark body {
   background-image:
-    radial-gradient(ellipse 70% 45% at 15% 0%, rgba(0, 120, 212, 0.06) 0%, transparent 100%),
-    radial-gradient(ellipse 50% 35% at 90% 100%, rgba(96, 205, 255, 0.04) 0%, transparent 100%);
+    radial-gradient(ellipse 70% 45% at 15% 0%, rgba(201, 100, 66, 0.06) 0%, transparent 100%),
+    radial-gradient(ellipse 50% 35% at 90% 100%, rgba(224, 138, 99, 0.05) 0%, transparent 100%);
 }
 :root.light body {
   background-image:
-    radial-gradient(ellipse 70% 45% at 15% 0%, rgba(0, 120, 212, 0.05) 0%, transparent 100%),
-    radial-gradient(ellipse 40% 30% at 90% 100%, rgba(0, 90, 158, 0.03) 0%, transparent 100%);
+    radial-gradient(ellipse 70% 45% at 15% 0%, rgba(201, 100, 66, 0.05) 0%, transparent 100%),
+    radial-gradient(ellipse 40% 30% at 90% 100%, rgba(163, 70, 40, 0.03) 0%, transparent 100%);
 }
 
 .font-mono {
@@ -409,13 +409,13 @@
 }
 
 .label-blue   { background: rgba(0, 120, 212, 0.1);  border-color: rgba(0, 120, 212, 0.2);  color: #60cdff; }
-.label-green  { background: rgba(84, 176, 84, 0.1);  border-color: rgba(84, 176, 84, 0.2);  color: #54b054; }
+.label-green  { background: rgba(52, 211, 153, 0.1); border-color: rgba(52, 211, 153, 0.2); color: #34d399; }
 .label-orange { background: rgba(255, 185, 0, 0.1);  border-color: rgba(255, 185, 0, 0.2);  color: #ffb900; }
 .label-purple { background: rgba(122, 77, 255, 0.1); border-color: rgba(122, 77, 255, 0.2); color: #b08aff; }
 .label-muted  { background: var(--color-surface);    border-color: var(--color-border);      color: var(--color-muted); }
 .label-red    { background: rgba(209, 52, 56, 0.1);  border-color: rgba(209, 52, 56, 0.2);  color: #ff6b6b; }
 
-:root.light .label-blue   { color: #0078d4; }
+:root.light .label-blue   { color: #6366f1; }
 :root.light .label-green  { color: #107c10; }
 :root.light .label-orange { color: #986f0b; }
 :root.light .label-purple { color: #6b3eda; }
@@ -930,8 +930,8 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #0078d4;
-  box-shadow: 0 0 8px #0078d4;
+  background: #6366f1;
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.6);
   transition: all 0.2s ease;
 }
 .agent-step-node::after {

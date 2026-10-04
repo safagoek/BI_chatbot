@@ -2,6 +2,7 @@ import os
 import json
 import logging
 import re
+import asyncio
 from typing import Dict, Any, List, Optional, TypedDict
 import pandas as pd
 from langgraph.graph import StateGraph, END
@@ -120,42 +121,79 @@ class GraphSupervisorAgent(SupervisorAgent):
         state["source_meta"] = source_meta
         q_low = state["question"].lower()
         
-        # Slash Command Routing
+        # Slash Command Routing — tek doğruluk kaynağı: parsing.SLASH_COMMAND_TABLE
+        # (Supervisor yoluyla aynı tablo; alias'lar ve strip davranışı da ortak.)
         state["is_ml"] = False
-        
-        if q_low.startswith("/explain") or q_low.startswith("/konsept"):
-            state["intent"] = "conceptual"
-            state["bypass_execution"] = True
-            
-            schema_info = json.dumps(source_meta.get("schema", {}), ensure_ascii=False)
-            prompt = f"Sen bir Kıdemli Veri Analistisin. Aşağıdaki veritabanı/veri dosyası şemasını kullanıcıya güzel ve anlaşılır bir dille (Türkçe) açıkla. Hangi tablolar ve kolonlar var, bu veri ne işe yarayabilir özetle.\n\nŞema:\n{schema_info}"
-            
-            try:
-                state["final_response"] = await self._call_deepseek(prompt)
-            except Exception as e:
-                state["final_response"] = f"### Şema Açıklaması\n\n{schema_info}"
-            return state
-        elif q_low.startswith("/help"):
-            state["intent"] = "help"
-            state["bypass_execution"] = True
-            state["final_response"] = "### 📖 Kullanım Kılavuzu\n- `/graph`: Görsel çizdirir.\n- `/ask`: Veritabanında arama yapar ve metin olarak açıklar.\n- `/ml`, `/forecast`: Tahmin modelleri çalıştırır.\n- `/table`: Tablo formatında sonuç döndürür.\n- `/explain`: Veri kaynağının şemasını açıklar."
-            return state
-            
-        elif q_low.startswith("/ask"):
-            state["intent"] = "ask"
-        elif q_low.startswith("/graph"):
-            state["intent"] = "graph"
-        elif q_low.startswith("/table") or q_low.startswith("/sqlquery"):
-            state["intent"] = "table"
-        elif any(q_low.startswith(cmd) for cmd in ["/ml", "/forecast", "/corr", "/clean", "/pivot", "/pythonscript"]):
-            state["intent"] = "ml_task"
-            state["is_ml"] = True
+        state["forced_flags"] = {}
+
+        slash_match = parsing.match_slash_command(q_low)
+        if slash_match:
+            forced_intent, cleaned, is_ml_cmd, route_label = slash_match
+            state["question"] = cleaned          # komut metnini prompt'lardan temizle
+            q_low = cleaned.lower()
+            state["is_ml"] = is_ml_cmd
+            state["forced_flags"] = parsing.command_flags(parsing.find_command(cleaned) or "")
+            await self.notify(state, f"[RouterNode] Komut algılandı: {route_label}")
+
+            if forced_intent == "help":
+                state["bypass_execution"] = True
+                state["final_response"] = build_help_text()
+                return state
+            if forced_intent == "explain":
+                state["bypass_execution"] = True
+                schema_info = json.dumps(source_meta.get("schema", {}), ensure_ascii=False)
+                prompt = build_explain_prompt(schema_info, self._get_data_samples(source_meta) or "")
+                try:
+                    state["final_response"] = await self._call_deepseek(prompt)
+                except Exception:
+                    state["final_response"] = "### Veri Kümesi Açıklaması" + chr(10) + chr(10) + schema_info
+                return state
+            if forced_intent == "report":
+                state["bypass_execution"] = True
+                schema_info = json.dumps(source_meta.get("schema", {}), ensure_ascii=False)
+                prompt = build_report_prompt(schema_info)
+                try:
+                    state["final_response"] = await self._call_deepseek(prompt)
+                except Exception:
+                    state["final_response"] = "### Yönetici Raporu" + chr(10) + chr(10) + schema_info
+                return state
+            if forced_intent == "conceptual":
+                state["intent"] = "conceptual"
+                state["bypass_execution"] = True
+                schema_info = json.dumps(source_meta.get("schema", {}), ensure_ascii=False)
+                prompt = build_conceptual_prompt(schema_info, cleaned)
+                try:
+                    state["final_response"] = await self._call_deepseek(prompt)
+                except Exception:
+                    state["final_response"] = "### Kavramsal Açıklama" + chr(10) + chr(10) + schema_info
+                return state
+            if forced_intent == "ask":
+                state["intent"] = "ask"
+                state["forced_is_sql"] = source_meta["type"] == "database"
+            elif forced_intent == "sql_query":
+                state["intent"] = "table"
+                state["forced_is_sql"] = True
+            else:  # file_analysis grubu: /graph /ml /forecast /clean /pivot /corr /pythonscript
+                state["intent"] = "ml_task" if state["is_ml"] else "file_task"
+                state["forced_is_sql"] = False
         else:
+            # Kavramsal soru sezgisi — Supervisor yoluyla aynı
+            if parsing.is_conceptual_question(q_low):
+                state["intent"] = "conceptual"
+                state["bypass_execution"] = True
+                schema_info = json.dumps(source_meta.get("schema", {}), ensure_ascii=False)
+                prompt = build_conceptual_prompt(schema_info, state["question"])
+                try:
+                    state["final_response"] = await self._call_deepseek(prompt)
+                except Exception:
+                    state["final_response"] = "### Kavramsal Açıklama" + chr(10) + chr(10) + schema_info
+                return state
             state["intent"] = "auto"
             state["is_ml"] = any(kw in q_low for kw in FORECAST_KEYWORDS + ANOMALY_KEYWORDS + CLUSTERING_KEYWORDS)
-
-        # Determine if SQL or Pandas
-        if state["intent"] == "ml_task":
+        # Determine if SQL or Pandas (komut zorlaması varsa onu koru)
+        if state.get("forced_is_sql") is not None:
+            state["is_sql"] = state["forced_is_sql"]
+        elif state["intent"] == "ml_task":
             state["is_sql"] = False
         else:
             if source_meta["type"] == "database":
@@ -183,7 +221,8 @@ class GraphSupervisorAgent(SupervisorAgent):
     async def node_cache_check(self, state: AgentState) -> AgentState:
         source_meta = state["source_meta"]
         rag_key = source_meta.get("rag_key") or state["active_source_id"]
-        cached = check_cache(state["question"], rag_key, similarity_threshold=0.95)
+        # 0.95 pratikte neredeyse hiç eşleşmez; hafif parafraslarda da hit sağlar
+        cached = check_cache(state["question"], rag_key, similarity_threshold=0.92)
         if cached:
             intent, code = cached
             state["intent"] = intent
@@ -246,14 +285,14 @@ class GraphSupervisorAgent(SupervisorAgent):
         await self.notify(state, "[ExecutorNode] Kod çalıştırılıyor...")
         success = False
         res = None
-        
+
         if state["is_sql"]:
             try:
                 is_direct_db = state["source_meta"].get("type") == "database"
                 if is_direct_db:
                     db_type = state["source_meta"].get("db_type")
                     safe_sql = sanitize_and_validate_sql(state["generated_code"], db_type=db_type)
-                    res = self._execute_local_sql(safe_sql, state["source_meta"])
+                    res = await asyncio.to_thread(self._execute_local_sql, safe_sql, state["source_meta"])
                 else:
                     file_mappings = state["source_meta"].get("file_mappings", {})
                     if not file_mappings and state["source_meta"].get("type") == "file" and state["source_meta"].get("file_path"):
@@ -261,10 +300,27 @@ class GraphSupervisorAgent(SupervisorAgent):
                     db_sources = state["source_meta"].get("db_sources")
                     temp_dir = None
                     if db_sources:
-                        db_files, _, temp_dir = self._materialize_db_sources(db_sources, max_rows=50000)
+                        db_files, _, temp_dir = await asyncio.to_thread(self._materialize_db_sources, db_sources, max_rows=50000)
                         file_mappings = {**file_mappings, **db_files}
                     try:
-                        res = execute_duckdb_query(state["generated_code"], file_mappings)
+                        allowed_tables = set([k.lower() for k in file_mappings.keys()])
+                        if db_sources:
+                            for db in db_sources:
+                                db_id = db.get("id")
+                                for tbl in db.get("schema", {}).keys():
+                                    allowed_tables.add(f"{db_id}__{tbl}".lower())
+                        # Chat akışıyla aynı tablo adı otomatik düzeltme davranışı
+                        from app.core.table_resolver import resolve_unknown_tables
+                        sql_to_run, corrections, ambiguous, unknown = resolve_unknown_tables(state["generated_code"], allowed_tables)
+                        if corrections:
+                            await self.notify(state, "[AutoCorrectAgent] Tablo adı otomatik düzeltildi: " +
+                                              ", ".join(f"'{s}' → '{t}'" for s, t in corrections.items()))
+                        if unknown and not corrections:
+                            state["error"] = (f"Sorgudaki tablo isimleri belirsiz veya bulunamadı: {ambiguous or unknown}. "
+                                              f"Lütfen şu tablolardan birini kullanın: {sorted(list(allowed_tables))}")
+                            state["success"] = False
+                            return state
+                        res = await asyncio.to_thread(execute_duckdb_query, sql_to_run, file_mappings)
                     finally:
                         if temp_dir and os.path.exists(temp_dir):
                             import shutil
@@ -293,10 +349,10 @@ class GraphSupervisorAgent(SupervisorAgent):
                     db_sources = [state["source_meta"]]
                 temp_dir = None
                 if db_sources:
-                    db_files, _, temp_dir = self._materialize_db_sources(db_sources, max_rows=50000)
+                    db_files, _, temp_dir = await asyncio.to_thread(self._materialize_db_sources, db_sources, max_rows=50000)
                     file_mappings = {**file_mappings, **db_files}
                 try:
-                    res = self.sandbox.run_pandas_code(state["generated_code"], file_mappings)
+                    res = await asyncio.to_thread(self.sandbox.run_pandas_code, state["generated_code"], file_mappings)
                 finally:
                     if temp_dir and os.path.exists(temp_dir):
                         import shutil
@@ -321,13 +377,21 @@ class GraphSupervisorAgent(SupervisorAgent):
         
         return state
 
+    def _merged_analysis_flags(self, state: AgentState) -> dict:
+        """Keyword tespiti + slash komut zorlaması birleşik bayraklar."""
+        flags = parsing.detect_analysis_intents(state["question"].lower())
+        for k, v in (state.get("forced_flags") or {}).items():
+            flags[k] = flags[k] or v
+        return flags
+
     def _apply_ml_postprocessing(self, state: AgentState) -> AgentState:
         q_low = state["question"].lower()
         if not state.get("data") or len(state["data"].get("rows", [])) < 2:
             return state
 
+        flags = self._merged_analysis_flags(state)
         try:
-            if any(kw in q_low for kw in FORECAST_KEYWORDS):
+            if flags["is_forecast"]:
                 from app.core.predictor import run_time_series_forecast
                 import plotly.express as px
                 import plotly.graph_objects as go
@@ -361,7 +425,7 @@ class GraphSupervisorAgent(SupervisorAgent):
                     fig.update_layout(template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
                     state["visualization"] = json.loads(fig.to_json())
 
-            elif any(kw in q_low for kw in ANOMALY_KEYWORDS):
+            elif flags["is_anomaly"]:
                 from app.core.anomaly import detect_anomalies
                 import plotly.express as px
                 import plotly.graph_objects as go
@@ -394,7 +458,7 @@ class GraphSupervisorAgent(SupervisorAgent):
                     fig.update_layout(template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
                     state["visualization"] = json.loads(fig.to_json())
                     
-            elif any(kw in q_low for kw in CORRELATION_KEYWORDS):
+            elif flags["is_correlation"]:
                 from app.core.correlation import compute_correlation
                 import plotly.express as px
                 
@@ -412,7 +476,7 @@ class GraphSupervisorAgent(SupervisorAgent):
                     fig.update_layout(template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
                     state["visualization"] = json.loads(fig.to_json())
                     
-            elif any(kw in q_low for kw in CLUSTERING_KEYWORDS):
+            elif flags["is_clustering"]:
                 from app.core.clustering import run_kmeans_clustering
                 import plotly.express as px
                 

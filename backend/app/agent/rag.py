@@ -5,7 +5,7 @@ Self-RAG Katmanı:
 1. Retrieve  — TF-IDF + Cosine Similarity ile semantik sorgu arama
 2. Validate  — Üretilen kodun şema sütunlarıyla uyumunu kontrol et
 3. Execute   — Sandbox'ta çalıştır
-4. Correct   — Hata varsa LLM'e gönderip düzelт (max 3 deneme)
+4. Correct   — Hata varsa LLM'e gönderip düzelt (max 3 deneme)
 """
 import os
 import re
@@ -186,19 +186,24 @@ def _save_memory(data: List[Dict[str, Any]]):
 
 
 _embedding_model = None
+_embedding_model_failed = False
 
 def _get_embedding_model():
     """Lazy initializer for fastembed to avoid overhead if not used or during startup."""
-    global _embedding_model
+    global _embedding_model, _embedding_model_failed
     if _embedding_model is not None:
         return _embedding_model
+    # Başarısızlık kalıcıysa her istekte yeniden denemeyip spam log üretme
+    if _embedding_model_failed:
+        return None
     try:
         from fastembed import TextEmbedding
         logger.info("Initializing fastembed TextEmbedding model...")
         _embedding_model = TextEmbedding("sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
         return _embedding_model
     except Exception as e:
-        logger.warning(f"Could not initialize fastembed, falling back to TF-IDF: {e}")
+        _embedding_model_failed = True
+        logger.warning(f"Could not initialize fastembed, falling back to TF-IDF permanently: {e}")
         return None
 
 
@@ -296,11 +301,15 @@ def retrieve_similar(
             item_tf = _compute_tf(_tokenize(item.get("question", "")))
             score = _cosine_similarity(query_tf, item_tf)
             
-        # Boost positive/successful items
+        # Boost positive/successful items, penalize negatively fed-back ones
         if item.get("feedback") == "positive":
             score *= 1.3
+        elif item.get("feedback") == "negative":
+            score *= 0.5
         if item.get("execution_success", False):
             score *= 1.2
+        elif item.get("execution_success") is False:
+            score *= 0.7
             
         # 1. Jaccard Schema-Overlap Boost
         if active_cols:
@@ -340,13 +349,30 @@ def retrieve_similar(
         
     scored.sort(key=lambda x: x[0], reverse=True)
 
+    # ── Diversity Filter ─────────────────────────────────────────────────────
+    # Neredeyse birebir aynı soruları (token benzerliği > 0.75) tekrarlı seçim;
+    # tek tip örnek yerine çeşitli senaryolar sunar.
+    def _question_tokens(q: str) -> set:
+        return frozenset(_tokenize(q))
+
     # ── Schema Compatibility Filter ──────────────────────────────────────────
     # Discard RAG examples whose code references columns NOT in the active schema.
     # This prevents demo/old-dataset contamination when a new dataset is loaded.
     results = []
+    seen_token_sets: List[frozenset] = []
     for _, item in scored[:top_k * 2]:  # fetch 2x to have fallback after filtering
         if not active_cols:
+            # Benzerlik filtresi her durumda uygulanır
+            item_tokens = _question_tokens(item.get("question", ""))
+            if any(
+                len(item_tokens & prev) / max(1, len(item_tokens | prev)) > 0.75
+                for prev in seen_token_sets
+            ):
+                continue
+            seen_token_sets.append(item_tokens)
             results.append(item)
+            if len(results) >= top_k:
+                break
             continue
         code = item.get("code", "")
         # Extract column names from the code (SQL or Python)
@@ -354,7 +380,7 @@ def retrieve_similar(
         # Match SQL column references: SELECT col1, col2 or GROUP BY col
         for match in re.finditer(r'\b([a-zA-Z_ğüşöçİĞÜŞÖÇ][a-zA-Z0-9_ğüşöçİĞÜŞÖÇ]*)\b', code):
             col = match.group(1).lower()
-            # Skip SQL keywords and common names
+            # Skip SQL keywords, Python keywords, and common pandas methods/properties
             if col in {'select', 'from', 'where', 'group', 'by', 'order', 'limit',
                         'and', 'or', 'as', 'on', 'join', 'left', 'right', 'inner',
                         'count', 'sum', 'avg', 'min', 'max', 'round', 'cast', 'null',
@@ -366,17 +392,34 @@ def retrieve_similar(
                         'not', 'and', 'or', 'is', 'lambda', 'try', 'except', 'pass',
                         'none', 'true', 'false', 'self', 'class', 'yield', 'raise',
                         'from', 'import', 'global', 'nonlocal', 'assert', 'del',
-                        'break', 'continue', 'finally', 'while'}:
+                        'break', 'continue', 'finally', 'while', 'describe', 'head',
+                        'tail', 'info', 'groupby', 'mean', 'median', 'std', 'var',
+                        'sort_values', 'sort_index', 'reset_index', 'set_index',
+                        'drop', 'dropna', 'fillna', 'apply', 'map', 'agg', 'aggregate',
+                        'merge', 'concat', 'pivot', 'pivot_table', 'melt', 'values',
+                        'columns', 'index', 'dtypes', 'loc', 'iloc', 'plot', 'show',
+                        'to_dict', 'to_list', 'tolist', 'to_frame', 'copy', 'astype',
+                        'str', 'dt', 'unique', 'nunique', 'value_counts', 'corr', 'rolling'}:
                 continue
             code_cols.add(col)
         # If at least 30% of code columns match active schema, keep the example
+        keep = False
         if code_cols:
             overlap = code_cols & active_cols
             match_ratio = len(overlap) / len(code_cols) if code_cols else 0
             if match_ratio >= 0.3 or len(overlap) >= 2:
-                results.append(item)
+                keep = True
         else:
-            results.append(item)  # can't determine, keep it
+            keep = True  # can't determine, keep it
+        if keep:
+            item_tokens = _question_tokens(item.get("question", ""))
+            if any(
+                len(item_tokens & prev) / max(1, len(item_tokens | prev)) > 0.75
+                for prev in seen_token_sets
+            ):
+                continue
+            seen_token_sets.append(item_tokens)
+            results.append(item)
         if len(results) >= top_k:
             break
 

@@ -1,0 +1,75 @@
+# ====================================================================
+# Git Ignore Settings for DeepBI Agent
+# ====================================================================
+
+# Node.js / Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+.eslintcache
+
+# Python / Backend
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+htmlcov/
+.tox/
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+
+# Virtual Environments
+venv/
+.venv/
+env/
+.env
+ENV/
+
+# Database / Storage / Snapshots (Diskteki geçici ve dinamik dosyalar)
+*.db
+backend/demo.db
+backend/metadata.db
+backend/snapshots/*_snapshot.db
+!backend/snapshots/.gitkeep
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# IDEs & System
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== ↑ 以上同步自 .gitignore（「从 .gitignore 同步」只重写以上部分）=====
+.git/
+.hg/
+.svn/
+bower_components/
+jspm_packages/
+site-packages/
+coverage/
+lcov-report/
+cmakefiles/
+cmake-build-*/
+bazel-*/
+pods/
+deriveddata/
+storybook-static/
+playwright-report/
+test-results/
+allure-results/
+allure-report/
+cdk.out/
+*.egg-info/
+*.dist-info/
+eggs/
+pip-wheel-metadata/
+wheels/
+# ----- ↑ 以上为 ZCode 默认排除规则（自定义规则请写在本行下方，不会被同步/恢复改动）-----
+# 自定义规则写在下方（本行提示可删除）

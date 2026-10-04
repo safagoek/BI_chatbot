@@ -4,9 +4,11 @@ RAG bellek yönetim endpoint'leri.
 """
 import json
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from app.core.audit import audit
+from app.core.auth import require_admin
 from app.core.logger import logger
 
 router = APIRouter(prefix="/api/rag", tags=["rag"])
@@ -46,7 +48,7 @@ def get_rag_memory(source_id: Optional[str] = None):
         ]
     except Exception as e:
         logger.error(f"get_rag_memory error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="INTERNAL_ERROR")
 
 
 class RAGFeedbackUpdate(BaseModel):
@@ -63,11 +65,12 @@ def update_rag_feedback(question_b64: str, payload: RAGFeedbackUpdate):
         update_feedback(question, payload.feedback)
         return {"success": True}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("500 - %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="INTERNAL_ERROR")
 
 
 @router.delete("/memory/{question_b64}")
-def delete_rag_entry(question_b64: str):
+def delete_rag_entry(question_b64: str, admin: dict = Depends(require_admin)):
     """Belirli bir sorgu girişini RAG hafızasından siler."""
     try:
         import base64
@@ -93,11 +96,12 @@ def delete_rag_entry(question_b64: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("500 - %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="INTERNAL_ERROR")
 
 
 @router.delete("/memory")
-def clear_rag_memory(source_id: Optional[str] = None):
+def clear_rag_memory(source_id: Optional[str] = None, admin: dict = Depends(require_admin)):
     """Tüm RAG hafızasını veya belirli bir kaynağa ait girişleri temizler."""
     try:
         import sqlite3
@@ -122,4 +126,4 @@ def clear_rag_memory(source_id: Optional[str] = None):
         return {"success": True, "deleted_count": affected}
     except Exception as e:
         logger.error(f"clear_rag_memory error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="INTERNAL_ERROR")

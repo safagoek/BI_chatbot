@@ -1,4 +1,8 @@
 import { create } from 'zustand';
+import { apiFetch, BACKEND_BASE, getAuthToken, setAuthToken } from '../api/client';
+
+// Geriye dönük uyumluluk: bileşenler BACKEND_BASE'i buradan import ediyor.
+export { BACKEND_BASE };
 
 export interface FileSource {
   id: string;
@@ -57,8 +61,24 @@ export interface JoinRelation {
   joinType: 'auto' | 'inner' | 'left' | 'right' | 'full';
 }
 
+export interface AuthUser {
+  id: string;
+  username: string;
+  display_name: string;
+  role: 'admin' | 'user';
+  must_change_password: boolean;
+  source_ids: string[] | null; // null → tüm kaynaklara erişim (admin)
+}
+
 interface BIStore {
-  activeTab: 'chat' | 'files' | 'sources';
+  // Auth
+  user: AuthUser | null;
+  authChecked: boolean;
+  login: (username: string, password: string) => Promise<{ ok: boolean; error?: string }>;
+  logout: () => void;
+  fetchMe: () => Promise<void>;
+  setUser: (user: AuthUser | null) => void;
+
   sources: DBSource[];
   files: FileSource[];
   activeSourceId: string;
@@ -86,9 +106,12 @@ interface BIStore {
   visualizerDismissed: boolean;
   setVisualizerDismissed: (dismissed: boolean) => void;
 
+  // Sohbet görünümü: tek kolon (default) veya stüdyo (sağda sonuç paneli)
+  studioMode: boolean;
+  setStudioMode: (v: boolean) => void;
+
 
   // Actions
-  setActiveTab: (tab: 'chat' | 'files' | 'sources') => void;
   setApiConfig: (config: { apiKey: string; baseUrl: string; model: string }) => void;
   fetchApiConfig: () => Promise<void>;
   setActiveSourceId: (id: string) => Promise<void>;
@@ -108,12 +131,11 @@ interface BIStore {
   setJoinRelations: (relations: JoinRelation[]) => void;
   setShowSourcePicker: (show: boolean, mode?: 'edit' | 'create') => void;
   
-  sendMessage: (text: string) => void;
+  sendMessage: (text: string) => Promise<void>;
   clearChat: () => Promise<void>;
   updateMessageCode: (messageId: string, code: string, data: any, visualization: any, text: string, error?: string, auto_corrections?: any) => void;
 }
 
-export const BACKEND_BASE = (typeof window !== 'undefined') ? `${window.location.protocol}//${window.location.hostname}:8000` : 'http://127.0.0.1:8000';
 const BACKEND_URL = BACKEND_BASE.replace(/^https?:\/\//, '');
 
 const WELCOME_MSG: Message = {
@@ -140,7 +162,57 @@ const normalizeMessages = (msgs: any[]): Message[] =>
   }));
 
 export const useBIStore = create<BIStore>((set, get) => ({
-  activeTab: 'chat',
+  // ─── Auth ─────────────────────────────────────────────────────────────────
+  user: null,
+  authChecked: false,
+  setUser: (user) => set({ user }),
+
+  login: async (username, password) => {
+    try {
+      const res = await apiFetch<{ token: string; user: AuthUser }>('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ username, password }),
+      });
+      setAuthToken(res.token);
+      set({ user: res.user });
+      return { ok: true };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Giriş başarısız';
+      return {
+        ok: false,
+        error: msg.includes('INVALID_CREDENTIALS')
+          ? (localStorage.getItem('language') === 'en' ? 'Invalid username or password.' : 'Kullanıcı adı veya şifre hatalı.')
+          : msg,
+      };
+    }
+  },
+
+  logout: () => {
+    setAuthToken('');
+    set({
+      user: null,
+      sessions: [],
+      chatHistory: [],
+      activeSessionId: '',
+      activeSourceId: '',
+      selectedSourceIds: [],
+      joinRelations: [],
+    });
+  },
+
+  fetchMe: async () => {
+    if (!getAuthToken()) {
+      set({ user: null, authChecked: true });
+      return;
+    }
+    try {
+      const user = await apiFetch<AuthUser>('/api/auth/me');
+      set({ user, authChecked: true });
+    } catch {
+      set({ user: null, authChecked: true });
+    }
+  },
+
   sources: [],
   files: [],
   sessions: [],
@@ -158,6 +230,12 @@ export const useBIStore = create<BIStore>((set, get) => ({
   visualizerDismissed: false,
   setVisualizerDismissed: (dismissed) => set({ visualizerDismissed: dismissed }),
 
+  studioMode: (typeof window !== 'undefined' ? localStorage.getItem('studio_mode') === '1' : false),
+  setStudioMode: (v) => {
+    try { localStorage.setItem('studio_mode', v ? '1' : '0'); } catch { /* yoksay */ }
+    set({ studioMode: v, visualizerDismissed: false });
+  },
+
 
   activeSourceId: '',
   chatHistory: [WELCOME_MSG],
@@ -168,12 +246,9 @@ export const useBIStore = create<BIStore>((set, get) => ({
   showSourcePicker: false,
   sourcePickerMode: 'edit',
 
-  setActiveTab: (tab) => set({ activeTab: tab }),
-  
   setApiConfig: (config) => {
-    fetch(`${BACKEND_BASE}/api/settings`, {
+    apiFetch('/api/settings', {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(config)
     }).catch(err => console.error("Save settings to DB error", err));
 
@@ -185,11 +260,14 @@ export const useBIStore = create<BIStore>((set, get) => ({
 
   fetchApiConfig: async () => {
     try {
-      const res = await fetch(`${BACKEND_BASE}/api/settings`);
-      if (res.ok) {
-        const config = await res.json();
-        set({ apiConfig: config });
+      const config = await apiFetch('/api/settings');
+      // Backend gerçek anahtarı maskeler; localStorage'daki gerçek anahtarı koru.
+      const masked = (config as { apiKeyMasked?: boolean }).apiKeyMasked;
+      if (masked) {
+        delete (config as { apiKeyMasked?: boolean }).apiKeyMasked;
+        config.apiKey = localStorage.getItem('deepseek_key') || '';
       }
+      set({ apiConfig: config });
     } catch (e) {
       console.error("Fetch API config error", e);
     }
@@ -200,9 +278,8 @@ export const useBIStore = create<BIStore>((set, get) => ({
     const activeSessionId = get().activeSessionId;
     try {
       if (activeSessionId) {
-        await fetch(`${BACKEND_BASE}/api/sessions/${activeSessionId}`, {
+        await apiFetch(`/api/sessions/${activeSessionId}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ active_source_id: id })
         });
       }
@@ -220,8 +297,8 @@ export const useBIStore = create<BIStore>((set, get) => ({
 
   fetchSources: async () => {
     try {
-      const res = await fetch(`${BACKEND_BASE}/api/sources`);
-      if (res.ok) set({ sources: await res.json() });
+      const sources = await apiFetch('/api/sources');
+      set({ sources });
     } catch (e) {
       console.error("Sources fetch error", e);
     }
@@ -229,8 +306,8 @@ export const useBIStore = create<BIStore>((set, get) => ({
 
   fetchFiles: async () => {
     try {
-      const res = await fetch(`${BACKEND_BASE}/api/files`);
-      if (res.ok) set({ files: await res.json() });
+      const files = await apiFetch('/api/files');
+      set({ files });
     } catch (e) {
       console.error("Files fetch error", e);
     }
@@ -238,15 +315,13 @@ export const useBIStore = create<BIStore>((set, get) => ({
 
   deleteFile: async (id) => {
     try {
-      const res = await fetch(`${BACKEND_BASE}/api/files/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        await get().fetchFiles();
-        if (get().activeSourceId === id) get().setActiveSourceId(get().sources[0]?.id || get().files[0]?.id || '');
-        // Remove from multi-source selection if it was selected
-        set((state) => ({
-          selectedSourceIds: state.selectedSourceIds.filter(sid => sid !== id)
-        }));
-      }
+      await apiFetch(`/api/files/${id}`, { method: 'DELETE' });
+      await get().fetchFiles();
+      if (get().activeSourceId === id) get().setActiveSourceId(get().sources[0]?.id || get().files[0]?.id || '');
+      // Remove from multi-source selection if it was selected
+      set((state) => ({
+        selectedSourceIds: state.selectedSourceIds.filter(sid => sid !== id)
+      }));
     } catch (e) {
       console.error("File delete error", e);
     }
@@ -254,12 +329,11 @@ export const useBIStore = create<BIStore>((set, get) => ({
 
   addDBSource: async (db) => {
     try {
-      const res = await fetch(`${BACKEND_BASE}/api/sources`, {
+      await apiFetch('/api/sources', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(db)
       });
-      if (res.ok) await get().fetchSources();
+      await get().fetchSources();
     } catch (e) {
       console.error("DB Add error", e);
     }
@@ -270,17 +344,7 @@ export const useBIStore = create<BIStore>((set, get) => ({
   fetchSessions: async () => {
     await get().fetchApiConfig(); // Sync API config on mount
     try {
-      const res = await fetch(`${BACKEND_BASE}/api/sessions`);
-
-      if (!res.ok) return;
-
-      const backendSessions = await res.json();
-
-      // If no sessions exist in DB → create a default one
-      if (backendSessions.length === 0) {
-        await get().createSession('Varsayılan Sohbet');
-        return;
-      }
+      const backendSessions = await apiFetch('/api/sessions');
 
       const mappedSessions: ChatSession[] = backendSessions.map((s: any) => ({
         id: s.id,
@@ -291,6 +355,12 @@ export const useBIStore = create<BIStore>((set, get) => ({
         selectedSourceIds: s.selected_sources ? JSON.parse(s.selected_sources) : [],
         joinRelations: s.relationships ? JSON.parse(s.relationships) : []
       }));
+
+      // Hiç oturum yoksa boş başlangıç durumu göster — otomatik oturum oluşturma yok.
+      if (mappedSessions.length === 0) {
+        set({ sessions: [], activeSessionId: '', chatHistory: [] });
+        return;
+      }
 
       set({ sessions: mappedSessions });
 
@@ -309,35 +379,30 @@ export const useBIStore = create<BIStore>((set, get) => ({
   createSession: async (title) => {
     try {
       const activeSrc = get().activeSourceId || get().sources[0]?.id || get().files[0]?.id || '';
-      const res = await fetch(`${BACKEND_BASE}/api/sessions`, {
+      const newS = await apiFetch('/api/sessions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: title || 'Yeni Sohbet', active_source_id: activeSrc })
       });
-      if (res.ok) {
-        const newS = await res.json();
-        const newSession: ChatSession = {
-          id: newS.id,
-          title: newS.title,
-          activeSourceId: newS.active_source_id,
-          created_at: newS.created_at,
-          chatHistory: [WELCOME_MSG]
-        };
-        set((state) => ({
-          sessions: [newSession, ...state.sessions],
-          activeSessionId: newSession.id,
-          chatHistory: newSession.chatHistory,
-          activeSourceId: newSession.activeSourceId,
-          selectedSourceIds: [],
-          joinRelations: [],
-          activeTab: 'chat',
-          isThinking: false,
-          activeMessageId: null,
-          visualizerDismissed: false,
-        }));
+      const newSession: ChatSession = {
+        id: newS.id,
+        title: newS.title,
+        activeSourceId: newS.active_source_id,
+        created_at: newS.created_at,
+        chatHistory: [WELCOME_MSG]
+      };
+      set((state) => ({
+        sessions: [newSession, ...state.sessions],
+        activeSessionId: newSession.id,
+        chatHistory: newSession.chatHistory,
+        activeSourceId: newSession.activeSourceId,
+        selectedSourceIds: [],
+        joinRelations: [],
+        isThinking: false,
+        activeMessageId: null,
+        visualizerDismissed: false,
+      }));
 
-        localStorage.setItem('deepbi_active_session_id', newSession.id);
-      }
+      localStorage.setItem('deepbi_active_session_id', newSession.id);
     } catch (e) {
       console.error("Create session error", e);
     }
@@ -345,40 +410,35 @@ export const useBIStore = create<BIStore>((set, get) => ({
 
   selectSession: async (id) => {
     try {
-      const [msgRes, sessionRes] = await Promise.all([
-        fetch(`${BACKEND_BASE}/api/sessions/${id}/messages`),
-        fetch(`${BACKEND_BASE}/api/sessions/${id}`)
+      const [messages, sessionMeta] = await Promise.all([
+        apiFetch(`/api/sessions/${id}/messages`),
+        apiFetch(`/api/sessions/${id}`)
       ]);
 
-      if (msgRes.ok && sessionRes.ok) {
-        const messages = await msgRes.json();
-        const sessionMeta = await sessionRes.json();
+      const normalized = normalizeMessages(messages);
+      const history = normalized.length > 0 ? normalized : [WELCOME_MSG];
 
-        const normalized = normalizeMessages(messages);
-        const history = normalized.length > 0 ? normalized : [WELCOME_MSG];
+      const selectedSources = sessionMeta.selected_sources ? JSON.parse(sessionMeta.selected_sources) : [];
+      const relationships = sessionMeta.relationships ? JSON.parse(sessionMeta.relationships) : [];
 
-        const selectedSources = sessionMeta.selected_sources ? JSON.parse(sessionMeta.selected_sources) : [];
-        const relationships = sessionMeta.relationships ? JSON.parse(sessionMeta.relationships) : [];
+      set((state) => {
+        const updatedSessions = state.sessions.map(s =>
+          s.id === id ? { ...s, chatHistory: history, activeSourceId: sessionMeta.active_source_id, selectedSourceIds: selectedSources, joinRelations: relationships } : s
+        );
+        return {
+          activeSessionId: id,
+          chatHistory: history,
+          activeSourceId: sessionMeta.active_source_id,
+          selectedSourceIds: selectedSources,
+          joinRelations: relationships,
+          sessions: updatedSessions,
+          isThinking: false,
+          activeMessageId: null,
+          visualizerDismissed: false,
+        };
+      });
 
-        set((state) => {
-          const updatedSessions = state.sessions.map(s =>
-            s.id === id ? { ...s, chatHistory: history, activeSourceId: sessionMeta.active_source_id, selectedSourceIds: selectedSources, joinRelations: relationships } : s
-          );
-          return {
-            activeSessionId: id,
-            chatHistory: history,
-            activeSourceId: sessionMeta.active_source_id,
-            selectedSourceIds: selectedSources,
-            joinRelations: relationships,
-            sessions: updatedSessions,
-            isThinking: false,
-            activeMessageId: null,
-            visualizerDismissed: false,
-          };
-        });
-
-        localStorage.setItem('deepbi_active_session_id', id);
-      }
+      localStorage.setItem('deepbi_active_session_id', id);
     } catch (e) {
       console.error("Select session error", e);
     }
@@ -386,20 +446,18 @@ export const useBIStore = create<BIStore>((set, get) => ({
 
   deleteSession: async (id) => {
     try {
-      const res = await fetch(`${BACKEND_BASE}/api/sessions/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        set((state) => {
-          const updated = state.sessions.filter(s => s.id !== id);
-          if (updated.length === 0) {
-            // No sessions left — create fresh one async
-            setTimeout(() => get().createSession('Varsayılan Sohbet'), 50);
-            return { sessions: [], chatHistory: [WELCOME_MSG], activeSessionId: '' };
-          }
-          const nextId = state.activeSessionId === id ? updated[0].id : state.activeSessionId;
-          setTimeout(() => get().selectSession(nextId), 50);
-          return { sessions: updated, activeSessionId: nextId };
-        });
-      }
+      await apiFetch(`/api/sessions/${id}`, { method: 'DELETE' });
+      set((state) => {
+        const updated = state.sessions.filter(s => s.id !== id);
+        if (updated.length === 0) {
+          // Hiç oturum kalmadıysa boş başlangıç durumuna dön — otomatik oluşturma yok.
+          localStorage.removeItem('deepbi_active_session_id');
+          return { sessions: [], chatHistory: [], activeSessionId: '', activeSourceId: '', selectedSourceIds: [], joinRelations: [] };
+        }
+        const nextId = state.activeSessionId === id ? updated[0].id : state.activeSessionId;
+        setTimeout(() => get().selectSession(nextId), 50);
+        return { sessions: updated, activeSessionId: nextId };
+      });
     } catch (e) {
       console.error("Delete session error", e);
     }
@@ -407,16 +465,13 @@ export const useBIStore = create<BIStore>((set, get) => ({
 
   renameSession: async (id, title) => {
     try {
-      const res = await fetch(`${BACKEND_BASE}/api/sessions/${id}`, {
+      await apiFetch(`/api/sessions/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title })
       });
-      if (res.ok) {
-        set((state) => ({
-          sessions: state.sessions.map(s => s.id === id ? { ...s, title } : s)
-        }));
-      }
+      set((state) => ({
+        sessions: state.sessions.map(s => s.id === id ? { ...s, title } : s)
+      }));
     } catch (e) {
       console.error("Rename session error", e);
     }
@@ -425,9 +480,8 @@ export const useBIStore = create<BIStore>((set, get) => ({
   setSelectedSourceIds: (ids) => {
     const activeSessionId = get().activeSessionId;
     if (activeSessionId) {
-      fetch(`${BACKEND_BASE}/api/sessions/${activeSessionId}`, {
+      apiFetch(`/api/sessions/${activeSessionId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ selected_sources: ids })
       }).catch(err => console.error("Save selected sources error", err));
     }
@@ -443,9 +497,8 @@ export const useBIStore = create<BIStore>((set, get) => ({
   setJoinRelations: (relations) => {
     const activeSessionId = get().activeSessionId;
     if (activeSessionId) {
-      fetch(`${BACKEND_BASE}/api/sessions/${activeSessionId}`, {
+      apiFetch(`/api/sessions/${activeSessionId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ relationships: relations })
       }).catch(err => console.error("Save join relations error", err));
     }
@@ -461,7 +514,13 @@ export const useBIStore = create<BIStore>((set, get) => ({
 
   // ─── Messaging ─────────────────────────────────────────────────────────────
 
-  sendMessage: (text) => {
+  sendMessage: async (text) => {
+    // Aktif oturum yoksa (boş başlangıç durumu) ilk mesajla birlikte oturum oluştur.
+    if (!get().activeSessionId) {
+      await get().createSession();
+      if (!get().activeSessionId) return; // oturum oluşturulamadıysa devam etme
+    }
+
     const userMsgId = `user-${Date.now()}`;
     const agentMsgId = `agent-${Date.now()}`;
 
@@ -488,9 +547,8 @@ export const useBIStore = create<BIStore>((set, get) => ({
 
     // Update session title in DB if first message
     if (isFirstUserMessage && updatedTitle) {
-      fetch(`${BACKEND_BASE}/api/sessions/${get().activeSessionId}`, {
+      apiFetch(`/api/sessions/${get().activeSessionId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: updatedTitle })
       }).catch(err => console.error("Update session title error", err));
     }
@@ -500,6 +558,28 @@ export const useBIStore = create<BIStore>((set, get) => ({
     const socket = new WebSocket(`${wsProtocol}//${BACKEND_URL}/ws/chat`);
     // Guard: prevents onclose from double-resetting isThinking after a clean done/error
     let isDone = false;
+
+    // Streaming token buffer
+    let tokenBuffer = "";
+    let tokenFlushTimer: ReturnType<typeof setTimeout> | null = null;
+    const flushTokens = () => {
+      if (tokenFlushTimer) { clearTimeout(tokenFlushTimer); tokenFlushTimer = null; }
+      if (!tokenBuffer) return;
+      const chunk = tokenBuffer;
+      tokenBuffer = "";
+      set((state) => {
+        const history = [...state.chatHistory];
+        const idx = history.findIndex(m => m.id === agentMsgId);
+        if (idx === -1) return {};
+        const m = { ...history[idx] };
+        m.text = (m.text || "") + chunk;
+        history[idx] = m;
+        const updatedSessions = state.sessions.map(sess =>
+          sess.id === state.activeSessionId ? { ...sess, chatHistory: history } : sess
+        );
+        return { chatHistory: history, sessions: updatedSessions };
+      });
+    };
 
     socket.onopen = () => {
       socket.send(JSON.stringify({
@@ -511,6 +591,7 @@ export const useBIStore = create<BIStore>((set, get) => ({
         api_key: get().apiConfig.apiKey,
         base_url: get().apiConfig.baseUrl,
         model: get().apiConfig.model,
+        token: getAuthToken(),
         user_msg_id: userMsgId,
         agent_msg_id: agentMsgId
       }));
@@ -519,7 +600,16 @@ export const useBIStore = create<BIStore>((set, get) => ({
     socket.onmessage = (event) => {
       const msg = JSON.parse(event.data);
       // Mark terminal states before set() so the onclose guard activates immediately
-      if (msg.type === "done" || msg.type === "error") isDone = true;
+      if (msg.type === "done" || msg.type === "error") { flushTokens(); isDone = true; }
+
+      // Streaming: token parçalarını 80ms'lik buffer'la akıt (her token'da full re-render yok)
+      if (msg.type === "token") {
+        tokenBuffer += msg.delta || "";
+        if (!tokenFlushTimer) {
+          tokenFlushTimer = setTimeout(() => { tokenFlushTimer = null; flushTokens(); }, 80);
+        }
+        return;
+      }
       set((state) => {
         const history = [...state.chatHistory];
         const idx = history.findIndex(m => m.id === agentMsgId);
@@ -562,6 +652,7 @@ export const useBIStore = create<BIStore>((set, get) => ({
     };
 
     socket.onerror = () => {
+      flushTokens();
       isDone = true; // prevent onclose from firing an additional reset
       set((state) => {
         const history = [...state.chatHistory];
@@ -584,7 +675,7 @@ export const useBIStore = create<BIStore>((set, get) => ({
     const activeSessionId = get().activeSessionId;
     try {
       if (activeSessionId) {
-        await fetch(`${BACKEND_BASE}/api/sessions/${activeSessionId}/clear`, { method: 'POST' });
+        await apiFetch(`/api/sessions/${activeSessionId}/clear`, { method: 'POST' });
       }
     } catch (e) {
       console.error("Clear chat error", e);

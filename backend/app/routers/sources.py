@@ -4,7 +4,7 @@ Veri kaynağı CRUD endpoint'leri.
 """
 import uuid
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException, File, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
 from pydantic import BaseModel
 
 from app.database.manager import (
@@ -12,7 +12,9 @@ from app.database.manager import (
     update_data_source, update_source_schema, update_source_status,
     update_source_labels, get_semantic_mapping, save_semantic_mapping,
 )
-from app.database.connectors import test_connection, discover_schema
+from app.database.connectors import test_connection, test_connection_unicode, discover_schema
+from app.core.audit import audit
+from app.core.auth import get_allowed_source_ids, get_current_user, require_admin
 from app.core.logger import logger
 
 router = APIRouter(prefix="/api/sources", tags=["sources"])
@@ -51,12 +53,17 @@ class DBSourceCloneRequest(BaseModel):
 
 
 @router.get("")
-def list_sources():
+def list_sources(user: dict = Depends(get_current_user)):
     try:
-        return get_data_sources()
+        sources = get_data_sources()
+        allowed = get_allowed_source_ids(user)
+        if allowed is not None:
+            allowed_set = set(allowed)
+            sources = [s for s in sources if s["id"] in allowed_set]
+        return sources
     except Exception as e:
         logger.error(f"list_sources error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="INTERNAL_ERROR")
 
 
 @router.get("/local-sqlite-files")
@@ -82,7 +89,7 @@ def list_local_sqlite_files():
 
 
 @router.post("/upload-sqlite")
-async def upload_sqlite_file(file: UploadFile = File(...)):
+async def upload_sqlite_file(file: UploadFile = File(...), admin: dict = Depends(require_admin)):
     """Uploads a SQLite database file and saves it in the uploads directory."""
     import os
     import shutil
@@ -117,13 +124,13 @@ def get_source(source_id: str):
 
 
 @router.post("/test-connection")
-def test_source_connection(req: DBTestRequest):
-    success, message = test_connection(req.type, req.connection_details)
+def test_source_connection(req: DBTestRequest, admin: dict = Depends(require_admin)):
+    success, message = test_connection_unicode(req.type, req.connection_details)
     return {"success": success, "message": message}
 
 
 @router.post("/discover-schema")
-def discover_source_schema(req: DBTestRequest):
+def discover_source_schema(req: DBTestRequest, admin: dict = Depends(require_admin)):
     try:
         schema = discover_schema(req.type, req.connection_details)
         return {"success": True, "schema": schema, "table_count": len(schema)}
@@ -132,8 +139,9 @@ def discover_source_schema(req: DBTestRequest):
 
 
 @router.post("")
-def create_source(source: DBSourceCreate):
+def create_source(source: DBSourceCreate, admin: dict = Depends(require_admin)):
     source_id = f"db_{uuid.uuid4().hex[:8]}"
+    audit("source.create", target=source.display_name, detail={"type": source.type}, user=admin)
     try:
         schema = discover_schema(source.type, source.connection_details)
     except Exception as _e:
@@ -152,7 +160,8 @@ def create_source(source: DBSourceCreate):
 
 
 @router.put("/{source_id}")
-def update_source(source_id: str, source: DBSourceUpdate):
+def update_source(source_id: str, source: DBSourceUpdate, admin: dict = Depends(require_admin)):
+    audit("source.update", target=source_id, user=admin)
     sources = get_data_sources()
     target = next((s for s in sources if s["id"] == source_id), None)
     if not target:
@@ -188,7 +197,7 @@ def update_source(source_id: str, source: DBSourceUpdate):
 
 
 @router.put("/{source_id}/status")
-def update_source_status_endpoint(source_id: str, payload: DBSourceStatusUpdate):
+def update_source_status_endpoint(source_id: str, payload: DBSourceStatusUpdate, admin: dict = Depends(require_admin)):
     success = update_source_status(source_id, payload.is_active)
     if not success:
         raise HTTPException(status_code=404, detail="SOURCE_NOT_FOUND")
@@ -196,7 +205,7 @@ def update_source_status_endpoint(source_id: str, payload: DBSourceStatusUpdate)
 
 
 @router.put("/{source_id}/labels")
-def update_source_labels_endpoint(source_id: str, payload: DBSourceLabelsUpdate):
+def update_source_labels_endpoint(source_id: str, payload: DBSourceLabelsUpdate, admin: dict = Depends(require_admin)):
     success = update_source_labels(source_id, payload.labels)
     if not success:
         raise HTTPException(status_code=404, detail="SOURCE_NOT_FOUND")
@@ -204,7 +213,7 @@ def update_source_labels_endpoint(source_id: str, payload: DBSourceLabelsUpdate)
 
 
 @router.post("/{source_id}/clone")
-def clone_source(source_id: str, payload: DBSourceCloneRequest):
+def clone_source(source_id: str, payload: DBSourceCloneRequest, admin: dict = Depends(require_admin)):
     source = get_data_source_by_id(source_id)
     if not source:
         raise HTTPException(status_code=404, detail="SOURCE_NOT_FOUND")
@@ -220,7 +229,7 @@ def clone_source(source_id: str, payload: DBSourceCloneRequest):
 
 
 @router.post("/{source_id}/snapshot")
-def take_source_snapshot(source_id: str):
+def take_source_snapshot(source_id: str, admin: dict = Depends(require_admin)):
     from app.database.snapshots import create_database_snapshot
     try:
         result = create_database_snapshot(source_id)
@@ -232,7 +241,7 @@ def take_source_snapshot(source_id: str):
 
 
 @router.get("/{source_id}/snapshot/stream")
-def stream_source_snapshot(source_id: str, tables: Optional[str] = None):
+def stream_source_snapshot(source_id: str, tables: Optional[str] = None, admin: dict = Depends(require_admin)):
     from app.database.snapshots import yield_database_snapshot_progress
     from fastapi.responses import StreamingResponse
     import json
@@ -249,7 +258,7 @@ def stream_source_snapshot(source_id: str, tables: Optional[str] = None):
 
 
 @router.put("/{source_id}/refresh-schema")
-def refresh_schema(source_id: str):
+def refresh_schema(source_id: str, admin: dict = Depends(require_admin)):
     sources = get_data_sources()
     target = next((s for s in sources if s["id"] == source_id), None)
     if not target:
@@ -263,7 +272,8 @@ def refresh_schema(source_id: str):
 
 
 @router.delete("/{source_id}")
-def delete_source(source_id: str):
+def delete_source(source_id: str, admin: dict = Depends(require_admin)):
+    audit("source.delete", target=source_id, user=admin)
     import sqlite3 as sq
     from app.database.manager import DB_PATH
     conn = sq.connect(DB_PATH)
@@ -282,12 +292,14 @@ def get_source_semantic(source_id: str):
     try:
         return get_semantic_mapping(source_id)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("500 - %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="INTERNAL_ERROR")
 
 
 @router.post("/{source_id}/semantic")
-def update_source_semantic(source_id: str, mapping: Dict[str, Any]):
+def update_source_semantic(source_id: str, mapping: Dict[str, Any], admin: dict = Depends(require_admin)):
     try:
+        audit("source.semantic_update", target=source_id, user=admin)
         success = save_semantic_mapping(source_id, mapping)
         if not success:
             raise HTTPException(status_code=400, detail="SEMANTIC_SAVE_FAILED")
@@ -295,7 +307,8 @@ def update_source_semantic(source_id: str, mapping: Dict[str, Any]):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("500 - %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="INTERNAL_ERROR")
 
 
 @router.get("/connectors/status")
